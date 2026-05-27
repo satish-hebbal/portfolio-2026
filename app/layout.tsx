@@ -6,6 +6,7 @@ import NavbarClient from "./components/layout/NavbarClient"
 import SmoothScroll from "./components/layout/SmoothScroll"
 import ScrollReset from "./components/layout/ScrollReset"
 import Footer from "./components/layout/footer"
+import PostHogProvider from "./components/layout/PostHogProvider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -50,14 +51,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className} suppressHydrationWarning>
-        <SmoothScroll />
-        <ScrollReset />
-        <NavbarClient />
-        <main>
-          {children}
-          <Analytics />
-        </main>
-        <Footer />
+        <PostHogProvider>
+          <SmoothScroll />
+          <ScrollReset />
+          <NavbarClient />
+          <main>
+            {children}
+            <Analytics />
+          </main>
+          <Footer />
+        </PostHogProvider>
       </body>
     </html>
   )
