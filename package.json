@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "@supabase/supabase-js": "^2.102.0",
     "@vercel/analytics": "^1.5.0",
     "framer-motion": "^12.35.2",
@@ -19,7 +21,8 @@
     "posthog-js": "^1.376.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "split-type": "^0.3.4"
+    "split-type": "^0.3.4",
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -27,6 +30,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.184.1",
     "eslint": "^9",
     "eslint-config-next": "^16.1.6",
     "tailwindcss": "^4",
