@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo, Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, useGLTF, Environment } from '@react-three/drei'
+import { OrbitControls, useGLTF, Environment, useProgress } from '@react-three/drei'
 import * as THREE from 'three'
 
 declare global {
@@ -800,6 +800,72 @@ function SoftShadow() {
   )
 }
 
+// ─── model loader overlay ─────────────────────────────────────────────────────
+
+function WalkmanLoaderOverlay({ darkBg }: { darkBg: boolean }) {
+  const { progress } = useProgress()
+  const [gone, setGone] = useState(false)
+  const done = progress >= 100
+
+  useEffect(() => {
+    if (!done) return
+    const t = setTimeout(() => setGone(true), 750)
+    return () => clearTimeout(t)
+  }, [done])
+
+  if (gone) return null
+
+  const fg = '#00ff88'
+  const fgDim = darkBg ? 'rgba(0,255,136,0.18)' : 'rgba(0,160,80,0.14)'
+  const textColor = darkBg ? 'rgba(0,255,136,0.75)' : 'rgba(0,130,70,0.82)'
+  const subColor = darkBg ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.22)'
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9990,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      background: darkBg ? '#000' : '#fff',
+      opacity: done ? 0 : 1,
+      transition: 'opacity 0.7s ease',
+      pointerEvents: done ? 'none' : 'all',
+    }}>
+      {/* Spinning arc — cassette reel feel */}
+      <div style={{
+        width: 38, height: 38,
+        borderRadius: '50%',
+        border: `2px solid ${fgDim}`,
+        borderTopColor: fg,
+        animation: 'reelSpin 1.1s linear infinite',
+        marginBottom: 28,
+      }} />
+
+      {/* Progress track */}
+      <div style={{ width: 160, height: 2, background: fgDim, borderRadius: 1, overflow: 'hidden', marginBottom: 12 }}>
+        <div style={{
+          width: `${progress}%`, height: '100%',
+          background: fg, borderRadius: 1,
+          transition: 'width 0.3s ease',
+        }} />
+      </div>
+
+      <div style={{
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: 8, color: textColor, letterSpacing: '0.1em',
+      }}>
+        {Math.round(progress)}%
+      </div>
+
+      <div style={{
+        fontFamily: '"Courier New", monospace',
+        fontSize: 10, color: subColor,
+        marginTop: 10, letterSpacing: '0.05em',
+      }}>
+        warming up the tape
+      </div>
+    </div>
+  )
+}
+
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function Cassette2() {
@@ -1170,6 +1236,9 @@ export default function Cassette2() {
   return (
     <div style={{ width: '100vw', height: '100vh', background: bgBase, transition: 'background 0.6s ease', position: 'relative', overflow: 'hidden' }}>
       <style>{`
+        @keyframes reelSpin {
+          to { transform: rotate(360deg); }
+        }
         @keyframes iconPop {
           0%   { opacity: 0; transform: scale(0.55) rotate(-15deg); }
           100% { opacity: 1; transform: scale(1) rotate(0deg); }
@@ -1220,6 +1289,8 @@ export default function Cassette2() {
           50%     { transform: translate(calc(-50% + 1.5vw), calc(-50% - 2.5vh)) scale(1.12); }
         }
       `}</style>
+
+      <WalkmanLoaderOverlay darkBg={darkBg} />
 
       <div style={{ position: 'fixed', top: 0, left: 0, width: 1, height: 1, opacity: 0, pointerEvents: 'none', overflow: 'hidden' }}>
         <div id="yt-player" />
