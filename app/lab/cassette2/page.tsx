@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback, Suspense } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, useGLTF, Environment, ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
 
@@ -49,7 +49,7 @@ const defaultDevParams: DevParams = {
   canvasRotation: 3.138,
   canvasW: 204,
   canvasH: 64,
-  fontSize: 5,
+  fontSize: 4,
   textX: 1,
   textY: -2,
   flipY: true,
@@ -71,12 +71,16 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
   let lastText = 'PASTE URL'
   let lastBlinking = true
 
-  function draw(text: string, showCursor: boolean) {
+  let isScrolling = false
+  let scrollText = ''
+  let scrollOffset = 0
+  let lastTextWidth = 100
+
+  function draw(text: string, showCursor: boolean, scrollX?: number) {
     const p = devParamsRef.current
     const cw = Math.max(1, Math.round(p.canvasW))
     const ch = Math.max(1, Math.round(p.canvasH))
 
-    // Resize canvas if dimensions changed (clears it automatically)
     if (canvas.width !== cw) canvas.width = cw
     if (canvas.height !== ch) canvas.height = ch
 
@@ -84,22 +88,18 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
     ctx.fillRect(0, 0, cw, ch)
 
     if (p.showBorder) {
-      // Canvas boundary
       ctx.strokeStyle = '#ff00ff'
       ctx.lineWidth = Math.max(2, Math.round(cw / 64))
       ctx.strokeRect(1, 1, cw - 2, ch - 2)
-      // Center crosshair
       ctx.strokeStyle = 'rgba(255,255,255,0.25)'
       ctx.lineWidth = 1
       ctx.beginPath()
       ctx.moveTo(cw / 2, 0); ctx.lineTo(cw / 2, ch)
       ctx.moveTo(0, ch / 2); ctx.lineTo(cw, ch / 2)
       ctx.stroke()
-      // Origin marker — red square at (0,0)
       const ms = Math.max(4, Math.round(cw / 20))
       ctx.fillStyle = '#ff0000'
       ctx.fillRect(0, 0, ms, ms)
-      // Text anchor — cyan crosshair at (cw/2+textX, ch/2+textY)
       const tx = cw / 2 + p.textX
       const ty = ch / 2 + p.textY
       ctx.strokeStyle = '#00ffff'
@@ -114,18 +114,29 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
 
     ctx.save()
     const fs = Math.max(1, Math.round(p.fontSize))
-    ctx.translate(cw / 2 + p.textX, ch / 2 + p.textY)
+    const xCenter = scrollX !== undefined ? scrollX : (cw / 2 + p.textX)
+    ctx.translate(xCenter, ch / 2 + p.textY)
     ctx.rotate(p.canvasRotation)
     if (p.mirrorX) ctx.scale(-1, 1)
+    ctx.imageSmoothingEnabled = false
     ctx.font = `${fs}px "Press Start 2P", monospace`
     ctx.fillStyle = '#00ff88'
     ctx.textBaseline = 'middle'
-    ctx.textAlign = 'center'
-    ctx.fillText(text.slice(0, 14), 0, 0)
-    if (showCursor) {
-      const tw = ctx.measureText(text.slice(0, 14)).width
+    ctx.textAlign = 'left'
+
+    const displayChars = (scrollX !== undefined ? text : text.slice(0, 14)).split('')
+    const charW = ctx.measureText('W').width || fs * 0.6
+    const spacing = charW * 1.2
+    lastTextWidth = displayChars.length * spacing
+
+    const xStart = scrollX !== undefined ? 0 : -lastTextWidth / 2
+    displayChars.forEach((ch, i) => {
+      ctx.fillText(ch, xStart + i * spacing, 0)
+    })
+
+    if (showCursor && scrollX === undefined) {
       const curH = Math.round(fs * 1.2)
-      ctx.fillRect(tw / 2 + 4, -curH / 2, 3, curH)
+      ctx.fillRect(xStart + lastTextWidth + 2, -curH / 2, 2, curH)
     }
     ctx.restore()
 
@@ -163,6 +174,7 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
   function updateDisplay(text: string, blinking = false) {
     lastText = text
     lastBlinking = blinking
+    isScrolling = false
     if (interval) { clearInterval(interval); interval = null }
     if (blinking) {
       cursorOn = true
@@ -177,7 +189,29 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
   }
 
   function redrawCurrent() {
+    if (isScrolling) return
     updateDisplay(lastText, lastBlinking)
+  }
+
+  function startScroll(text: string) {
+    if (interval) { clearInterval(interval); interval = null }
+    isScrolling = true
+    scrollText = text
+    const p = devParamsRef.current
+    scrollOffset = Math.max(1, Math.round(p.canvasW))
+  }
+
+  function stopScroll() {
+    isScrolling = false
+  }
+
+  function tickScroll() {
+    if (!isScrolling) return
+    const p = devParamsRef.current
+    const cw = Math.max(1, Math.round(p.canvasW))
+    scrollOffset -= 0.5
+    if (scrollOffset < -(lastTextWidth + 50)) scrollOffset = cw
+    draw(scrollText, false, scrollOffset)
   }
 
   function dispose() {
@@ -186,7 +220,7 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
     ;(mesh.material as THREE.MeshStandardMaterial).dispose()
   }
 
-  return { updateDisplay, redrawCurrent, dispose }
+  return { updateDisplay, redrawCurrent, startScroll, stopScroll, tickScroll, dispose }
 }
 
 // ─── dev panel ────────────────────────────────────────────────────────────────
@@ -413,27 +447,52 @@ function DevPanel({
 
 interface WalkmanProps {
   onPasteClick: () => void
-  onReady: (fn: (text: string, blinking?: boolean) => void, redraw: () => void) => void
+  onPlayPause: () => void
+  onMuteToggle: () => void
+  onStop: () => void
+  onForward: () => void
+  onRewind: () => void
+  onVolumeChange: (vol: number) => void
+  onVolumeEnd: () => void
+  onReady: (fn: (text: string, blinking?: boolean) => void, redraw: () => void, startScroll: (text: string) => void) => void
   devParamsRef: { current: DevParams }
 }
 
-function WalkmanModel({ onPasteClick, onReady, devParamsRef }: WalkmanProps) {
+function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForward, onRewind, onVolumeChange, onVolumeEnd, onReady, devParamsRef }: WalkmanProps) {
   const { scene } = useGLTF('/models/walkman/walkman.glb')
-  const { scene: threeScene } = useThree()
 
-  const reel1 = useRef<THREE.Object3D | null>(null)
-  const reel2 = useRef<THREE.Object3D | null>(null)
   const disposeRef = useRef<(() => void) | null>(null)
   const onPasteClickRef = useRef(onPasteClick)
+  const onPlayPauseRef = useRef<(() => void) | null>(null)
+  const onMuteToggleRef = useRef<(() => void) | null>(null)
+  const onStopRef = useRef<(() => void) | null>(null)
+  const onForwardRef = useRef<(() => void) | null>(null)
+  const onRewindRef = useRef<(() => void) | null>(null)
+  const onVolumeChangeRef = useRef(onVolumeChange)
+  const onVolumeEndRef = useRef(onVolumeEnd)
   useEffect(() => { onPasteClickRef.current = onPasteClick }, [onPasteClick])
+  useEffect(() => {
+    onPlayPauseRef.current = onPlayPause
+    onMuteToggleRef.current = onMuteToggle
+    onStopRef.current = onStop
+    onForwardRef.current = onForward
+    onRewindRef.current = onRewind
+  }, [onPlayPause, onMuteToggle, onStop, onForward, onRewind])
+  useEffect(() => { onVolumeChangeRef.current = onVolumeChange }, [onVolumeChange])
+  useEffect(() => { onVolumeEndRef.current = onVolumeEnd }, [onVolumeEnd])
 
-  const btnMeshes = useRef<THREE.Object3D[]>([])
-  const btnOrigScale = useRef<THREE.Vector3[]>([])
-  const btnOrigPos = useRef<THREE.Vector3[]>([])
+  const btnGroups = useRef<Record<string, THREE.Object3D[]>>({ paste: [], play: [], stop: [], forward: [], rewind: [] })
+  const btnOriginals = useRef<Map<THREE.Object3D, { scale: THREE.Vector3; pos: THREE.Vector3 }>>(new Map())
+  const animatingGroup = useRef<THREE.Object3D[]>([])
   const btnPress = useRef(0)
 
-  const rippleMeshRef = useRef<THREE.Mesh | null>(null)
-  const rippleT = useRef(1)
+  const isDraggingSlider = useRef(false)
+  const sliderStartY = useRef(0)
+  const sliderStartVol = useRef(50)
+
+  const tickScrollRef = useRef<() => void>(() => {})
+  const stopScrollRef = useRef<() => void>(() => {})
+  const wasPlayingRef = useRef(false)
   const isHovered = useRef(false)
 
   useEffect(() => {
@@ -447,21 +506,28 @@ function WalkmanModel({ onPasteClick, onReady, devParamsRef }: WalkmanProps) {
     scene.position.set(0.03 - center.x, -1.07, -center.z)
 
     let screenMesh: THREE.Mesh | null = null
-    btnMeshes.current = []
-    btnOrigScale.current = []
-    btnOrigPos.current = []
+    btnGroups.current = { paste: [], play: [], stop: [], forward: [], rewind: [] }
+    btnOriginals.current = new Map()
+    animatingGroup.current = []
 
     scene.traverse((obj) => {
       const n = obj.name
-      if (n === 'Inside1_low001') reel1.current = obj
-      if (n === 'Inside2_low001') reel2.current = obj
-      if (n === '8Bit_screen') screenMesh = obj as THREE.Mesh
 
-      if (n === 'Paste_click_button' || n === 'Cube003' || n === 'Cube003_1') {
-        btnMeshes.current.push(obj)
-        btnOrigScale.current.push(obj.scale.clone())
-        btnOrigPos.current.push(obj.position.clone())
+      if ((obj as THREE.Mesh).isMesh && /button|slider/i.test(n)) {
+        console.log('control:', n)
       }
+
+      const addToGroup = (group: string) => {
+        btnGroups.current[group].push(obj)
+        btnOriginals.current.set(obj, { scale: obj.scale.clone(), pos: obj.position.clone() })
+      }
+      if (n === 'Paste_click_button' || n === 'Cube003' || n === 'Cube003_1') addToGroup('paste')
+      else if (n.includes('Button1_low001')) addToGroup('play')
+      else if (n.includes('Button2_low001')) addToGroup('stop')
+      else if (n.includes('Button3_low001')) addToGroup('forward')
+      else if (n.includes('Button4_low001')) addToGroup('rewind')
+
+      if (n === '8Bit_screen') screenMesh = obj as THREE.Mesh
 
       if (n !== '8Bit_screen' && (obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh
@@ -478,11 +544,13 @@ function WalkmanModel({ onPasteClick, onReady, devParamsRef }: WalkmanProps) {
     })
 
     if (screenMesh) {
-      const { updateDisplay, redrawCurrent, dispose } = createDisplayUpdater(screenMesh as THREE.Mesh, devParamsRef)
+      const { updateDisplay, redrawCurrent, startScroll, stopScroll, tickScroll, dispose } = createDisplayUpdater(screenMesh as THREE.Mesh, devParamsRef)
       disposeRef.current = dispose
-      onReady(updateDisplay, redrawCurrent)
+      tickScrollRef.current = tickScroll
+      stopScrollRef.current = stopScroll
+      onReady(updateDisplay, redrawCurrent, startScroll)
       updateDisplay('PASTE URL', true)
-      document.fonts.load('5px "Press Start 2P"').then(() => {
+      document.fonts.load('4px "Press Start 2P"').then(() => {
         updateDisplay('PASTE URL', true)
       })
     }
@@ -490,60 +558,52 @@ function WalkmanModel({ onPasteClick, onReady, devParamsRef }: WalkmanProps) {
     return () => { disposeRef.current?.() }
   }, [scene])
 
-  useFrame(({ camera }, delta) => {
+  useFrame((_, delta) => {
     const playing = window.ytPlayer?.getPlayerState?.() === 1
     if (playing) {
-      if (reel1.current) reel1.current.rotation.z -= delta * 1.8
-      if (reel2.current) reel2.current.rotation.z -= delta * 1.8
+      tickScrollRef.current()
     }
+    if (!playing && wasPlayingRef.current) stopScrollRef.current()
+    wasPlayingRef.current = playing
 
     if (btnPress.current > 0) {
       btnPress.current = Math.max(0, btnPress.current - delta * 9)
       const t = Math.sin(btnPress.current * Math.PI)
-      btnMeshes.current.forEach((mesh, i) => {
-        const os = btnOrigScale.current[i]
-        const op = btnOrigPos.current[i]
-        if (os) mesh.scale.set(os.x * (1 - t * 0.20), os.y * (1 - t * 0.45), os.z * (1 - t * 0.20))
-        if (op) { mesh.position.copy(op); mesh.position.y -= t * 0.10 }
-        if ((mesh as THREE.Mesh).isMesh) {
-          const mat = (mesh as THREE.Mesh).material
-          const mats = Array.isArray(mat) ? mat : [mat]
-          mats.forEach(m => {
-            if (m instanceof THREE.MeshStandardMaterial) { m.emissiveIntensity = t * 0.8; m.emissive.setHex(0xffffff); m.needsUpdate = true }
-          })
-        }
+      animatingGroup.current.forEach((mesh) => {
+        const orig = btnOriginals.current.get(mesh)
+        if (!orig) return
+        mesh.scale.set(orig.scale.x * (1 - t * 0.08), orig.scale.y * (1 - t * 0.05), orig.scale.z * (1 - t * 0.08))
+        mesh.position.copy(orig.pos)
+        mesh.position.y -= t * 0.008
       })
-    } else {
-      btnMeshes.current.forEach((mesh, i) => {
-        if (btnOrigScale.current[i]) mesh.scale.copy(btnOrigScale.current[i])
-        if (btnOrigPos.current[i]) mesh.position.copy(btnOrigPos.current[i])
-        if ((mesh as THREE.Mesh).isMesh) {
-          const mat = (mesh as THREE.Mesh).material
-          const mats = Array.isArray(mat) ? mat : [mat]
-          mats.forEach(m => {
-            if (m instanceof THREE.MeshStandardMaterial) { m.emissiveIntensity = 0; m.needsUpdate = true }
-          })
-        }
-      })
-    }
-
-    if (rippleT.current < 1 && rippleMeshRef.current) {
-      rippleT.current = Math.min(1, rippleT.current + delta / 0.4)
-      const t = rippleT.current
-      rippleMeshRef.current.scale.setScalar(1 + t * 5)
-      rippleMeshRef.current.lookAt(camera.position)
-      ;(rippleMeshRef.current.material as THREE.MeshBasicMaterial).opacity = 1 - t
-      if (t >= 1) {
-        threeScene.remove(rippleMeshRef.current)
-        rippleMeshRef.current.geometry.dispose()
-        ;(rippleMeshRef.current.material as THREE.Material).dispose()
-        rippleMeshRef.current = null
+      if (btnPress.current === 0) {
+        animatingGroup.current.forEach((mesh) => {
+          const orig = btnOriginals.current.get(mesh)
+          if (orig) { mesh.scale.copy(orig.scale); mesh.position.copy(orig.pos) }
+        })
+        animatingGroup.current = []
       }
     }
   })
 
   const isBtn = (name: string) =>
-    name === 'Paste_click_button' || name === 'Cube003' || name === 'Cube003_1'
+    name === 'Paste_click_button' || name === 'Cube003' || name === 'Cube003_1' ||
+    name.includes('Button1_low001') || name.includes('Button2_low001') ||
+    name.includes('Button3_low001') || name.includes('Button4_low001') ||
+    name.includes('Slider1_low001') || name.includes('Slider2_low001')
+
+  const isSliderMesh = (name: string) =>
+    name.includes('Slider1_low001') || name.includes('Slider2_low001')
+
+  const pressGroup = (n: string) => {
+    btnPress.current = 1
+    if (n === 'Paste_click_button' || n === 'Cube003' || n === 'Cube003_1')
+      animatingGroup.current = btnGroups.current.paste
+    else if (n.includes('Button1_low001')) animatingGroup.current = btnGroups.current.play
+    else if (n.includes('Button2_low001')) animatingGroup.current = btnGroups.current.stop
+    else if (n.includes('Button3_low001')) animatingGroup.current = btnGroups.current.forward
+    else if (n.includes('Button4_low001')) animatingGroup.current = btnGroups.current.rewind
+  }
 
   const handlePointerOver = useCallback((e: any) => {
     if (isBtn(e.object?.name ?? '')) { document.body.style.cursor = 'pointer'; isHovered.current = true }
@@ -554,30 +614,46 @@ function WalkmanModel({ onPasteClick, onReady, devParamsRef }: WalkmanProps) {
   }, [])
 
   const handlePointerDown = useCallback((e: any) => {
-    if (isBtn(e.object?.name ?? '')) {
+    const n = e.object?.name ?? ''
+    if (isSliderMesh(n)) {
       e.stopPropagation()
-      btnPress.current = 1
-      if (rippleMeshRef.current) {
-        threeScene.remove(rippleMeshRef.current)
-        rippleMeshRef.current.geometry.dispose()
-        ;(rippleMeshRef.current.material as THREE.Material).dispose()
-        rippleMeshRef.current = null
-      }
-      const worldPos = new THREE.Vector3()
-      e.object.getWorldPosition(worldPos)
-      const geo = new THREE.TorusGeometry(0.18, 0.028, 8, 48)
-      const mat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 1.0, side: THREE.DoubleSide })
-      const torus = new THREE.Mesh(geo, mat)
-      torus.position.copy(worldPos)
-      threeScene.add(torus)
-      rippleMeshRef.current = torus
-      rippleT.current = 0
+      isDraggingSlider.current = true
+      sliderStartY.current = e.clientY ?? 0
+      sliderStartVol.current = window.ytPlayer?.getVolume?.() ?? 50
+    } else if (isBtn(n)) {
+      e.stopPropagation()
+      pressGroup(n)
     }
-  }, [threeScene])
+  }, [])
+
+  const handlePointerMove = useCallback((e: any) => {
+    if (!isDraggingSlider.current) return
+    const dy = sliderStartY.current - (e.clientY ?? 0)
+    const newVol = Math.max(0, Math.min(100, sliderStartVol.current + dy))
+    onVolumeChangeRef.current(Math.round(newVol))
+  }, [])
+
+  const handlePointerUp = useCallback(() => {
+    if (isDraggingSlider.current) {
+      isDraggingSlider.current = false
+      onVolumeEndRef.current()
+    }
+  }, [])
 
   const handleClick = useCallback((e: any) => {
     e.stopPropagation()
-    if (isBtn(e.object?.name ?? '')) { btnPress.current = 1; onPasteClickRef.current() }
+    const name = e.object?.name ?? ''
+    if (name === 'Paste_click_button' || name === 'Cube003' || name === 'Cube003_1') {
+      pressGroup(name); onPasteClickRef.current()
+    } else if (name.includes('Button1_low001')) {
+      pressGroup(name); onMuteToggleRef.current?.()
+    } else if (name.includes('Button2_low001')) {
+      pressGroup(name); onForwardRef.current?.()
+    } else if (name.includes('Button3_low001')) {
+      pressGroup(name); onRewindRef.current?.()
+    } else if (name.includes('Button4_low001')) {
+      pressGroup(name); onPlayPauseRef.current?.()
+    }
   }, [])
 
   return (
@@ -585,6 +661,9 @@ function WalkmanModel({ onPasteClick, onReady, devParamsRef }: WalkmanProps) {
       object={scene}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
     />
@@ -593,15 +672,53 @@ function WalkmanModel({ onPasteClick, onReady, devParamsRef }: WalkmanProps) {
 
 useGLTF.preload('/models/walkman/walkman.glb')
 
+// ─── retro status display ─────────────────────────────────────────────────────
+
+function RetroStatus({ status }: { status: string }) {
+  const [dotCount, setDotCount] = useState(0)
+
+  useEffect(() => {
+    if (status !== 'PLAYING') { setDotCount(0); return }
+    const id = setInterval(() => setDotCount(n => (n + 1) % 4), 380)
+    return () => clearInterval(id)
+  }, [status])
+
+  if (!status) return null
+
+  const map: Record<string, { icon: string; color: string }> = {
+    PLAYING:  { icon: '►',   color: 'rgba(0,160,75,1)'     },
+    PAUSED:   { icon: '❚❚',  color: 'rgba(160,110,0,0.85)' },
+    MUTED:    { icon: '⊘',   color: 'rgba(200,50,50,0.9)'  },
+    UNMUTED:  { icon: '♪',   color: 'rgba(0,150,120,0.9)'  },
+    '+10s':   { icon: '▶▶',  color: 'rgba(40,100,210,0.9)' },
+    '-10s':   { icon: '◀◀',  color: 'rgba(40,100,210,0.9)' },
+    LOADING:  { icon: '○',   color: 'rgba(0,0,0,0.38)'     },
+  }
+
+  const { icon, color } = map[status] ?? { icon: '·', color: 'rgba(0,0,0,0.38)' }
+  const trail = status === 'PLAYING' ? '.'.repeat(dotCount).padEnd(3, ' ') : ''
+
+  return (
+    <span style={{
+      fontFamily: '"Courier New", monospace',
+      fontSize: 11, letterSpacing: '0.14em', color,
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+    }}>
+      {icon}&nbsp;{status}{trail}
+    </span>
+  )
+}
+
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function Cassette2() {
   const [url, setUrl] = useState('')
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [error, setError] = useState('')
+  const [displayStatus, setDisplayStatus] = useState('')
   const [apiReady, setApiReady] = useState(false)
   const updateDisplayRef = useRef<((text: string, blinking?: boolean) => void) | null>(null)
   const redrawCurrentRef = useRef<(() => void) | null>(null)
+  const startScrollRef = useRef<((text: string) => void) | null>(null)
+  const currentUrlRef = useRef('')
   const devParamsRef = useRef<DevParams>({ ...defaultDevParams })
   const urlRef = useRef(url)
   useEffect(() => { urlRef.current = url }, [url])
@@ -629,21 +746,106 @@ export default function Cassette2() {
   const apiReadyRef = useRef(apiReady)
   useEffect(() => { apiReadyRef.current = apiReady }, [apiReady])
 
-  const stableHandlePasteClick = useCallback(() => {
-    const trimmed = urlRef.current.trim()
+  const handlePlayPause = useCallback(() => {
+    if (!window.ytPlayer) return
+    const state = window.ytPlayer.getPlayerState?.()
+    if (state === 1) {
+      window.ytPlayer.pauseVideo()
+      updateDisplayRef.current?.('PAUSED', false)
+      setDisplayStatus('PAUSED')
+    } else {
+      window.ytPlayer.playVideo()
+      updateDisplayRef.current?.(urlRef.current, false)
+    }
+  }, [setDisplayStatus])
+
+  const handleMuteToggle = useCallback(() => {
+    if (!window.ytPlayer) return
+    if (window.ytPlayer.isMuted?.()) {
+      window.ytPlayer.unMute()
+      updateDisplayRef.current?.('UNMUTED', false)
+      setDisplayStatus('UNMUTED')
+    } else {
+      window.ytPlayer.mute()
+      updateDisplayRef.current?.('MUTED', false)
+      setDisplayStatus('MUTED')
+    }
+    setTimeout(() => {
+      const st = window.ytPlayer?.getPlayerState?.()
+      if (st === 1) { startScrollRef.current?.(currentUrlRef.current); setDisplayStatus('PLAYING') }
+      else if (st === 2) { updateDisplayRef.current?.('PAUSED', false); setDisplayStatus('PAUSED') }
+      else { updateDisplayRef.current?.('PASTE URL', true); setDisplayStatus('') }
+    }, 1000)
+  }, [setDisplayStatus])
+
+  const handleStop = useCallback(() => {
+    window.ytPlayer?.stopVideo?.()
+    updateDisplayRef.current?.('PASTE URL', true)
+    setDisplayStatus('')
+  }, [setDisplayStatus])
+
+  const handleForward = useCallback(() => {
+    const t = window.ytPlayer?.getCurrentTime?.() ?? 0
+    window.ytPlayer?.seekTo?.(t + 10, true)
+    updateDisplayRef.current?.('+10s', false)
+    setDisplayStatus('+10s')
+    setTimeout(() => {
+      updateDisplayRef.current?.(urlRef.current || 'PASTE URL', !urlRef.current)
+      const st = window.ytPlayer?.getPlayerState?.()
+      setDisplayStatus(st === 1 ? 'PLAYING' : st === 2 ? 'PAUSED' : '')
+    }, 1000)
+  }, [setDisplayStatus])
+
+  const handleRewind = useCallback(() => {
+    const t = window.ytPlayer?.getCurrentTime?.() ?? 0
+    window.ytPlayer?.seekTo?.(Math.max(0, t - 10), true)
+    updateDisplayRef.current?.('-10s', false)
+    setDisplayStatus('-10s')
+    setTimeout(() => {
+      updateDisplayRef.current?.(urlRef.current || 'PASTE URL', !urlRef.current)
+      const st = window.ytPlayer?.getPlayerState?.()
+      setDisplayStatus(st === 1 ? 'PLAYING' : st === 2 ? 'PAUSED' : '')
+    }, 1000)
+  }, [setDisplayStatus])
+
+  const handleVolumeChange = useCallback((vol: number) => {
+    window.ytPlayer?.setVolume?.(vol)
+    updateDisplayRef.current?.(`VOL: ${vol}`, false)
+  }, [])
+
+  const handleVolumeEnd = useCallback(() => {
+    const state = window.ytPlayer?.getPlayerState?.()
+    if (state === 1) {
+      startScrollRef.current?.(currentUrlRef.current)
+    } else if (state === 2) {
+      updateDisplayRef.current?.('PAUSED', false)
+    } else {
+      updateDisplayRef.current?.('PASTE URL', true)
+    }
+  }, [])
+
+  const stableHandlePasteClick = useCallback(async () => {
+    let trimmed = urlRef.current.trim()
     if (!trimmed) {
-      updateDisplayRef.current?.('NO URL', true)
-      setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 2000)
+      try {
+        const clip = await navigator.clipboard.readText()
+        trimmed = clip.trim()
+        if (trimmed) setUrl(trimmed)
+      } catch { /* clipboard permission denied */ }
+    }
+    if (!trimmed) {
+      updateDisplayRef.current?.('NO INPUT', true)
+      setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 1500)
       return
     }
     const id = extractVideoId(trimmed)
     if (!id) {
-      updateDisplayRef.current?.('BAD URL :(', true)
-      setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 2000)
+      updateDisplayRef.current?.('BAD URL', true)
+      setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 1500)
       return
     }
-    setError('')
-    updateDisplayRef.current?.(trimmed, false)
+    currentUrlRef.current = trimmed
+    updateDisplayRef.current?.('LOADING..', false)
     const run = () => {
       if (window.ytPlayer?.loadVideoById) {
         window.ytPlayer.loadVideoById(id)
@@ -655,7 +857,19 @@ export default function Cassette2() {
         playerVars: { autoplay: 0, controls: 0, rel: 0 },
         events: {
           onReady: () => setTimeout(() => window.ytPlayer?.playVideo?.(), 2000),
-          onStateChange: (e: any) => setIsPlaying(e.data === window.YT.PlayerState.PLAYING),
+          onStateChange: (e: any) => {
+            const st = e.data
+            if (st === 1) {
+              startScrollRef.current?.(currentUrlRef.current)
+              setDisplayStatus('PLAYING')
+            } else if (st === 2) {
+              updateDisplayRef.current?.('PAUSED', false)
+              setDisplayStatus('PAUSED')
+            } else {
+              updateDisplayRef.current?.('PASTE URL', true)
+              setDisplayStatus('')
+            }
+          },
         },
       })
     }
@@ -687,8 +901,15 @@ export default function Cassette2() {
         <Suspense fallback={null}>
           <WalkmanModel
             onPasteClick={stableHandlePasteClick}
+            onPlayPause={handlePlayPause}
+            onMuteToggle={handleMuteToggle}
+            onStop={handleStop}
+            onForward={handleForward}
+            onRewind={handleRewind}
+            onVolumeChange={handleVolumeChange}
+            onVolumeEnd={handleVolumeEnd}
             devParamsRef={devParamsRef}
-            onReady={(fn, redraw) => { updateDisplayRef.current = fn; redrawCurrentRef.current = redraw }}
+            onReady={(fn, redraw, startScroll) => { updateDisplayRef.current = fn; redrawCurrentRef.current = redraw; startScrollRef.current = startScroll }}
           />
           <ContactShadows position={[0, -3.07, 0]} opacity={0.54} scale={14} blur={3} far={6} />
           <Environment preset="studio" />
@@ -708,43 +929,28 @@ export default function Cassette2() {
       <div
         style={{
           position: 'absolute', bottom: '2rem', left: '50%',
-          transform: 'translateX(-50%)', width: 'min(90vw, 500px)',
-          zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem',
+          transform: 'translateX(-50%)',
+          zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.45rem',
         }}
       >
-        {error && <span style={{ color: '#cc2200', fontSize: 12, fontFamily: '"Courier New", monospace' }}>{error}</span>}
-        <div style={{ display: 'flex', width: '100%' }}>
-          <input
-            value={url}
-            onChange={e => { setUrl(e.target.value); setError('') }}
-            onKeyDown={e => e.key === 'Enter' && stableHandlePasteClick()}
-            placeholder="Paste a YouTube URL..."
-            style={{
-              flex: 1, padding: '12px 16px',
-              background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.15)',
-              borderRight: 'none', borderRadius: '8px 0 0 8px',
-              color: '#111', fontSize: 14, outline: 'none', fontFamily: 'FunnelDisplay, sans-serif',
-            }}
-          />
-          <button
-            onClick={stableHandlePasteClick}
-            style={{
-              padding: '12px 24px', background: '#111', color: '#fff', border: 'none',
-              borderRadius: '0 8px 8px 0', fontSize: 14, cursor: 'pointer',
-              fontFamily: 'FunnelDisplay, sans-serif', fontWeight: 600,
-              letterSpacing: '0.03em', whiteSpace: 'nowrap',
-            }}
-          >
-            Load
-          </button>
-        </div>
-        {isPlaying
-          ? <span style={{ color: 'rgba(0,160,80,0.8)', fontSize: 11, fontFamily: '"Courier New", monospace', letterSpacing: '0.08em' }}>PLAYING</span>
-          : <span style={{ color: 'rgba(0,0,0,0.35)', fontSize: 11, fontFamily: 'FunnelDisplay, sans-serif' }}>Paste a URL, then click Load or the Walkman</span>
+        {displayStatus
+          ? <RetroStatus status={displayStatus} />
+          : <span style={{
+              fontFamily: '"Courier New", monospace', fontSize: 10,
+              color: 'rgba(0,0,0,0.38)', letterSpacing: '0.08em', whiteSpace: 'nowrap',
+            }}>
+              copy a youtube url · click the ▣ button beside the display
+            </span>
         }
+        <span style={{
+          fontFamily: '"Courier New", monospace', fontSize: 10,
+          color: 'rgba(0,0,0,0.18)', letterSpacing: '0.1em', whiteSpace: 'nowrap',
+        }}>
+          ► play&nbsp;&nbsp;·&nbsp;&nbsp;❚❚ pause&nbsp;&nbsp;·&nbsp;&nbsp;◀◀ rewind&nbsp;&nbsp;·&nbsp;&nbsp;▶▶ skip&nbsp;&nbsp;·&nbsp;&nbsp;⊘ mute
+        </span>
       </div>
 
-      <DevPanel devParamsRef={devParamsRef} onParamsChange={() => redrawCurrentRef.current?.()} />
+      {/* <DevPanel devParamsRef={devParamsRef} onParamsChange={() => redrawCurrentRef.current?.()} /> */}
     </div>
   )
 }
