@@ -1645,12 +1645,13 @@ export default function Cassette2() {
             zIndex: 99998,
             width: 'calc(100% - 2rem)',
             maxWidth: '360px',
-            background: darkBg ? 'rgba(14,14,16,0.94)' : 'rgba(255,255,255,0.97)',
-            border: darkBg ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.07)',
+            background: 'rgba(255,255,255,0.48)',
+            border: '1px solid rgba(255,255,255,0.55)',
             borderRadius: '12px',
             padding: '0.8rem 0.9rem',
-            boxShadow: darkBg ? '0 12px 40px rgba(0,0,0,0.55)' : '0 8px 32px rgba(0,0,0,0.12)',
-            backdropFilter: 'blur(16px)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+            backdropFilter: 'blur(22px)',
+            WebkitBackdropFilter: 'blur(22px)',
             display: 'flex',
             alignItems: 'flex-start',
             gap: '0.7rem',
@@ -1679,7 +1680,7 @@ export default function Cassette2() {
             <div style={{
               fontFamily: 'FunnelDisplay, sans-serif',
               fontSize: '13px', fontWeight: 600,
-              color: darkBg ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.82)',
+              color: 'rgba(0,0,0,0.82)',
               lineHeight: 1.3,
               paddingRight: '1.4rem',
             }}>
@@ -1689,7 +1690,7 @@ export default function Cassette2() {
               fontFamily: '"Courier New", monospace',
               fontSize: '10.5px',
               letterSpacing: '0.02em',
-              color: darkBg ? 'rgba(255,255,255,0.42)' : 'rgba(0,0,0,0.45)',
+              color: 'rgba(0,0,0,0.48)',
               lineHeight: 1.5,
               marginTop: '4px',
             }}>
@@ -1705,12 +1706,12 @@ export default function Cassette2() {
               width: '20px', height: '20px',
               padding: 0, border: 'none',
               borderRadius: '50%',
-              background: darkBg ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
+              background: 'rgba(0,0,0,0.06)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer',
             }}
           >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={darkBg ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.4)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
