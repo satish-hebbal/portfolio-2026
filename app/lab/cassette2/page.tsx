@@ -1647,7 +1647,6 @@ export default function Cassette2() {
             maxWidth: '360px',
             background: darkBg ? 'rgba(14,14,16,0.94)' : 'rgba(255,255,255,0.97)',
             border: darkBg ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.07)',
-            borderLeft: '3px solid rgba(0,255,136,0.55)',
             borderRadius: '12px',
             padding: '0.8rem 0.9rem',
             boxShadow: darkBg ? '0 12px 40px rgba(0,0,0,0.55)' : '0 8px 32px rgba(0,0,0,0.12)',
@@ -1675,15 +1674,7 @@ export default function Cassette2() {
                 </svg>
               </div>
             </div>
-          ) : (
-            <div style={{
-              flexShrink: 0, marginTop: '1px',
-              fontSize: 18, lineHeight: 1,
-              color: 'rgba(0,255,136,0.7)',
-            }}>
-              ◉
-            </div>
-          )}
+          ) : null}
           <div style={{ flex: 1, minWidth: 0, paddingTop: '1px' }}>
             <div style={{
               fontFamily: 'FunnelDisplay, sans-serif',
