@@ -1675,7 +1675,13 @@ export default function Cassette2() {
                 </svg>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <img
+              src="/images/lab/youtube-color-icon.svg"
+              alt=""
+              style={{ flexShrink: 0, width: 22, height: 22, marginTop: 1 }}
+            />
+          )}
           <div style={{ flex: 1, minWidth: 0, paddingTop: '1px' }}>
             <div style={{
               fontFamily: 'FunnelDisplay, sans-serif',
