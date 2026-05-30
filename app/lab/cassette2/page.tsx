@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback, Suspense } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, useGLTF, Environment, ContactShadows } from '@react-three/drei'
+import { useEffect, useRef, useState, useCallback, useMemo, Suspense } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { OrbitControls, useGLTF, Environment } from '@react-three/drei'
 import * as THREE from 'three'
 
 declare global {
@@ -60,7 +60,7 @@ const defaultDevParams: DevParams = {
 
 // ─── canvas texture display ───────────────────────────────────────────────────
 
-function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevParams }) {
+function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevParams }, invalidate: () => void) {
   const canvas = document.createElement('canvas')
   canvas.width = defaultDevParams.canvasW
   canvas.height = defaultDevParams.canvasH
@@ -124,7 +124,7 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
     ctx.textBaseline = 'middle'
     ctx.textAlign = 'left'
 
-    const displayChars = (scrollX !== undefined ? text : text.slice(0, 14)).split('')
+    const displayChars = (scrollX !== undefined ? text : text.slice(0, 16)).split('')
     const charW = ctx.measureText('W').width || fs * 0.6
     const spacing = charW * 1.2
     lastTextWidth = displayChars.length * spacing
@@ -135,8 +135,7 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
     })
 
     if (showCursor && scrollX === undefined) {
-      const curH = Math.round(fs * 1.2)
-      ctx.fillRect(xStart + lastTextWidth + 2, -curH / 2, 2, curH)
+      ctx.fillText('>', xStart + lastTextWidth + spacing * 0.4, 0)
     }
     ctx.restore()
 
@@ -148,6 +147,7 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
     tex.wrapT = THREE.RepeatWrapping
     tex.repeat.set(p.texRepeatX, p.texRepeatY)
     tex.needsUpdate = true
+    invalidate()
 
     if (mesh.material instanceof THREE.MeshStandardMaterial) {
       mesh.material.emissiveIntensity = p.emissiveIntensity
@@ -210,7 +210,7 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
     const p = devParamsRef.current
     const cw = Math.max(1, Math.round(p.canvasW))
     scrollOffset -= 0.5
-    if (scrollOffset < -(lastTextWidth + 50)) scrollOffset = cw
+    if (scrollOffset < 0) scrollOffset = cw
     draw(scrollText, false, scrollOffset)
   }
 
@@ -456,10 +456,12 @@ interface WalkmanProps {
   onVolumeEnd: () => void
   onReady: (fn: (text: string, blinking?: boolean) => void, redraw: () => void, startScroll: (text: string) => void) => void
   devParamsRef: { current: DevParams }
+  darkBg: boolean
 }
 
-function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForward, onRewind, onVolumeChange, onVolumeEnd, onReady, devParamsRef }: WalkmanProps) {
-  const { scene } = useGLTF('/models/walkman/walkman.glb')
+function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForward, onRewind, onVolumeChange, onVolumeEnd, onReady, devParamsRef, darkBg }: WalkmanProps) {
+  const { scene } = useGLTF('/models/walkman/walkman01.glb')
+  const { invalidate, gl } = useThree()
 
   const disposeRef = useRef<(() => void) | null>(null)
   const onPasteClickRef = useRef(onPasteClick)
@@ -481,6 +483,11 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   useEffect(() => { onVolumeChangeRef.current = onVolumeChange }, [onVolumeChange])
   useEffect(() => { onVolumeEndRef.current = onVolumeEnd }, [onVolumeEnd])
 
+  useEffect(() => {
+    gl.setClearColor(new THREE.Color(darkBg ? '#000000' : '#ffffff'), 0)
+    invalidate()
+  }, [darkBg])
+
   const btnGroups = useRef<Record<string, THREE.Object3D[]>>({ paste: [], play: [], stop: [], forward: [], rewind: [] })
   const btnOriginals = useRef<Map<THREE.Object3D, { scale: THREE.Vector3; pos: THREE.Vector3 }>>(new Map())
   const animatingGroup = useRef<THREE.Object3D[]>([])
@@ -494,6 +501,11 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   const stopScrollRef = useRef<() => void>(() => {})
   const wasPlayingRef = useRef(false)
   const isHovered = useRef(false)
+  const scrollFrameCount = useRef(0)
+  const driftTimeRef = useRef(0)
+  const idleTimeRef = useRef(0)
+  const sceneBasePosY = useRef(-1.07)
+  const pivotRef = useRef<THREE.Group>(null!)
 
   useEffect(() => {
     scene.rotation.y = 4.4
@@ -503,7 +515,11 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
     const box = new THREE.Box3().setFromObject(scene)
     const center = new THREE.Vector3()
     box.getCenter(center)
-    scene.position.set(0.03 - center.x, -1.07, -center.z)
+    // Center scene at pivot's local origin so rotation is around the visual center
+    scene.position.set(-center.x, -center.y, -center.z)
+    const basePosY = center.y - 1.07
+    sceneBasePosY.current = basePosY
+    pivotRef.current.position.set(0.03, basePosY, 0)
 
     let screenMesh: THREE.Mesh | null = null
     btnGroups.current = { paste: [], play: [], stop: [], forward: [], rewind: [] }
@@ -544,7 +560,7 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
     })
 
     if (screenMesh) {
-      const { updateDisplay, redrawCurrent, startScroll, stopScroll, tickScroll, dispose } = createDisplayUpdater(screenMesh as THREE.Mesh, devParamsRef)
+      const { updateDisplay, redrawCurrent, startScroll, stopScroll, tickScroll, dispose } = createDisplayUpdater(screenMesh as THREE.Mesh, devParamsRef, invalidate)
       disposeRef.current = dispose
       tickScrollRef.current = tickScroll
       stopScrollRef.current = stopScroll
@@ -555,15 +571,37 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
       })
     }
 
-    return () => { disposeRef.current?.() }
+    return () => {
+      disposeRef.current?.()
+      scene.traverse((obj) => {
+        if ((obj as THREE.Mesh).isMesh) {
+          (obj as THREE.Mesh).geometry.dispose()
+        }
+      })
+    }
   }, [scene])
 
   useFrame((_, delta) => {
     const playing = window.ytPlayer?.getPlayerState?.() === 1
     if (playing) {
-      tickScrollRef.current()
+      scrollFrameCount.current++
+      if (scrollFrameCount.current % 2 === 0) tickScrollRef.current()
+
+      driftTimeRef.current += delta
+      const t = driftTimeRef.current
+      pivotRef.current.rotation.y = t * 0.25
+      pivotRef.current.rotation.x = Math.sin(t * 0.19) * 0.013
+      pivotRef.current.position.y = THREE.MathUtils.lerp(pivotRef.current.position.y, sceneBasePosY.current, Math.min(1, delta * 4))
+
+      invalidate()
+    } else {
+      idleTimeRef.current += delta
+      pivotRef.current.position.y = sceneBasePosY.current + Math.sin(idleTimeRef.current * 0.65) * 0.2
+      invalidate()
     }
-    if (!playing && wasPlayingRef.current) stopScrollRef.current()
+    if (!playing && wasPlayingRef.current) {
+      stopScrollRef.current()
+    }
     wasPlayingRef.current = playing
 
     if (btnPress.current > 0) {
@@ -583,6 +621,7 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
         })
         animatingGroup.current = []
       }
+      invalidate()
     }
   })
 
@@ -603,6 +642,7 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
     else if (n.includes('Button2_low001')) animatingGroup.current = btnGroups.current.stop
     else if (n.includes('Button3_low001')) animatingGroup.current = btnGroups.current.forward
     else if (n.includes('Button4_low001')) animatingGroup.current = btnGroups.current.rewind
+    invalidate()
   }
 
   const handlePointerOver = useCallback((e: any) => {
@@ -657,20 +697,22 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   }, [])
 
   return (
-    <primitive
-      object={scene}
-      onClick={handleClick}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
-    />
+    <group ref={pivotRef}>
+      <primitive
+        object={scene}
+        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
+      />
+    </group>
   )
 }
 
-useGLTF.preload('/models/walkman/walkman.glb')
+useGLTF.preload('/models/walkman/walkman01.glb')
 
 // ─── retro status display ─────────────────────────────────────────────────────
 
@@ -709,12 +751,47 @@ function RetroStatus({ status }: { status: string }) {
   )
 }
 
+// ─── soft shadow ─────────────────────────────────────────────────────────────
+
+function SoftShadow() {
+  const texture = useMemo(() => {
+    const size = 256
+    const canvas = document.createElement('canvas')
+    canvas.width = size
+    canvas.height = size
+    const ctx = canvas.getContext('2d')!
+    const cx = size / 2
+    const gradient = ctx.createRadialGradient(cx, cx, 0, cx, cx, cx)
+    gradient.addColorStop(0,    'rgba(0,0,0,0.45)')
+    gradient.addColorStop(0.38, 'rgba(0,0,0,0.28)')
+    gradient.addColorStop(0.72, 'rgba(0,0,0,0.09)')
+    gradient.addColorStop(1,    'rgba(0,0,0,0)')
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, size, size)
+    return new THREE.CanvasTexture(canvas)
+  }, [])
+
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -3.07, 0]} scale={[2.5, 1.2, 1]}>
+      <planeGeometry args={[2, 2]} />
+      <meshBasicMaterial map={texture} transparent depthWrite={false} />
+    </mesh>
+  )
+}
+
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function Cassette2() {
   const [url, setUrl] = useState('')
   const [displayStatus, setDisplayStatus] = useState('')
+  const [thumbUrl, setThumbUrl] = useState('')
+  const [videoMeta, setVideoMeta] = useState<{ title: string; author: string } | null>(null)
+  const [darkBg, setDarkBg] = useState(false)
+  const [bgGlows, setBgGlows] = useState<{ r: number; g: number; b: number }[]>([])
+  const [glowKey, setGlowKey] = useState(0)
   const [apiReady, setApiReady] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
+  const [hoveredCtrl, setHoveredCtrl] = useState<string | null>(null)
   const updateDisplayRef = useRef<((text: string, blinking?: boolean) => void) | null>(null)
   const redrawCurrentRef = useRef<(() => void) | null>(null)
   const startScrollRef = useRef<((text: string) => void) | null>(null)
@@ -722,6 +799,12 @@ export default function Cassette2() {
   const devParamsRef = useRef<DevParams>({ ...defaultDevParams })
   const urlRef = useRef(url)
   useEffect(() => { urlRef.current = url }, [url])
+
+  useEffect(() => {
+    if (!darkBg) document.body.setAttribute('data-light-page', 'true')
+    else document.body.removeAttribute('data-light-page')
+    return () => document.body.removeAttribute('data-light-page')
+  }, [darkBg])
 
   useEffect(() => {
     if (!document.querySelector('link[href*="Press+Start+2P"]')) {
@@ -763,10 +846,12 @@ export default function Cassette2() {
     if (!window.ytPlayer) return
     if (window.ytPlayer.isMuted?.()) {
       window.ytPlayer.unMute()
+      setIsMuted(false)
       updateDisplayRef.current?.('UNMUTED', false)
       setDisplayStatus('UNMUTED')
     } else {
       window.ytPlayer.mute()
+      setIsMuted(true)
       updateDisplayRef.current?.('MUTED', false)
       setDisplayStatus('MUTED')
     }
@@ -782,6 +867,11 @@ export default function Cassette2() {
     window.ytPlayer?.stopVideo?.()
     updateDisplayRef.current?.('PASTE URL', true)
     setDisplayStatus('')
+    setIsMuted(false)
+    setThumbUrl('')
+    setVideoMeta(null)
+    setBgGlows([])
+    setGlowKey(0)
   }, [setDisplayStatus])
 
   const handleForward = useCallback(() => {
@@ -824,15 +914,60 @@ export default function Cassette2() {
     }
   }, [])
 
-  const stableHandlePasteClick = useCallback(async () => {
-    let trimmed = urlRef.current.trim()
-    if (!trimmed) {
-      try {
-        const clip = await navigator.clipboard.readText()
-        trimmed = clip.trim()
-        if (trimmed) setUrl(trimmed)
-      } catch { /* clipboard permission denied */ }
+  const extractColors = useCallback(async (videoId: string) => {
+    try {
+      const response = await fetch(`/api/thumbnail?id=${videoId}`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+
+      const img = new Image()
+      img.src = objectUrl
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject(new Error('image load failed'))
+      })
+
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width || 120
+      canvas.height = img.height || 90
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0)
+      URL.revokeObjectURL(objectUrl)
+
+      const w = canvas.width, h = canvas.height
+      const samples: { r: number; g: number; b: number }[] = []
+      for (let x = 0; x < 5; x++) {
+        for (let y = 0; y < 5; y++) {
+          const px = Math.floor((x / 4) * (w - 1))
+          const py = Math.floor((y / 4) * (h - 1))
+          const d = ctx.getImageData(px, py, 1, 1).data
+          samples.push({ r: d[0], g: d[1], b: d[2] })
+        }
+      }
+
+      const vibrance = (c: { r: number; g: number; b: number }) => {
+        const max = Math.max(c.r, c.g, c.b)
+        const min = Math.min(c.r, c.g, c.b)
+        return (max - min) / (max + 1)
+      }
+
+      samples.sort((a, b) => vibrance(b) - vibrance(a))
+      setBgGlows(samples.slice(0, 4))
+      setGlowKey(k => k + 1)
+    } catch (e) {
+      console.error('color extract failed:', e)
     }
+  }, [])
+
+  const stableHandlePasteClick = useCallback(async () => {
+    let trimmed = ''
+    try {
+      const clip = await navigator.clipboard.readText()
+      trimmed = clip.trim()
+    } catch { /* clipboard permission denied */ }
+    if (!trimmed) trimmed = urlRef.current.trim()
+    if (trimmed) setUrl(trimmed)
     if (!trimmed) {
       updateDisplayRef.current?.('NO INPUT', true)
       setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 1500)
@@ -845,7 +980,10 @@ export default function Cassette2() {
       return
     }
     currentUrlRef.current = trimmed
+    setThumbUrl(`https://img.youtube.com/vi/${id}/hqdefault.jpg`)
+    extractColors(id)
     updateDisplayRef.current?.('LOADING..', false)
+    setDisplayStatus('LOADING')
     const run = () => {
       if (window.ytPlayer?.loadVideoById) {
         window.ytPlayer.loadVideoById(id)
@@ -862,6 +1000,8 @@ export default function Cassette2() {
             if (st === 1) {
               startScrollRef.current?.(currentUrlRef.current)
               setDisplayStatus('PLAYING')
+              const data = window.ytPlayer?.getVideoData?.()
+              if (data?.title) setVideoMeta({ title: data.title, author: data.author ?? '' })
             } else if (st === 2) {
               updateDisplayRef.current?.('PAUSED', false)
               setDisplayStatus('PAUSED')
@@ -878,25 +1018,134 @@ export default function Cassette2() {
       const prev = window.onYouTubeIframeAPIReady
       window.onYouTubeIframeAPIReady = () => { setApiReady(true); prev?.(); run() }
     }
-  }, [])
+  }, [extractColors])
+
+  const bgBase = darkBg ? '#000000' : '#ffffff'
+  const glowGradient = bgGlows.length === 0
+    ? 'radial-gradient(ellipse at center, rgba(0,0,0,0) 0%, transparent 70%)'
+    : (() => {
+        const alphas = darkBg ? [0.82, 0.55, 0.3, 0.12] : [0.42, 0.26, 0.14, 0.06]
+        const positions = [0, 28, 55, 75]
+        const stops = bgGlows.map((c, i) =>
+          `rgba(${c.r},${c.g},${c.b},${alphas[i]}) ${positions[i]}%`
+        )
+        stops.push('transparent 88%')
+        return `radial-gradient(ellipse at center, ${stops.join(', ')})`
+      })()
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#ffffff', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ width: '100vw', height: '100vh', background: bgBase, transition: 'background 0.6s ease', position: 'relative', overflow: 'hidden' }}>
+      <style>{`
+        @keyframes glowBloom {
+          0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.18); }
+          40%  { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+          70%  { opacity: 1; transform: translate(-50%, -50%) scale(0.97); }
+          100% { opacity: 1; transform: translate(-50%, -50%) scale(1);    }
+        }
+        @keyframes iconPop {
+          0%   { opacity: 0; transform: scale(0.55) rotate(-15deg); }
+          100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+      `}</style>
+
       <div style={{ position: 'fixed', left: -9999, top: -9999, width: 200, height: 113, pointerEvents: 'none' }}>
         <div id="yt-player" />
       </div>
 
+      {/* bg toggle — vertical pill */}
+      <div
+        style={{
+          position: 'fixed' as const, top: '1rem', right: '1rem', zIndex: 10010,
+          width: '42px',
+          background: darkBg ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+          border: `1px solid ${darkBg ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`,
+          borderRadius: '21px',
+          backdropFilter: 'blur(12px)',
+          transition: 'background 0.35s ease, border-color 0.35s ease',
+          overflow: 'hidden',
+        }}
+      >
+        {/* sun — light mode */}
+        <button
+          onClick={() => setDarkBg(false)}
+          title="Light background"
+          style={{
+            width: '42px', height: '42px', borderRadius: '21px 21px 0 0',
+            background: !darkBg
+              ? 'radial-gradient(circle at center, rgba(255,165,30,0.22) 0%, transparent 72%)'
+              : 'none',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+            transition: 'background 0.4s ease',
+          }}
+        >
+          <img src="/images/lab/sun.png" alt="light mode"
+            style={{
+              width: '20px', height: '20px', objectFit: 'contain',
+              opacity: darkBg ? 0.28 : 1,
+              filter: !darkBg ? 'drop-shadow(0 0 5px rgba(255,160,20,0.9)) drop-shadow(0 0 10px rgba(255,130,0,0.5))' : 'none',
+              transition: 'opacity 0.35s ease, filter 0.35s ease',
+            }}
+          />
+        </button>
+
+        {/* moon — dark mode */}
+        <button
+          onClick={() => setDarkBg(true)}
+          title="Dark background"
+          style={{
+            width: '42px', height: '42px', borderRadius: '0 0 21px 21px',
+            background: darkBg
+              ? 'radial-gradient(circle at center, rgba(170,210,255,0.20) 0%, transparent 72%)'
+              : 'none',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+            transition: 'background 0.4s ease',
+          }}
+        >
+          <img src="/images/lab/moon.png" alt="dark mode"
+            style={{
+              width: '20px', height: '20px', objectFit: 'contain',
+              opacity: darkBg ? 1 : 0.28,
+              filter: darkBg ? 'drop-shadow(0 0 5px rgba(180,215,255,0.9)) drop-shadow(0 0 10px rgba(140,190,255,0.5))' : 'none',
+              transition: 'opacity 0.35s ease, filter 0.35s ease',
+            }}
+          />
+        </button>
+      </div>
+
+      {/* ambient glow — blooms in with shader-like animation on each new song.
+          Always behind canvas (z:0), canvas always transparent, so the model is never affected. */}
+      <div
+        key={glowKey}
+        style={{
+          position: 'absolute', top: '50%', left: '50%',
+          width: '150vw', height: '150vh',
+          background: glowGradient,
+          pointerEvents: 'none',
+          zIndex: 0,
+          mixBlendMode: 'normal' as const,
+          animation: glowKey > 0 ? 'glowBloom 3.6s cubic-bezier(0.16, 1, 0.3, 1) forwards' : 'none',
+          opacity: glowKey > 0 ? undefined : 0,
+          transform: glowKey > 0 ? undefined : 'translate(-50%, -50%)',
+        }}
+      />
+
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '55%',
+        background: `linear-gradient(to top, ${bgBase} 0%, transparent 100%)`,
+        transition: 'background 0.6s ease', pointerEvents: 'none', zIndex: 2,
+      }} />
+
       <Canvas
         camera={{ position: [0, 0.88, 11.32], fov: 43 }}
-        gl={{ antialias: true }}
-        shadows
-        style={{ background: '#ffffff' }}
+        gl={{ antialias: true, powerPreference: 'high-performance', stencil: false, depth: true, alpha: true }}
+        frameloop="demand"
+        dpr={[1, 1.5]}
+        style={{ position: 'relative', zIndex: 1 }}
       >
-        <color attach="background" args={['#ffffff']} />
-        <ambientLight intensity={0.25} />
-        <directionalLight position={[6.99, 20, -3.2]} intensity={3.06} castShadow shadow-mapSize={[1024, 1024]} />
-        <pointLight position={[-5, 4, -3]} intensity={1.13} color="#3355ff" />
-        <pointLight position={[3, -2, 5]} intensity={0.92} color="#ffaa44" />
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[6.99, 20, -3.2]} intensity={3.06} />
 
         <Suspense fallback={null}>
           <WalkmanModel
@@ -909,10 +1158,11 @@ export default function Cassette2() {
             onVolumeChange={handleVolumeChange}
             onVolumeEnd={handleVolumeEnd}
             devParamsRef={devParamsRef}
+            darkBg={darkBg}
             onReady={(fn, redraw, startScroll) => { updateDisplayRef.current = fn; redrawCurrentRef.current = redraw; startScrollRef.current = startScroll }}
           />
-          <ContactShadows position={[0, -3.07, 0]} opacity={0.54} scale={14} blur={3} far={6} />
-          <Environment preset="studio" />
+          <SoftShadow />
+          <Environment preset="studio" resolution={64} />
         </Suspense>
 
         <OrbitControls
@@ -923,6 +1173,7 @@ export default function Cassette2() {
           maxPolarAngle={Math.PI * 0.85}
           enableDamping
           dampingFactor={0.06}
+          regress
         />
       </Canvas>
 
@@ -937,18 +1188,119 @@ export default function Cassette2() {
           ? <RetroStatus status={displayStatus} />
           : <span style={{
               fontFamily: '"Courier New", monospace', fontSize: 10,
-              color: 'rgba(0,0,0,0.38)', letterSpacing: '0.08em', whiteSpace: 'nowrap',
+              color: darkBg ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.38)',
+              letterSpacing: '0.08em', whiteSpace: 'nowrap',
             }}>
               copy a youtube url · click the ▣ button beside the display
             </span>
         }
-        <span style={{
-          fontFamily: '"Courier New", monospace', fontSize: 10,
-          color: 'rgba(0,0,0,0.18)', letterSpacing: '0.1em', whiteSpace: 'nowrap',
-        }}>
-          ► play&nbsp;&nbsp;·&nbsp;&nbsp;❚❚ pause&nbsp;&nbsp;·&nbsp;&nbsp;◀◀ rewind&nbsp;&nbsp;·&nbsp;&nbsp;▶▶ skip&nbsp;&nbsp;·&nbsp;&nbsp;⊘ mute
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          {([
+            { id: 'play',   icon: '►',  label: 'play',   tip: 'Play the song — press the bottom-right button on the Walkman' },
+            { id: 'pause',  icon: '❚❚', label: 'pause',  tip: 'Pause the song — press the bottom-right button on the Walkman' },
+            { id: 'rewind', icon: '◀◀', label: 'rewind', tip: 'Rewind 10s — press the second button from the right' },
+            { id: 'skip',   icon: '▶▶', label: 'skip',   tip: 'Skip 10s — press the second button from the left' },
+            { id: 'mute',   icon: '⊘',  label: isMuted ? 'muted' : 'mute', tip: 'Mute or unmute — click the orange button on the side of the Walkman' },
+          ] as { id: string; icon: string; label: string; tip: string }[]).map((ctrl, i, arr) => (
+            <span key={ctrl.id} style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span
+                onMouseEnter={() => setHoveredCtrl(ctrl.id)}
+                onMouseLeave={() => setHoveredCtrl(null)}
+                style={{
+                  position: 'relative',
+                  fontFamily: '"Courier New", monospace', fontSize: 10,
+                  letterSpacing: '0.1em', whiteSpace: 'nowrap', cursor: 'default',
+                  color: ctrl.id === 'mute' && isMuted
+                    ? 'rgba(230,100,30,0.9)'
+                    : darkBg ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)',
+                  transition: 'color 0.25s ease',
+                  fontWeight: ctrl.id === 'mute' && isMuted ? 600 : 400,
+                }}
+              >
+                {ctrl.icon} {ctrl.label}
+                {hoveredCtrl === ctrl.id && (
+                  <span style={{
+                    position: 'absolute', bottom: 'calc(100% + 7px)', left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: darkBg ? 'rgba(20,20,20,0.93)' : 'rgba(255,255,255,0.95)',
+                    color: darkBg ? 'rgba(255,255,255,0.82)' : 'rgba(0,0,0,0.65)',
+                    fontSize: 9, fontFamily: '"Courier New", monospace',
+                    letterSpacing: '0.03em', lineHeight: 1.5,
+                    padding: '4px 8px', borderRadius: 5, whiteSpace: 'nowrap',
+                    backdropFilter: 'blur(10px)',
+                    border: darkBg ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.07)',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.12)',
+                    pointerEvents: 'none', zIndex: 100,
+                  }}>
+                    {ctrl.tip}
+                  </span>
+                )}
+              </span>
+              {i < arr.length - 1 && (
+                <span style={{
+                  color: darkBg ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)',
+                  fontSize: 7, margin: '0 7px',
+                }}>·</span>
+              )}
+            </span>
+          ))}
+        </div>
       </div>
+
+      {thumbUrl && (
+        <div style={{
+          position: 'fixed',
+          bottom: '5rem',
+          right: '1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          zIndex: 20,
+          opacity: 1,
+          transition: 'opacity 0.5s ease',
+        }}>
+          {videoMeta && (
+            <div style={{ textAlign: 'right', maxWidth: '160px' }}>
+              <div style={{
+                color: darkBg ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.78)',
+                fontSize: '11px',
+                fontFamily: '"Courier New", monospace',
+                letterSpacing: '0.01em',
+                lineHeight: 1.35,
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical' as const,
+                overflow: 'hidden',
+              }}>
+                {videoMeta.title}
+              </div>
+              {videoMeta.author && (
+                <div style={{
+                  color: darkBg ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.42)',
+                  fontSize: '9px',
+                  fontFamily: '"Courier New", monospace',
+                  letterSpacing: '0.07em',
+                  marginTop: '4px',
+                  textTransform: 'uppercase',
+                }}>
+                  {videoMeta.author}
+                </div>
+              )}
+            </div>
+          )}
+          <div style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '16px',
+            overflow: 'hidden',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+            border: darkBg ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.10)',
+            flexShrink: 0,
+          }}>
+            <img src={thumbUrl} alt="album art" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.38)', transformOrigin: 'center' }} />
+          </div>
+        </div>
+      )}
 
       {/* <DevPanel devParamsRef={devParamsRef} onParamsChange={() => redrawCurrentRef.current?.()} /> */}
     </div>
