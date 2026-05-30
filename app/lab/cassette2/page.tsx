@@ -1185,14 +1185,14 @@ export default function Cassette2() {
   const processUrl = useCallback((trimmed: string) => {
     if (!trimmed) {
       updateDisplayRef.current?.('NO INPUT', true)
-      showToast('Nothing to play', 'Paste a YouTube link first, then hit play.')
+      showToast('No tape loaded', 'Bring a YouTube URL — the Walkman does the rest.')
       setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 1500)
       return
     }
     const id = extractVideoId(trimmed)
     if (!id) {
       updateDisplayRef.current?.('BAD URL', true)
-      showToast("That's not a YouTube link", 'Paste a full youtube.com, youtu.be, or music.youtube.com URL.')
+      showToast("Wrong format", 'Needs a youtube.com, youtu.be, or music.youtube.com link.')
       setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 1500)
       return
     }
@@ -1634,7 +1634,7 @@ export default function Cassette2() {
 
       {/* <DevPanel devParamsRef={devParamsRef} onParamsChange={() => redrawCurrentRef.current?.()} /> */}
 
-      {/* Error toast — slides in from the top, stays until dismissed */}
+      {/* Toast — slides in from top, stays until dismissed */}
       {toast && (
         <div
           style={{
@@ -1644,31 +1644,32 @@ export default function Cassette2() {
             transform: 'translateX(-50%)',
             zIndex: 99998,
             width: 'calc(100% - 2rem)',
-            maxWidth: '380px',
-            background: darkBg ? 'rgba(20,20,22,0.92)' : 'rgba(255,255,255,0.96)',
-            border: darkBg ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
-            borderRadius: '14px',
-            padding: '0.85rem 0.9rem',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.35)',
-            backdropFilter: 'blur(14px)',
+            maxWidth: '360px',
+            background: darkBg ? 'rgba(14,14,16,0.94)' : 'rgba(255,255,255,0.97)',
+            border: darkBg ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.07)',
+            borderLeft: '3px solid rgba(0,255,136,0.55)',
+            borderRadius: '12px',
+            padding: '0.8rem 0.9rem',
+            boxShadow: darkBg ? '0 12px 40px rgba(0,0,0,0.55)' : '0 8px 32px rgba(0,0,0,0.12)',
+            backdropFilter: 'blur(16px)',
             display: 'flex',
             alignItems: 'flex-start',
-            gap: '0.75rem',
+            gap: '0.7rem',
             animation: 'toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
           {toast.thumb ? (
             <div style={{
               flexShrink: 0,
-              width: '48px', height: '48px',
-              borderRadius: '10px',
+              width: '44px', height: '44px',
+              borderRadius: '8px',
               overflow: 'hidden',
-              border: darkBg ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+              border: darkBg ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.07)',
               position: 'relative',
             }}>
-              <img src={toast.thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.38)', transformOrigin: 'center', filter: 'grayscale(0.4) brightness(0.7)' }} />
-              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.95)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <img src={toast.thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.38)', transformOrigin: 'center', filter: 'grayscale(0.35) brightness(0.65)' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="8" x2="12" y2="13" />
                   <line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
@@ -1676,17 +1677,11 @@ export default function Cassette2() {
             </div>
           ) : (
             <div style={{
-              flexShrink: 0,
-              width: '22px', height: '22px',
-              borderRadius: '50%',
-              background: 'rgba(230,100,30,0.14)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              marginTop: '1px',
+              flexShrink: 0, marginTop: '1px',
+              fontSize: 18, lineHeight: 1,
+              color: 'rgba(0,255,136,0.7)',
             }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(230,100,30,0.95)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="8" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
+              ◉
             </div>
           )}
           <div style={{ flex: 1, minWidth: 0, paddingTop: '1px' }}>
@@ -1695,16 +1690,17 @@ export default function Cassette2() {
               fontSize: '13px', fontWeight: 600,
               color: darkBg ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.82)',
               lineHeight: 1.3,
-              paddingRight: '1.2rem',
+              paddingRight: '1.4rem',
             }}>
               {toast.title}
             </div>
             <div style={{
-              fontFamily: 'FunnelDisplay, sans-serif',
-              fontSize: '11.5px',
-              color: darkBg ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
-              lineHeight: 1.4,
-              marginTop: '3px',
+              fontFamily: '"Courier New", monospace',
+              fontSize: '10.5px',
+              letterSpacing: '0.02em',
+              color: darkBg ? 'rgba(255,255,255,0.42)' : 'rgba(0,0,0,0.45)',
+              lineHeight: 1.5,
+              marginTop: '4px',
             }}>
               {toast.hint}
             </div>
@@ -1714,17 +1710,16 @@ export default function Cassette2() {
             aria-label="Dismiss"
             style={{
               position: 'absolute',
-              top: '0.55rem', right: '0.55rem',
-              width: '22px', height: '22px',
-              padding: 0,
-              border: 'none',
+              top: '0.5rem', right: '0.5rem',
+              width: '20px', height: '20px',
+              padding: 0, border: 'none',
               borderRadius: '50%',
-              background: darkBg ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+              background: darkBg ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer',
             }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={darkBg ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.45)'} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={darkBg ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
