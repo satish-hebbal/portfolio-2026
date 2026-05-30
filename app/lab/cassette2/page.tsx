@@ -1658,7 +1658,7 @@ export default function Cassette2() {
             animation: 'toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
-          {toast.thumb ? (
+          {toast.thumb && (
             <div style={{
               flexShrink: 0,
               width: '44px', height: '44px',
@@ -1675,30 +1675,30 @@ export default function Cassette2() {
                 </svg>
               </div>
             </div>
-          ) : (
-            <img
-              src="/images/lab/youtube-color-icon.svg"
-              alt=""
-              style={{ flexShrink: 0, width: 22, height: 22, marginTop: 1 }}
-            />
           )}
-          <div style={{ flex: 1, minWidth: 0, paddingTop: '1px' }}>
-            <div style={{
-              fontFamily: 'FunnelDisplay, sans-serif',
-              fontSize: '13px', fontWeight: 600,
-              color: 'rgba(0,0,0,0.82)',
-              lineHeight: 1.3,
-              paddingRight: '1.4rem',
-            }}>
-              {toast.title}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Row 1: icon + title inline */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingRight: '1.4rem' }}>
+              {!toast.thumb && (
+                <img src="/images/lab/youtube-color-icon.svg" alt="" style={{ flexShrink: 0, width: 18, height: 18 }} />
+              )}
+              <span style={{
+                fontFamily: 'FunnelDisplay, sans-serif',
+                fontSize: '13px', fontWeight: 600,
+                color: 'rgba(0,0,0,0.82)',
+                lineHeight: 1.3,
+              }}>
+                {toast.title}
+              </span>
             </div>
+            {/* Row 2: hint */}
             <div style={{
               fontFamily: '"Courier New", monospace',
               fontSize: '10.5px',
               letterSpacing: '0.02em',
               color: 'rgba(0,0,0,0.48)',
               lineHeight: 1.5,
-              marginTop: '4px',
+              marginTop: '5px',
             }}>
               {toast.hint}
             </div>
