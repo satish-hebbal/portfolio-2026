@@ -137,6 +137,15 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
     if (showCursor && scrollX === undefined) {
       ctx.fillText('>', xStart + lastTextWidth + spacing * 0.4, 0)
     }
+
+    // Seamless marquee: draw a second copy trailing behind the first
+    if (scrollX !== undefined) {
+      const totalWidth = lastTextWidth + 50
+      displayChars.forEach((ch, i) => {
+        ctx.fillText(ch, totalWidth + i * spacing, 0)
+      })
+    }
+
     ctx.restore()
 
     tex.flipY = p.flipY
@@ -207,10 +216,10 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
 
   function tickScroll() {
     if (!isScrolling) return
-    const p = devParamsRef.current
-    const cw = Math.max(1, Math.round(p.canvasW))
     scrollOffset -= 0.5
-    if (scrollOffset < 0) scrollOffset = cw
+    // Wrap by one cycle (textWidth + gap) so the second copy lands exactly where the first was
+    const totalWidth = lastTextWidth + 50
+    if (scrollOffset <= -totalWidth) scrollOffset += totalWidth
     draw(scrollText, false, scrollOffset)
   }
 
@@ -497,6 +506,22 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   const sliderStartY = useRef(0)
   const sliderStartVol = useRef(50)
 
+  // Mechanical click sound for button presses
+  const clickAudioRef = useRef<HTMLAudioElement | null>(null)
+  useEffect(() => {
+    const a = new Audio('/images/lab/walkman-click-01.mp3')
+    a.preload = 'auto'
+    a.volume = 0.55
+    clickAudioRef.current = a
+    return () => { clickAudioRef.current = null }
+  }, [])
+  const playClick = useCallback(() => {
+    const a = clickAudioRef.current
+    if (!a) return
+    a.currentTime = 0
+    a.play().catch(() => {})
+  }, [])
+
   const tickScrollRef = useRef<() => void>(() => {})
   const stopScrollRef = useRef<() => void>(() => {})
   const wasPlayingRef = useRef(false)
@@ -528,10 +553,6 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
 
     scene.traverse((obj) => {
       const n = obj.name
-
-      if ((obj as THREE.Mesh).isMesh && /button|slider/i.test(n)) {
-        console.log('control:', n)
-      }
 
       const addToGroup = (group: string) => {
         btnGroups.current[group].push(obj)
@@ -684,17 +705,17 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
     e.stopPropagation()
     const name = e.object?.name ?? ''
     if (name === 'Paste_click_button' || name === 'Cube003' || name === 'Cube003_1') {
-      pressGroup(name); onPasteClickRef.current()
+      playClick(); pressGroup(name); onPasteClickRef.current()
     } else if (name.includes('Button1_low001')) {
-      pressGroup(name); onMuteToggleRef.current?.()
+      playClick(); pressGroup(name); onMuteToggleRef.current?.()
     } else if (name.includes('Button2_low001')) {
-      pressGroup(name); onForwardRef.current?.()
+      playClick(); pressGroup(name); onForwardRef.current?.()
     } else if (name.includes('Button3_low001')) {
-      pressGroup(name); onRewindRef.current?.()
+      playClick(); pressGroup(name); onRewindRef.current?.()
     } else if (name.includes('Button4_low001')) {
-      pressGroup(name); onPlayPauseRef.current?.()
+      playClick(); pressGroup(name); onPlayPauseRef.current?.()
     }
-  }, [])
+  }, [playClick])
 
   return (
     <group ref={pivotRef}>
@@ -782,6 +803,9 @@ function SoftShadow() {
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function Cassette2() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => { setIsMobile(window.innerWidth < 768) }, [])
+
   const [url, setUrl] = useState('')
   const [displayStatus, setDisplayStatus] = useState('')
   const [thumbUrl, setThumbUrl] = useState('')
@@ -792,18 +816,49 @@ export default function Cassette2() {
   const [apiReady, setApiReady] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [hoveredCtrl, setHoveredCtrl] = useState<string | null>(null)
+  const [showUrlInput, setShowUrlInput] = useState(false)
+  const [mobileInputVal, setMobileInputVal] = useState('')
+  const [toast, setToast] = useState<{ title: string; hint: string; thumb?: string } | null>(null)
+  const showToast = useCallback((title: string, hint: string, thumb?: string) => {
+    setToast({ title, hint, thumb })
+  }, [])
+
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {})
+    } else {
+      document.exitFullscreen().catch(() => {})
+    }
+  }, [])
   const updateDisplayRef = useRef<((text: string, blinking?: boolean) => void) | null>(null)
   const redrawCurrentRef = useRef<(() => void) | null>(null)
   const startScrollRef = useRef<((text: string) => void) | null>(null)
   const currentUrlRef = useRef('')
+  const pendingVideoRef = useRef<string | null>(null)
+  const playerReadyRef = useRef(false)
+  const isMutedRef = useRef(false)
   const devParamsRef = useRef<DevParams>({ ...defaultDevParams })
   const urlRef = useRef(url)
   useEffect(() => { urlRef.current = url }, [url])
 
   useEffect(() => {
-    if (!darkBg) document.body.setAttribute('data-light-page', 'true')
-    else document.body.removeAttribute('data-light-page')
-    return () => document.body.removeAttribute('data-light-page')
+    if (!darkBg) {
+      document.body.setAttribute('data-light-page', 'true')
+      document.documentElement.removeAttribute('data-cassette-dark')
+    } else {
+      document.body.removeAttribute('data-light-page')
+      document.documentElement.setAttribute('data-cassette-dark', 'true')
+    }
+    return () => {
+      document.body.removeAttribute('data-light-page')
+      document.documentElement.removeAttribute('data-cassette-dark')
+    }
   }, [darkBg])
 
   useEffect(() => {
@@ -826,8 +881,75 @@ export default function Cassette2() {
     }
   }, [])
 
-  const apiReadyRef = useRef(apiReady)
-  useEffect(() => { apiReadyRef.current = apiReady }, [apiReady])
+  // Pre-initialize the YT player as soon as the API is ready.
+  // Uses muted autoplay (always allowed by browsers) then unmutes at state=1,
+  // bypassing Android Chrome's cross-origin user-activation restriction.
+  useEffect(() => {
+    if (!apiReady) return
+
+    // window.ytPlayer may survive Next.js client-side navigation even though
+    // refs reset on remount. Destroy the stale player so onReady fires fresh.
+    if (window.ytPlayer) {
+      window.ytPlayer.destroy?.()
+      window.ytPlayer = null
+    }
+
+    window.ytPlayer = new window.YT.Player('yt-player', {
+      height: '113', width: '200',
+      playerVars: { autoplay: 1, mute: 1, controls: 0, rel: 0, playsinline: 1 },
+      events: {
+        onReady: () => {
+          playerReadyRef.current = true
+          if (pendingVideoRef.current) {
+            const id = pendingVideoRef.current
+            pendingVideoRef.current = null
+            window.ytPlayer.mute()
+            window.ytPlayer.loadVideoById(id)
+            window.ytPlayer.playVideo()
+          }
+        },
+        onStateChange: (e: any) => {
+          const st = e.data
+          if (st === 1) {
+            if (!isMutedRef.current) window.ytPlayer?.unMute?.()
+            startScrollRef.current?.(currentUrlRef.current)
+            setDisplayStatus('PLAYING')
+            const data = window.ytPlayer?.getVideoData?.()
+            if (data?.title) setVideoMeta({ title: data.title, author: data.author ?? '' })
+          } else if (st === 2) {
+            updateDisplayRef.current?.('PAUSED', false)
+            setDisplayStatus('PAUSED')
+          } else if (st === 0) {
+            updateDisplayRef.current?.('PASTE URL', true)
+            setDisplayStatus('')
+          }
+        },
+        onError: (e: any) => {
+          const code = e.data
+          // 101/150 = owner disabled embedding · 100 = not found/private
+          // 2 = bad video ID · 5 = HTML5 player error
+          const t = (code === 101 || code === 150)
+            ? { disp: 'BLOCKED', title: "Can't play this one", hint: 'The owner disabled embedding. Try a normal youtube.com link instead of YouTube Music.' }
+            : code === 100
+            ? { disp: 'NOT FOUND', title: 'Video unavailable', hint: 'It may be private, deleted, or region locked.' }
+            : { disp: 'ERROR :(', title: 'Playback error', hint: 'Something went wrong loading that track. Try another link.' }
+          const failedId = extractVideoId(currentUrlRef.current)
+          const thumb = failedId ? `https://img.youtube.com/vi/${failedId}/hqdefault.jpg` : undefined
+          updateDisplayRef.current?.(t.disp, true)
+          setDisplayStatus('')
+          setThumbUrl('')
+          showToast(t.title, t.hint, thumb)
+          setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 2500)
+        },
+      },
+    })
+
+    return () => {
+      window.ytPlayer?.destroy?.()
+      window.ytPlayer = null
+      playerReadyRef.current = false
+    }
+  }, [apiReady, setDisplayStatus, setVideoMeta, showToast])
 
   const handlePlayPause = useCallback(() => {
     if (!window.ytPlayer) return
@@ -847,11 +969,13 @@ export default function Cassette2() {
     if (window.ytPlayer.isMuted?.()) {
       window.ytPlayer.unMute()
       setIsMuted(false)
+      isMutedRef.current = false
       updateDisplayRef.current?.('UNMUTED', false)
       setDisplayStatus('UNMUTED')
     } else {
       window.ytPlayer.mute()
       setIsMuted(true)
+      isMutedRef.current = true
       updateDisplayRef.current?.('MUTED', false)
       setDisplayStatus('MUTED')
     }
@@ -936,126 +1060,175 @@ export default function Cassette2() {
       URL.revokeObjectURL(objectUrl)
 
       const w = canvas.width, h = canvas.height
-      const samples: { r: number; g: number; b: number }[] = []
-      for (let x = 0; x < 5; x++) {
-        for (let y = 0; y < 5; y++) {
-          const px = Math.floor((x / 4) * (w - 1))
-          const py = Math.floor((y / 4) * (h - 1))
+      type RGB = { r: number; g: number; b: number }
+
+      // 8×8 grid = 64 samples for better coverage
+      const samples: RGB[] = []
+      for (let x = 0; x < 8; x++) {
+        for (let y = 0; y < 8; y++) {
+          const px = Math.floor((x / 7) * (w - 1))
+          const py = Math.floor((y / 7) * (h - 1))
           const d = ctx.getImageData(px, py, 1, 1).data
           samples.push({ r: d[0], g: d[1], b: d[2] })
         }
       }
 
-      const vibrance = (c: { r: number; g: number; b: number }) => {
+      // K-means to find 5 genuinely distinct color clusters
+      const K = 5
+      let centroids: RGB[] = Array.from({ length: K }, (_, i) => ({
+        ...samples[Math.floor((i / K) * samples.length)]
+      }))
+      for (let iter = 0; iter < 10; iter++) {
+        const clusters: RGB[][] = Array.from({ length: K }, () => [])
+        for (const s of samples) {
+          let minD = Infinity, minI = 0
+          centroids.forEach((c, i) => {
+            const d = (s.r - c.r) ** 2 + (s.g - c.g) ** 2 + (s.b - c.b) ** 2
+            if (d < minD) { minD = d; minI = i }
+          })
+          clusters[minI].push(s)
+        }
+        centroids = clusters.map((cluster, i) => {
+          if (!cluster.length) return centroids[i]
+          return {
+            r: Math.round(cluster.reduce((a, c) => a + c.r, 0) / cluster.length),
+            g: Math.round(cluster.reduce((a, c) => a + c.g, 0) / cluster.length),
+            b: Math.round(cluster.reduce((a, c) => a + c.b, 0) / cluster.length),
+          }
+        })
+      }
+
+      // Score: prefer vibrant mid-brightness colors; penalize near-black and near-white/gray
+      const score = (c: RGB) => {
         const max = Math.max(c.r, c.g, c.b)
         const min = Math.min(c.r, c.g, c.b)
+        const brightness = (c.r + c.g + c.b) / 3
+        if (brightness < 18) return 0
+        if (brightness > 230 && max - min < 25) return 0.05
         return (max - min) / (max + 1)
       }
 
-      samples.sort((a, b) => vibrance(b) - vibrance(a))
-      setBgGlows(samples.slice(0, 4))
+      centroids.sort((a, b) => score(b) - score(a))
+      setBgGlows(centroids)
       setGlowKey(k => k + 1)
     } catch (e) {
       console.error('color extract failed:', e)
     }
   }, [])
 
-  const stableHandlePasteClick = useCallback(async () => {
-    let trimmed = ''
-    try {
-      const clip = await navigator.clipboard.readText()
-      trimmed = clip.trim()
-    } catch { /* clipboard permission denied */ }
-    if (!trimmed) trimmed = urlRef.current.trim()
-    if (trimmed) setUrl(trimmed)
+  const processUrl = useCallback((trimmed: string) => {
     if (!trimmed) {
       updateDisplayRef.current?.('NO INPUT', true)
+      showToast('Nothing to play', 'Paste a YouTube link first, then hit play.')
       setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 1500)
       return
     }
     const id = extractVideoId(trimmed)
     if (!id) {
       updateDisplayRef.current?.('BAD URL', true)
+      showToast("That's not a YouTube link", 'Paste a full youtube.com, youtu.be, or music.youtube.com URL.')
       setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 1500)
       return
     }
+    setToast(null)
+    setUrl(trimmed)
     currentUrlRef.current = trimmed
     setThumbUrl(`https://img.youtube.com/vi/${id}/hqdefault.jpg`)
     extractColors(id)
     updateDisplayRef.current?.('LOADING..', false)
     setDisplayStatus('LOADING')
-    const run = () => {
-      if (window.ytPlayer?.loadVideoById) {
-        window.ytPlayer.loadVideoById(id)
-        setTimeout(() => window.ytPlayer?.playVideo?.(), 2000)
-        return
-      }
-      window.ytPlayer = new window.YT.Player('yt-player', {
-        height: '113', width: '200', videoId: id,
-        playerVars: { autoplay: 0, controls: 0, rel: 0 },
-        events: {
-          onReady: () => setTimeout(() => window.ytPlayer?.playVideo?.(), 2000),
-          onStateChange: (e: any) => {
-            const st = e.data
-            if (st === 1) {
-              startScrollRef.current?.(currentUrlRef.current)
-              setDisplayStatus('PLAYING')
-              const data = window.ytPlayer?.getVideoData?.()
-              if (data?.title) setVideoMeta({ title: data.title, author: data.author ?? '' })
-            } else if (st === 2) {
-              updateDisplayRef.current?.('PAUSED', false)
-              setDisplayStatus('PAUSED')
-            } else {
-              updateDisplayRef.current?.('PASTE URL', true)
-              setDisplayStatus('')
-            }
-          },
-        },
-      })
+    if (playerReadyRef.current && window.ytPlayer?.loadVideoById) {
+      window.ytPlayer.mute()
+      window.ytPlayer.loadVideoById(id)
+      window.ytPlayer.playVideo()
+    } else {
+      pendingVideoRef.current = id
     }
-    if (apiReadyRef.current) run()
-    else {
-      const prev = window.onYouTubeIframeAPIReady
-      window.onYouTubeIframeAPIReady = () => { setApiReady(true); prev?.(); run() }
+  }, [extractColors, setDisplayStatus, showToast])
+
+  const stableHandlePasteClick = useCallback(async () => {
+    // Mobile: clipboard reads are unreliable over HTTP, so always open the
+    // input popup fresh. This also lets the user paste a NEW link after one
+    // has already played (the old behavior re-loaded the stale URL instead).
+    if (isMobile) {
+      setMobileInputVal('')
+      setShowUrlInput(true)
+      return
     }
-  }, [extractColors])
+    // Desktop: clipboard read works (sticky user activation).
+    let trimmed = ''
+    try {
+      const clip = await navigator.clipboard.readText()
+      trimmed = clip.trim()
+    } catch { /* clipboard permission denied */ }
+    if (!trimmed) trimmed = urlRef.current.trim()
+    processUrl(trimmed)
+  }, [isMobile, processUrl])
 
   const bgBase = darkBg ? '#000000' : '#ffffff'
-  const glowGradient = bgGlows.length === 0
-    ? 'radial-gradient(ellipse at center, rgba(0,0,0,0) 0%, transparent 70%)'
-    : (() => {
-        const alphas = darkBg ? [0.82, 0.55, 0.3, 0.12] : [0.42, 0.26, 0.14, 0.06]
-        const positions = [0, 28, 55, 75]
-        const stops = bgGlows.map((c, i) =>
-          `rgba(${c.r},${c.g},${c.b},${alphas[i]}) ${positions[i]}%`
-        )
-        stops.push('transparent 88%')
-        return `radial-gradient(ellipse at center, ${stops.join(', ')})`
-      })()
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: bgBase, transition: 'background 0.6s ease', position: 'relative', overflow: 'hidden' }}>
       <style>{`
-        @keyframes glowBloom {
-          0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.18); }
-          40%  { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
-          70%  { opacity: 1; transform: translate(-50%, -50%) scale(0.97); }
-          100% { opacity: 1; transform: translate(-50%, -50%) scale(1);    }
-        }
         @keyframes iconPop {
           0%   { opacity: 0; transform: scale(0.55) rotate(-15deg); }
           100% { opacity: 1; transform: scale(1) rotate(0deg); }
         }
+        @keyframes toastIn {
+          0%   { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+          100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @keyframes ambientFadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        html[data-cassette-dark] {
+          scrollbar-color: rgba(255,255,255,0.22) #0d0d0d;
+          scrollbar-width: thin;
+        }
+        html[data-cassette-dark]::-webkit-scrollbar {
+          width: 8px;
+        }
+        html[data-cassette-dark]::-webkit-scrollbar-track {
+          background: #0d0d0d;
+        }
+        html[data-cassette-dark]::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.22);
+          border-radius: 4px;
+        }
+        html[data-cassette-dark]::-webkit-scrollbar-thumb:hover {
+          background: rgba(255,255,255,0.4);
+        }
+        @keyframes ambientDrift0 {
+          0%,100% { transform: translate(-50%,-50%) scale(1); }
+          50%     { transform: translate(calc(-50% - 3.5vw), calc(-50% + 2vh)) scale(1.14); }
+        }
+        @keyframes ambientDrift1 {
+          0%,100% { transform: translate(-50%,-50%) scale(1.06); }
+          50%     { transform: translate(calc(-50% + 4vw), calc(-50% - 3.5vh)) scale(0.88); }
+        }
+        @keyframes ambientDrift2 {
+          0%,100% { transform: translate(-50%,-50%) scale(0.94); }
+          50%     { transform: translate(calc(-50% - 2.5vw), calc(-50% - 4vh)) scale(1.1); }
+        }
+        @keyframes ambientDrift3 {
+          0%,100% { transform: translate(-50%,-50%) scale(1.08); }
+          50%     { transform: translate(calc(-50% + 3vw), calc(-50% + 3.5vh)) scale(0.87); }
+        }
+        @keyframes ambientDrift4 {
+          0%,100% { transform: translate(-50%,-50%) scale(1); }
+          50%     { transform: translate(calc(-50% + 1.5vw), calc(-50% - 2.5vh)) scale(1.12); }
+        }
       `}</style>
 
-      <div style={{ position: 'fixed', left: -9999, top: -9999, width: 200, height: 113, pointerEvents: 'none' }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, width: 1, height: 1, opacity: 0, pointerEvents: 'none', overflow: 'hidden' }}>
         <div id="yt-player" />
       </div>
 
       {/* bg toggle — vertical pill */}
       <div
         style={{
-          position: 'fixed' as const, top: '1rem', right: '1rem', zIndex: 10010,
+          position: 'fixed' as const, top: isMobile ? '4.5rem' : '1rem', right: '1rem', zIndex: 10010,
           width: '42px',
           background: darkBg ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
           border: `1px solid ${darkBg ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`,
@@ -1114,22 +1287,76 @@ export default function Cassette2() {
         </button>
       </div>
 
-      {/* ambient glow — blooms in with shader-like animation on each new song.
-          Always behind canvas (z:0), canvas always transparent, so the model is never affected. */}
-      <div
-        key={glowKey}
-        style={{
-          position: 'absolute', top: '50%', left: '50%',
-          width: '150vw', height: '150vh',
-          background: glowGradient,
-          pointerEvents: 'none',
-          zIndex: 0,
-          mixBlendMode: 'normal' as const,
-          animation: glowKey > 0 ? 'glowBloom 3.6s cubic-bezier(0.16, 1, 0.3, 1) forwards' : 'none',
-          opacity: glowKey > 0 ? undefined : 0,
-          transform: glowKey > 0 ? undefined : 'translate(-50%, -50%)',
-        }}
-      />
+      {/* Fullscreen toggle — desktop only, top-left */}
+      {!isMobile && (
+        <button
+          onClick={toggleFullscreen}
+          title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          style={{
+            position: 'fixed', top: '1rem', left: '1rem', zIndex: 10010,
+            width: '42px', height: '42px', borderRadius: '21px',
+            background: darkBg ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+            border: `1px solid ${darkBg ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`,
+            backdropFilter: 'blur(12px)',
+            cursor: 'pointer', padding: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.2s ease, border-color 0.2s ease',
+          }}
+        >
+          {isFullscreen ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke={darkBg ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)'}
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+              <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+              <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+              <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke={darkBg ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)'}
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7V3h4" />
+              <path d="M21 7V3h-4" />
+              <path d="M3 17v4h4" />
+              <path d="M21 17v4h-4" />
+            </svg>
+          )}
+        </button>
+      )}
+
+      {/* Multi-blob ambient lighting — 5 independent colored glows, each drifting slowly */}
+      {bgGlows.length > 0 && (
+        <div
+          key={glowKey}
+          style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', animation: 'ambientFadeIn 2.5s ease forwards' }}
+        >
+          {([
+            { left: '25%', top: '35%', size: '90vw', dur: '9s',   delay: '0s',    anim: 0 },
+            { left: '78%', top: '22%', size: '75vw', dur: '11s',  delay: '-3.5s', anim: 1 },
+            { left: '12%', top: '72%', size: '70vw', dur: '8.5s', delay: '-1.5s', anim: 2 },
+            { left: '82%', top: '78%', size: '80vw', dur: '13s',  delay: '-5s',   anim: 3 },
+            { left: '52%', top: '52%', size: '85vw', dur: '10s',  delay: '-2.5s', anim: 4 },
+          ] as const).map((b, i) => {
+            const c = bgGlows[i] ?? bgGlows[bgGlows.length - 1]
+            return (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute',
+                  left: b.left, top: b.top,
+                  width: b.size, height: b.size,
+                  borderRadius: '50%',
+                  background: `radial-gradient(circle, rgba(${c.r},${c.g},${c.b},${darkBg ? 0.62 : 0.3}) 0%, transparent 68%)`,
+                  mixBlendMode: darkBg ? 'screen' : 'multiply',
+                  animation: `ambientDrift${b.anim} ${b.dur} ease-in-out ${b.delay} infinite`,
+                  willChange: 'transform',
+                }}
+              />
+            )
+          })}
+        </div>
+      )}
 
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0, height: '55%',
@@ -1138,7 +1365,7 @@ export default function Cassette2() {
       }} />
 
       <Canvas
-        camera={{ position: [0, 0.88, 11.32], fov: 43 }}
+        camera={{ position: isMobile ? [0, 0.88, 22] : [0, 0.88, 11.32], fov: isMobile ? 36 : 43 }}
         gl={{ antialias: true, powerPreference: 'high-performance', stencil: false, depth: true, alpha: true }}
         frameloop="demand"
         dpr={[1, 1.5]}
@@ -1167,8 +1394,8 @@ export default function Cassette2() {
 
         <OrbitControls
           enablePan={false}
-          minDistance={4}
-          maxDistance={18}
+          minDistance={isMobile ? 6 : 4}
+          maxDistance={isMobile ? 22 : 18}
           minPolarAngle={Math.PI * 0.05}
           maxPolarAngle={Math.PI * 0.85}
           enableDamping
@@ -1179,37 +1406,57 @@ export default function Cassette2() {
 
       <div
         style={{
-          position: 'absolute', bottom: '2rem', left: '50%',
+          position: 'absolute', bottom: isMobile ? '5rem' : '2rem', left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.45rem',
         }}
       >
         {displayStatus
-          ? <RetroStatus status={displayStatus} />
+          ? (!isMobile && <RetroStatus status={displayStatus} />)
           : <span style={{
-              fontFamily: '"Courier New", monospace', fontSize: 10,
+              fontFamily: '"Courier New", monospace', fontSize: isMobile ? 10 : 11,
               color: darkBg ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.38)',
-              letterSpacing: '0.08em', whiteSpace: 'nowrap',
+              letterSpacing: '0.08em',
+              whiteSpace: isMobile ? 'normal' : 'nowrap',
+              wordBreak: isMobile ? 'break-word' : 'normal',
+              textAlign: 'center',
+              padding: isMobile ? '0 12px' : '0',
+              width: isMobile ? 'min(90vw, 500px)' : undefined,
             }}>
               copy a youtube url · click the ▣ button beside the display
             </span>
         }
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-          {([
-            { id: 'play',   icon: '►',  label: 'play',   tip: 'Play the song — press the bottom-right button on the Walkman' },
-            { id: 'pause',  icon: '❚❚', label: 'pause',  tip: 'Pause the song — press the bottom-right button on the Walkman' },
-            { id: 'rewind', icon: '◀◀', label: 'rewind', tip: 'Rewind 10s — press the second button from the right' },
-            { id: 'skip',   icon: '▶▶', label: 'skip',   tip: 'Skip 10s — press the second button from the left' },
-            { id: 'mute',   icon: '⊘',  label: isMuted ? 'muted' : 'mute', tip: 'Mute or unmute — click the orange button on the side of the Walkman' },
-          ] as { id: string; icon: string; label: string; tip: string }[]).map((ctrl, i, arr) => (
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          flexWrap: 'nowrap',
+          gap: 0,
+          justifyContent: 'center',
+          whiteSpace: 'nowrap',
+          padding: isMobile ? '0 0.5rem' : '0',
+        }}>
+          {((isMobile
+            ? [
+                { id: 'play',   icon: '►❚', label: 'play/pause', tip: 'Play or pause — press the bottom-right button on the Walkman' },
+                { id: 'rewind', icon: '◀◀', label: 'rewind', tip: 'Rewind 10s — press the second button from the right' },
+                { id: 'skip',   icon: '▶▶', label: 'skip',   tip: 'Skip 10s — press the second button from the left' },
+                { id: 'mute',   icon: '⊘',  label: isMuted ? 'muted' : 'mute', tip: 'Mute or unmute — click the orange button on the side of the Walkman' },
+              ]
+            : [
+                { id: 'play',   icon: '►',  label: 'play',   tip: 'Play the song — press the bottom-right button on the Walkman' },
+                { id: 'pause',  icon: '❚❚', label: 'pause',  tip: 'Pause the song — press the bottom-right button on the Walkman' },
+                { id: 'rewind', icon: '◀◀', label: 'rewind', tip: 'Rewind 10s — press the second button from the right' },
+                { id: 'skip',   icon: '▶▶', label: 'skip',   tip: 'Skip 10s — press the second button from the left' },
+                { id: 'mute',   icon: '⊘',  label: isMuted ? 'muted' : 'mute', tip: 'Mute or unmute — click the orange button on the side of the Walkman' },
+              ]
+          ) as { id: string; icon: string; label: string; tip: string }[]).map((ctrl, i, arr) => (
             <span key={ctrl.id} style={{ display: 'inline-flex', alignItems: 'center' }}>
               <span
                 onMouseEnter={() => setHoveredCtrl(ctrl.id)}
                 onMouseLeave={() => setHoveredCtrl(null)}
                 style={{
                   position: 'relative',
-                  fontFamily: '"Courier New", monospace', fontSize: 10,
-                  letterSpacing: '0.1em', whiteSpace: 'nowrap', cursor: 'default',
+                  fontFamily: '"Courier New", monospace', fontSize: isMobile ? 9 : 10,
+                  letterSpacing: isMobile ? '0.05em' : '0.1em', whiteSpace: 'nowrap', cursor: 'default',
                   color: ctrl.id === 'mute' && isMuted
                     ? 'rgba(230,100,30,0.9)'
                     : darkBg ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)',
@@ -1239,7 +1486,7 @@ export default function Cassette2() {
               {i < arr.length - 1 && (
                 <span style={{
                   color: darkBg ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)',
-                  fontSize: 7, margin: '0 7px',
+                  fontSize: 7, margin: isMobile ? '0 4px' : '0 7px',
                 }}>·</span>
               )}
             </span>
@@ -1247,62 +1494,252 @@ export default function Cassette2() {
         </div>
       </div>
 
-      {thumbUrl && (
+      {(thumbUrl || (isMobile && displayStatus)) && (
         <div style={{
           position: 'fixed',
-          bottom: '5rem',
-          right: '1.5rem',
+          bottom: isMobile ? '9rem' : '5rem',
+          left: isMobile ? '1rem' : undefined,
+          right: isMobile ? '1rem' : '1.5rem',
           display: 'flex',
           alignItems: 'center',
+          justifyContent: isMobile ? 'space-between' : 'flex-end',
           gap: '10px',
           zIndex: 20,
           opacity: 1,
           transition: 'opacity 0.5s ease',
         }}>
-          {videoMeta && (
-            <div style={{ textAlign: 'right', maxWidth: '160px' }}>
-              <div style={{
-                color: darkBg ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.78)',
-                fontSize: '11px',
-                fontFamily: '"Courier New", monospace',
-                letterSpacing: '0.01em',
-                lineHeight: 1.35,
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical' as const,
-                overflow: 'hidden',
-              }}>
-                {videoMeta.title}
-              </div>
-              {videoMeta.author && (
-                <div style={{
-                  color: darkBg ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.42)',
-                  fontSize: '9px',
-                  fontFamily: '"Courier New", monospace',
-                  letterSpacing: '0.07em',
-                  marginTop: '4px',
-                  textTransform: 'uppercase',
-                }}>
-                  {videoMeta.author}
-                </div>
-              )}
+          {/* Mobile: PLAYING status left-aligned, same line as the track name */}
+          {isMobile && displayStatus && (
+            <div style={{ flexShrink: 0, textAlign: 'left' }}>
+              <RetroStatus status={displayStatus} />
             </div>
           )}
-          <div style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '16px',
-            overflow: 'hidden',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-            border: darkBg ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.10)',
-            flexShrink: 0,
-          }}>
-            <img src={thumbUrl} alt="album art" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.38)', transformOrigin: 'center' }} />
-          </div>
+          {thumbUrl && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+              {videoMeta && (
+                <div style={{ textAlign: 'right', maxWidth: '160px' }}>
+                  <div style={{
+                    color: darkBg ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.78)',
+                    fontSize: '11px',
+                    fontFamily: '"Courier New", monospace',
+                    letterSpacing: '0.01em',
+                    lineHeight: 1.35,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical' as const,
+                    overflow: 'hidden',
+                  }}>
+                    {videoMeta.title}
+                  </div>
+                  {videoMeta.author && (
+                    <div style={{
+                      color: darkBg ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.42)',
+                      fontSize: '9px',
+                      fontFamily: '"Courier New", monospace',
+                      letterSpacing: '0.07em',
+                      marginTop: '4px',
+                      textTransform: 'uppercase',
+                    }}>
+                      {videoMeta.author}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div style={{
+                width: isMobile ? '56px' : '64px',
+                height: isMobile ? '56px' : '64px',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                border: darkBg ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.10)',
+                flexShrink: 0,
+              }}>
+                <img src={thumbUrl} alt="album art" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.38)', transformOrigin: 'center' }} />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* <DevPanel devParamsRef={devParamsRef} onParamsChange={() => redrawCurrentRef.current?.()} /> */}
+
+      {/* Error toast — slides in from the top, stays until dismissed */}
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: isMobile ? '4.5rem' : '5.5rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 99998,
+            width: 'calc(100% - 2rem)',
+            maxWidth: '380px',
+            background: darkBg ? 'rgba(20,20,22,0.92)' : 'rgba(255,255,255,0.96)',
+            border: darkBg ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+            borderRadius: '14px',
+            padding: '0.85rem 0.9rem',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.35)',
+            backdropFilter: 'blur(14px)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.75rem',
+            animation: 'toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        >
+          {toast.thumb ? (
+            <div style={{
+              flexShrink: 0,
+              width: '48px', height: '48px',
+              borderRadius: '10px',
+              overflow: 'hidden',
+              border: darkBg ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+              position: 'relative',
+            }}>
+              <img src={toast.thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.38)', transformOrigin: 'center', filter: 'grayscale(0.4) brightness(0.7)' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.95)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="8" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              flexShrink: 0,
+              width: '22px', height: '22px',
+              borderRadius: '50%',
+              background: 'rgba(230,100,30,0.14)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginTop: '1px',
+            }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(230,100,30,0.95)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="8" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 0, paddingTop: '1px' }}>
+            <div style={{
+              fontFamily: 'FunnelDisplay, sans-serif',
+              fontSize: '13px', fontWeight: 600,
+              color: darkBg ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.82)',
+              lineHeight: 1.3,
+              paddingRight: '1.2rem',
+            }}>
+              {toast.title}
+            </div>
+            <div style={{
+              fontFamily: 'FunnelDisplay, sans-serif',
+              fontSize: '11.5px',
+              color: darkBg ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+              lineHeight: 1.4,
+              marginTop: '3px',
+            }}>
+              {toast.hint}
+            </div>
+          </div>
+          <button
+            onClick={() => setToast(null)}
+            aria-label="Dismiss"
+            style={{
+              position: 'absolute',
+              top: '0.55rem', right: '0.55rem',
+              width: '22px', height: '22px',
+              padding: 0,
+              border: 'none',
+              borderRadius: '50%',
+              background: darkBg ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={darkBg ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.45)'} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {showUrlInput && (
+        <div
+          onClick={() => setShowUrlInput(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 99999,
+            background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(10px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '1.5rem',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: darkBg ? '#111' : '#fff',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              width: '100%',
+              maxWidth: '360px',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
+              display: 'flex', flexDirection: 'column', gap: '1rem',
+            }}
+          >
+            <div style={{
+              fontFamily: '"Courier New", monospace',
+              fontSize: '11px',
+              letterSpacing: '0.1em',
+              color: darkBg ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)',
+              textTransform: 'uppercase',
+            }}>
+              Paste a YouTube URL
+            </div>
+            <input
+              autoFocus
+              type="url"
+              value={mobileInputVal}
+              onChange={e => setMobileInputVal(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  setShowUrlInput(false)
+                  processUrl(mobileInputVal.trim())
+                }
+              }}
+              placeholder="https://youtube.com/watch?v=..."
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                borderRadius: '10px',
+                border: darkBg ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(0,0,0,0.15)',
+                background: darkBg ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                color: darkBg ? '#fff' : '#000',
+                fontFamily: '"Courier New", monospace',
+                fontSize: '13px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            <button
+              onClick={() => {
+                setShowUrlInput(false)
+                processUrl(mobileInputVal.trim())
+              }}
+              style={{
+                padding: '0.75rem',
+                borderRadius: '10px',
+                background: '#0b3e88',
+                color: '#fff',
+                border: 'none',
+                fontFamily: '"Courier New", monospace',
+                fontSize: '12px',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              Play
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
