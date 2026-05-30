@@ -22,11 +22,23 @@ export default function Navbar() {
   const router = useRouter()
   const navRef = useRef<HTMLElement>(null)
   const [isMounted, setIsMounted] = useState(false)
-  
-  // Prevent hydration mismatch by waiting for client mount
+  const [isLightPage, setIsLightPage] = useState(false)
+
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  useEffect(() => {
+    setIsLightPage(document.body.hasAttribute('data-light-page'))
+    const observer = new MutationObserver(() => {
+      setIsLightPage(document.body.hasAttribute('data-light-page'))
+    })
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-light-page'] })
+    return () => observer.disconnect()
+  }, [])
+
+  // nav is white-text when on cassette2 dark mode (default) or toggled off light mode
+  const showWhiteNav = pathname === '/lab/cassette2' && !isLightPage
 
   useEffect(() => {
     // Create the SVG displacement map for liquid glass effect
@@ -233,9 +245,9 @@ export default function Navbar() {
             : "gap-1 px-3"
         }`}
         style={{
-          background: 'rgba(255, 255, 255, 0.08)',
+          background: showWhiteNav ? 'rgba(255,255,255,0.06)' : 'rgba(255, 255, 255, 0.08)',
           backdropFilter: 'url(#liquid-lens) blur(2px)',
-          border: '2px solid rgb(212, 212, 216)',
+          border: showWhiteNav ? '2px solid rgba(255,255,255,0.14)' : '2px solid rgb(212, 212, 216)',
           boxShadow: `
             inset 0 1px 0 rgba(255, 255, 255, 0.2),
             inset 0 -1px 0 rgba(255, 255, 255, 0.1),
@@ -244,10 +256,10 @@ export default function Navbar() {
         }}
       >
         {/* Corner squares - half outside */}
-        <div className="absolute -top-1 -left-1 w-2 h-2 bg-zinc-300" />
-        <div className="absolute -top-1 -right-1 w-2 h-2 bg-zinc-300" />
-        <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-zinc-300" />
-        <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-zinc-300" />
+        <div className={`absolute -top-1 -left-1 w-2 h-2 ${showWhiteNav ? 'bg-white/25' : 'bg-zinc-300'}`} />
+        <div className={`absolute -top-1 -right-1 w-2 h-2 ${showWhiteNav ? 'bg-white/25' : 'bg-zinc-300'}`} />
+        <div className={`absolute -bottom-1 -left-1 w-2 h-2 ${showWhiteNav ? 'bg-white/25' : 'bg-zinc-300'}`} />
+        <div className={`absolute -bottom-1 -right-1 w-2 h-2 ${showWhiteNav ? 'bg-white/25' : 'bg-zinc-300'}`} />
         {navItems.map((item, index) => (
           <div key={item.name} className={`flex items-center ${isMounted ? "gap-1 md:gap-6" : "gap-1"}`}>
             <button
@@ -261,7 +273,7 @@ export default function Navbar() {
                   ? "text-orange-500"
                   : (item.name === "Unplug" && pathname.startsWith('/unplugged/'))
                     ? "text-orange-400"
-                    : pathname.startsWith('/unplugged/')
+                    : (pathname.startsWith('/unplugged/') || showWhiteNav)
                       ? "text-white"
                       : "text-zinc-700"
               }`}
@@ -274,12 +286,12 @@ export default function Navbar() {
                   width={22}
                   height={22}
                   className={`transition-opacity duration-300 ${pathname === '/' ? 'opacity-100' : 'opacity-40 hover:opacity-70'}`}
-                  style={pathname.startsWith('/unplugged/') ? { filter: 'invert(1)' } : {}}
+                  style={(pathname.startsWith('/unplugged/') || showWhiteNav) ? { filter: 'invert(1)' } : {}}
                 />
               ) : item.name}
             </button>
             {index < navItems.length - 1 && (
-              <span className={`text-zinc-300 ${isMounted ? "text-[7px] md:text-[10px]" : "text-[10px]"}`}>•</span>
+              <span className={`${showWhiteNav ? 'text-white/25' : 'text-zinc-300'} ${isMounted ? "text-[7px] md:text-[10px]" : "text-[10px]"}`}>•</span>
             )}
           </div>
         ))}
