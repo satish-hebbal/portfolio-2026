@@ -562,6 +562,7 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   const sceneBasePosY = useRef(-1.07)
   const pivotRef = useRef<THREE.Group>(null!)
   const clearHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastHoveredLabelRef = useRef('')
 
   useEffect(() => {
     scene.rotation.y = 4.4
@@ -753,7 +754,6 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   const handlePointerOver = useCallback((e: any) => {
     const n = e.object?.name ?? ''
     if (isBtn(n)) {
-      // Cancel any pending tooltip clear — cursor is still over a button
       if (clearHoverTimerRef.current) {
         clearTimeout(clearHoverTimerRef.current)
         clearHoverTimerRef.current = null
@@ -763,6 +763,7 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
       if (!isSliderMesh(n)) {
         const label = getBtnLabel(n)
         if (label) {
+          lastHoveredLabelRef.current = label
           const wp = new THREE.Vector3()
           e.object.getWorldPosition(wp)
           const dir = new THREE.Vector3().subVectors(cameraRef.current.position, wp).normalize()
@@ -777,14 +778,11 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
     if (isBtn(e.object?.name ?? '')) {
       document.body.style.cursor = 'default'
       isHovered.current = false
-      // Debounce the clear: paste button sits next to the LCD screen and cursor
-      // briefly crosses onto 8Bit_screen mid-hover, firing a spurious onPointerOut.
-      // 120ms is long enough to survive a stray mesh transition but short enough to
-      // feel instant when genuinely leaving the button area.
+      lastHoveredLabelRef.current = ''
       clearHoverTimerRef.current = setTimeout(() => {
         setHoveredInfo(null)
         clearHoverTimerRef.current = null
-      }, 120)
+      }, 150)
     }
   }, [])
 
@@ -802,10 +800,34 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   }, [])
 
   const handlePointerMove = useCallback((e: any) => {
-    if (!isDraggingSlider.current) return
-    const dy = sliderStartY.current - (e.clientY ?? 0)
-    const newVol = Math.max(0, Math.min(100, sliderStartVol.current + dy))
-    onVolumeChangeRef.current(Math.round(newVol))
+    if (isDraggingSlider.current) {
+      const dy = sliderStartY.current - (e.clientY ?? 0)
+      const newVol = Math.max(0, Math.min(100, sliderStartVol.current + dy))
+      onVolumeChangeRef.current(Math.round(newVol))
+      return
+    }
+    // Belt-and-suspenders: onPointerOver can miss when cursor is already over
+    // a mesh (e.g. right after a click). onPointerMove fires every frame so we
+    // use it to reliably keep the label in sync with whatever mesh is under
+    // the cursor. We gate on lastHoveredLabelRef to avoid re-renders on every
+    // tiny mouse movement.
+    const n = e.object?.name ?? ''
+    if (isBtn(n) && !isSliderMesh(n)) {
+      const label = getBtnLabel(n)
+      if (label && label !== lastHoveredLabelRef.current) {
+        if (clearHoverTimerRef.current) {
+          clearTimeout(clearHoverTimerRef.current)
+          clearHoverTimerRef.current = null
+        }
+        lastHoveredLabelRef.current = label
+        document.body.style.cursor = 'pointer'
+        const wp = new THREE.Vector3()
+        e.object.getWorldPosition(wp)
+        const dir = new THREE.Vector3().subVectors(cameraRef.current.position, wp).normalize()
+        setHoveredInfo({ label, pos: wp.clone().addScaledVector(dir, 0.35) })
+        invalidate()
+      }
+    }
   }, [])
 
   const handlePointerUp = useCallback(() => {
