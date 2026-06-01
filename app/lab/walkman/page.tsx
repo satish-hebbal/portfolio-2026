@@ -561,6 +561,7 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   const idleTimeRef = useRef(0)
   const sceneBasePosY = useRef(-1.07)
   const pivotRef = useRef<THREE.Group>(null!)
+  const clearHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     scene.rotation.y = 4.4
@@ -752,6 +753,11 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   const handlePointerOver = useCallback((e: any) => {
     const n = e.object?.name ?? ''
     if (isBtn(n)) {
+      // Cancel any pending tooltip clear — cursor is still over a button
+      if (clearHoverTimerRef.current) {
+        clearTimeout(clearHoverTimerRef.current)
+        clearHoverTimerRef.current = null
+      }
       document.body.style.cursor = 'pointer'
       isHovered.current = true
       if (!isSliderMesh(n)) {
@@ -761,6 +767,7 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
           e.object.getWorldPosition(wp)
           const dir = new THREE.Vector3().subVectors(cameraRef.current.position, wp).normalize()
           setHoveredInfo({ label, pos: wp.clone().addScaledVector(dir, 0.35) })
+          invalidate()
         }
       }
     }
@@ -770,7 +777,14 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
     if (isBtn(e.object?.name ?? '')) {
       document.body.style.cursor = 'default'
       isHovered.current = false
-      setHoveredInfo(null)
+      // Debounce the clear: paste button sits next to the LCD screen and cursor
+      // briefly crosses onto 8Bit_screen mid-hover, firing a spurious onPointerOut.
+      // 120ms is long enough to survive a stray mesh transition but short enough to
+      // feel instant when genuinely leaving the button area.
+      clearHoverTimerRef.current = setTimeout(() => {
+        setHoveredInfo(null)
+        clearHoverTimerRef.current = null
+      }, 120)
     }
   }, [])
 
@@ -1434,6 +1448,10 @@ export default function Walkman() {
           0%,100% { transform: translate(-50%,-50%) scale(1); }
           50%     { transform: translate(calc(-50% + 1.5vw), calc(-50% - 2.5vh)) scale(1.12); }
         }
+        @keyframes textShine {
+          0%   { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
       `}</style>
 
       <WalkmanLoaderOverlay darkBg={darkBg} />
@@ -1642,13 +1660,21 @@ export default function Walkman() {
           ? (!isMobile && <RetroStatus status={displayStatus} />)
           : <span style={{
               fontFamily: '"Courier New", monospace', fontSize: isMobile ? 10 : 11,
-              color: darkBg ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.38)',
               letterSpacing: '0.08em',
               whiteSpace: isMobile ? 'normal' : 'nowrap',
               wordBreak: isMobile ? 'break-word' : 'normal',
               textAlign: 'center',
               padding: isMobile ? '0 12px' : '0',
               width: isMobile ? 'min(90vw, 500px)' : undefined,
+              // Neon green shine sweep left → right
+              background: darkBg
+                ? 'linear-gradient(90deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.38) 35%, #00ff88 50%, rgba(255,255,255,0.38) 65%, rgba(255,255,255,0.38) 100%)'
+                : 'linear-gradient(90deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.28) 35%, #00cc66 50%, rgba(0,0,0,0.28) 65%, rgba(0,0,0,0.28) 100%)',
+              backgroundSize: '250% auto',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              animation: 'textShine 4s linear infinite',
             }}>
               copy a youtube url · click the ▣ button beside the display
             </span>
