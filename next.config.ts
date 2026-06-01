@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: '/lab/cassette2',
+        source: '/lab/walkman',
         headers: [
           {
             key: 'Permissions-Policy',

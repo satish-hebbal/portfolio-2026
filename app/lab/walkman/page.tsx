@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo, Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, useGLTF, Environment, useProgress } from '@react-three/drei'
+import { OrbitControls, useGLTF, Environment, useProgress, Html } from '@react-three/drei'
 import * as THREE from 'three'
 
 declare global {
@@ -466,13 +466,24 @@ interface WalkmanProps {
   onReady: (fn: (text: string, blinking?: boolean) => void, redraw: () => void, startScroll: (text: string) => void) => void
   devParamsRef: { current: DevParams }
   darkBg: boolean
+  isPlaying?: boolean
 }
 
-function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForward, onRewind, onVolumeChange, onVolumeEnd, onReady, devParamsRef, darkBg }: WalkmanProps) {
+function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForward, onRewind, onVolumeChange, onVolumeEnd, onReady, devParamsRef, darkBg, isPlaying }: WalkmanProps) {
   const { scene } = useGLTF('/models/walkman/walkman01.glb')
-  const { invalidate, gl } = useThree()
+  const { invalidate, gl, scene: r3fScene, camera } = useThree()
+  const cameraRef = useRef(camera)
+  cameraRef.current = camera
+
+  // Per-button world-space positions computed once after scene setup
+  const btnWorldPositions = useRef<Array<{ label: string; pos: THREE.Vector3 }>>([])
+  // Hover tooltip
+  const [hoveredInfo, setHoveredInfo] = useState<{ label: string; pos: THREE.Vector3 } | null>(null)
+  // Peek: briefly show all labels on first play
+  const [peekHints, setPeekHints] = useState(false)
 
   const disposeRef = useRef<(() => void) | null>(null)
+  const hasInteractedRef = useRef(false)
   const onPasteClickRef = useRef(onPasteClick)
   const onPlayPauseRef = useRef<(() => void) | null>(null)
   const onMuteToggleRef = useRef<(() => void) | null>(null)
@@ -492,15 +503,34 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   useEffect(() => { onVolumeChangeRef.current = onVolumeChange }, [onVolumeChange])
   useEffect(() => { onVolumeEndRef.current = onVolumeEnd }, [onVolumeEnd])
 
+  const getBtnLabel = (n: string): string => {
+    if (n.includes('Paste_click_button') || n.includes('Cube003')) return 'PASTE URL'
+    if (n.includes('Button1_low001')) return 'MUTE'
+    if (n.includes('Button2_low001')) return '+10s'
+    if (n.includes('Button3_low001')) return '–10s'
+    if (n.includes('Button4_low001')) return 'PLAY / PAUSE'
+    if (n.includes('Button5_low001')) return 'STOP'
+    return ''
+  }
+
+  // Show all button labels for 8s whenever music starts; hide when it stops
+  useEffect(() => {
+    if (!isPlaying) { setPeekHints(false); return }
+    setPeekHints(true)
+    const t = setTimeout(() => setPeekHints(false), 8000)
+    return () => { clearTimeout(t); setPeekHints(false) }
+  }, [isPlaying])
+
   useEffect(() => {
     gl.setClearColor(new THREE.Color(darkBg ? '#000000' : '#ffffff'), 0)
     invalidate()
   }, [darkBg])
 
-  const btnGroups = useRef<Record<string, THREE.Object3D[]>>({ paste: [], play: [], stop: [], forward: [], rewind: [] })
+  const btnGroups = useRef<Record<string, THREE.Object3D[]>>({ paste: [], play: [], stop: [], forward: [], rewind: [], stopeject: [] })
   const btnOriginals = useRef<Map<THREE.Object3D, { scale: THREE.Vector3; pos: THREE.Vector3 }>>(new Map())
   const animatingGroup = useRef<THREE.Object3D[]>([])
   const btnPress = useRef(0)
+  const stopejectPress = useRef(0)
 
   const isDraggingSlider = useRef(false)
   const sliderStartY = useRef(0)
@@ -547,7 +577,7 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
     pivotRef.current.position.set(0.03, basePosY, 0)
 
     let screenMesh: THREE.Mesh | null = null
-    btnGroups.current = { paste: [], play: [], stop: [], forward: [], rewind: [] }
+    btnGroups.current = { paste: [], play: [], stop: [], forward: [], rewind: [], stopeject: [] }
     btnOriginals.current = new Map()
     animatingGroup.current = []
 
@@ -558,11 +588,12 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
         btnGroups.current[group].push(obj)
         btnOriginals.current.set(obj, { scale: obj.scale.clone(), pos: obj.position.clone() })
       }
-      if (n === 'Paste_click_button' || n === 'Cube003' || n === 'Cube003_1') addToGroup('paste')
+      if (n.includes('Paste_click_button') || n.includes('Cube003')) addToGroup('paste')
       else if (n.includes('Button1_low001')) addToGroup('play')
       else if (n.includes('Button2_low001')) addToGroup('stop')
       else if (n.includes('Button3_low001')) addToGroup('forward')
       else if (n.includes('Button4_low001')) addToGroup('rewind')
+      else if (n.includes('Button5_low001')) addToGroup('stopeject')
 
       if (n === '8Bit_screen') screenMesh = obj as THREE.Mesh
 
@@ -579,6 +610,34 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
         else if (mesh.material) solidify(mesh.material)
       }
     })
+
+    // Compute world positions for each button label (after transforms are applied)
+    r3fScene.updateMatrixWorld(true)
+    const labelTargets: Array<{ test: (n: string) => boolean; label: string }> = [
+      { test: n => n.includes('Paste_click_button') || n.includes('Cube003'), label: 'PASTE URL' },
+      { test: n => n.includes('Button1_low001'), label: 'MUTE' },
+      { test: n => n.includes('Button2_low001'), label: '+10s' },
+      { test: n => n.includes('Button3_low001'), label: '–10s' },
+      { test: n => n.includes('Button4_low001'), label: 'PLAY / PAUSE' },
+      { test: n => n.includes('Button5_low001'), label: 'STOP' },
+    ]
+    const seenLabels = new Set<string>()
+    const computed: Array<{ label: string; pos: THREE.Vector3 }> = []
+    const camPos = cameraRef.current.position.clone()
+    scene.traverse((obj) => {
+      for (const t of labelTargets) {
+        if (t.test(obj.name) && !seenLabels.has(t.label)) {
+          seenLabels.add(t.label)
+          const wp = new THREE.Vector3()
+          obj.getWorldPosition(wp)
+          // offset 0.35 units toward camera so label floats in front of button face
+          const dir = new THREE.Vector3().subVectors(camPos, wp).normalize()
+          computed.push({ label: t.label, pos: wp.clone().addScaledVector(dir, 0.35) })
+          break
+        }
+      }
+    })
+    btnWorldPositions.current = computed
 
     if (screenMesh) {
       const { updateDisplay, redrawCurrent, startScroll, stopScroll, tickScroll, dispose } = createDisplayUpdater(screenMesh as THREE.Mesh, devParamsRef, invalidate)
@@ -644,20 +703,44 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
       }
       invalidate()
     }
+
+    if (stopejectPress.current > 0) {
+      stopejectPress.current = Math.max(0, stopejectPress.current - delta * 7)
+      const t = Math.sin(stopejectPress.current * Math.PI)
+      btnGroups.current.stopeject.forEach((mesh) => {
+        const orig = btnOriginals.current.get(mesh)
+        if (!orig) return
+        mesh.position.copy(orig.pos)
+        mesh.position.z += t * 0.04
+      })
+      if (stopejectPress.current === 0) {
+        btnGroups.current.stopeject.forEach((mesh) => {
+          const orig = btnOriginals.current.get(mesh)
+          if (orig) mesh.position.copy(orig.pos)
+        })
+      }
+      invalidate()
+    }
   })
 
   const isBtn = (name: string) =>
-    name === 'Paste_click_button' || name === 'Cube003' || name === 'Cube003_1' ||
+    name.includes('Paste_click_button') || name.includes('Cube003') ||
     name.includes('Button1_low001') || name.includes('Button2_low001') ||
     name.includes('Button3_low001') || name.includes('Button4_low001') ||
+    name.includes('Button5_low001') ||
     name.includes('Slider1_low001') || name.includes('Slider2_low001')
 
   const isSliderMesh = (name: string) =>
     name.includes('Slider1_low001') || name.includes('Slider2_low001')
 
   const pressGroup = (n: string) => {
+    if (n.includes('Button5_low001')) {
+      stopejectPress.current = 1
+      invalidate()
+      return
+    }
     btnPress.current = 1
-    if (n === 'Paste_click_button' || n === 'Cube003' || n === 'Cube003_1')
+    if (n.includes('Paste_click_button') || n.includes('Cube003'))
       animatingGroup.current = btnGroups.current.paste
     else if (n.includes('Button1_low001')) animatingGroup.current = btnGroups.current.play
     else if (n.includes('Button2_low001')) animatingGroup.current = btnGroups.current.stop
@@ -667,11 +750,28 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   }
 
   const handlePointerOver = useCallback((e: any) => {
-    if (isBtn(e.object?.name ?? '')) { document.body.style.cursor = 'pointer'; isHovered.current = true }
+    const n = e.object?.name ?? ''
+    if (isBtn(n)) {
+      document.body.style.cursor = 'pointer'
+      isHovered.current = true
+      if (!isSliderMesh(n)) {
+        const label = getBtnLabel(n)
+        if (label) {
+          const wp = new THREE.Vector3()
+          e.object.getWorldPosition(wp)
+          const dir = new THREE.Vector3().subVectors(cameraRef.current.position, wp).normalize()
+          setHoveredInfo({ label, pos: wp.clone().addScaledVector(dir, 0.35) })
+        }
+      }
+    }
   }, [])
 
   const handlePointerOut = useCallback((e: any) => {
-    if (isBtn(e.object?.name ?? '')) { document.body.style.cursor = 'default'; isHovered.current = false }
+    if (isBtn(e.object?.name ?? '')) {
+      document.body.style.cursor = 'default'
+      isHovered.current = false
+      setHoveredInfo(null)
+    }
   }, [])
 
   const handlePointerDown = useCallback((e: any) => {
@@ -703,8 +803,9 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
 
   const handleClick = useCallback((e: any) => {
     e.stopPropagation()
+    hasInteractedRef.current = true
     const name = e.object?.name ?? ''
-    if (name === 'Paste_click_button' || name === 'Cube003' || name === 'Cube003_1') {
+    if (name.includes('Paste_click_button') || name.includes('Cube003')) {
       playClick(); pressGroup(name); onPasteClickRef.current()
     } else if (name.includes('Button1_low001')) {
       playClick(); pressGroup(name); onMuteToggleRef.current?.()
@@ -714,22 +815,60 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
       playClick(); pressGroup(name); onRewindRef.current?.()
     } else if (name.includes('Button4_low001')) {
       playClick(); pressGroup(name); onPlayPauseRef.current?.()
+    } else if (name.includes('Button5_low001')) {
+      playClick(); pressGroup(name); onStopRef.current?.()
     }
   }, [playClick])
 
+  const labelStyle: React.CSSProperties = {
+    fontFamily: '"Courier New", monospace',
+    fontSize: '9px',
+    letterSpacing: '0.12em',
+    color: darkBg ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.88)',
+    background: darkBg ? 'rgba(10,10,10,0.72)' : 'rgba(255,255,255,0.84)',
+    border: `1px solid ${darkBg ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.10)'}`,
+    padding: '3px 7px',
+    borderRadius: '4px',
+    whiteSpace: 'nowrap' as const,
+    backdropFilter: 'blur(8px)',
+    pointerEvents: 'none',
+    userSelect: 'none',
+    boxShadow: '0 1px 8px rgba(0,0,0,0.18)',
+    lineHeight: 1,
+  }
+
+  // Html must be siblings of the pivot group (not children) so that
+  // the world-space positions computed via getWorldPosition() are
+  // interpreted correctly — inside the group they would be local coords.
   return (
-    <group ref={pivotRef}>
-      <primitive
-        object={scene}
-        onClick={handleClick}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
-      />
-    </group>
+    <>
+      <group ref={pivotRef}>
+        <primitive
+          object={scene}
+          onClick={handleClick}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          onPointerOver={handlePointerOver}
+          onPointerOut={handlePointerOut}
+        />
+      </group>
+
+      {/* Hover tooltip — world-space, sibling of pivot so coords are correct */}
+      {hoveredInfo && (
+        <Html position={[hoveredInfo.pos.x, hoveredInfo.pos.y, hoveredInfo.pos.z]} center>
+          <div style={labelStyle}>{hoveredInfo.label}</div>
+        </Html>
+      )}
+
+      {/* Peek hints — all labels shown briefly on first play */}
+      {peekHints && btnWorldPositions.current.map(({ label, pos }) => (
+        <Html key={label} position={[pos.x, pos.y, pos.z]} center>
+          <div style={{ ...labelStyle, opacity: 0.72 }}>{label}</div>
+        </Html>
+      ))}
+    </>
   )
 }
 
@@ -868,7 +1007,7 @@ function WalkmanLoaderOverlay({ darkBg }: { darkBg: boolean }) {
 
 // ─── page ─────────────────────────────────────────────────────────────────────
 
-export default function Cassette2() {
+export default function Walkman() {
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => { setIsMobile(window.innerWidth < 768) }, [])
 
@@ -902,6 +1041,13 @@ export default function Cassette2() {
       document.exitFullscreen().catch(() => {})
     }
   }, [])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'f' || e.key === 'F') toggleFullscreen()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleFullscreen])
   const updateDisplayRef = useRef<((text: string, blinking?: boolean) => void) | null>(null)
   const redrawCurrentRef = useRef<(() => void) | null>(null)
   const startScrollRef = useRef<((text: string) => void) | null>(null)
@@ -1365,12 +1511,13 @@ export default function Cassette2() {
           title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
           style={{
             position: 'fixed', top: '1rem', left: '1rem', zIndex: 10010,
-            width: '42px', height: '42px', borderRadius: '21px',
+            width: '42px', height: '68px', borderRadius: '21px',
             background: darkBg ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
             border: `1px solid ${darkBg ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`,
             backdropFilter: 'blur(12px)',
             cursor: 'pointer', padding: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            gap: '10px',
             transition: 'background 0.2s ease, border-color 0.2s ease',
           }}
         >
@@ -1393,6 +1540,14 @@ export default function Cassette2() {
               <path d="M21 17v4h-4" />
             </svg>
           )}
+          <span style={{
+            fontFamily: 'SatishSans, sans-serif',
+            fontSize: '15px',
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+            color: darkBg ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)',
+            lineHeight: 1,
+          }}>F</span>
         </button>
       )}
 
@@ -1458,6 +1613,7 @@ export default function Cassette2() {
             devParamsRef={devParamsRef}
             darkBg={darkBg}
             onReady={(fn, redraw, startScroll) => { updateDisplayRef.current = fn; redrawCurrentRef.current = redraw; startScrollRef.current = startScroll }}
+            isPlaying={displayStatus === 'PLAYING'}
           />
           <SoftShadow />
           <Environment preset="studio" resolution={64} />

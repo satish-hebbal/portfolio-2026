@@ -72,7 +72,7 @@ export default function Lab() {
 
           {/* Revolving color wheel — bottom right, half visible */}
           <img
-            src="/images/HomeImages/color-wheel.png"
+            src="/images/HomeImages/color-wheel.webp"
             alt=""
             className="color-wheel-spin"
             style={{
@@ -94,7 +94,7 @@ export default function Lab() {
         </Link>
 
         <Link
-          href="/lab/cassette2"
+          href="/lab/walkman"
           className="group walkman-card relative px-6 py-8 overflow-hidden"
           style={{ background: '#ffffff', textDecoration: 'none', borderRadius: '0 16px 0 16px', boxShadow: 'inset 8px 0 24px -8px rgba(103,151,210,0.4)' }}
         >

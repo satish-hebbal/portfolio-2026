@@ -37,8 +37,8 @@ export default function Navbar() {
     return () => observer.disconnect()
   }, [])
 
-  // nav is white-text when on cassette2 dark mode (default) or toggled off light mode
-  const showWhiteNav = pathname === '/lab/cassette2' && !isLightPage
+  // nav is white-text when on walkman dark mode (default) or toggled off light mode
+  const showWhiteNav = pathname === '/lab/walkman' && !isLightPage
 
   useEffect(() => {
     // Create the SVG displacement map for liquid glass effect
