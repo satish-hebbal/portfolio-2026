@@ -793,11 +793,12 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
       isDraggingSlider.current = true
       sliderStartY.current = e.clientY ?? 0
       sliderStartVol.current = window.ytPlayer?.getVolume?.() ?? 50
-    } else if (isBtn(n)) {
+    } else if (isBtn(n) && !isSliderMesh(n)) {
       e.stopPropagation()
+      playClick()
       pressGroup(n)
     }
-  }, [])
+  }, [playClick])
 
   const handlePointerMove = useCallback((e: any) => {
     if (isDraggingSlider.current) {
@@ -842,19 +843,19 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
     hasInteractedRef.current = true
     const name = e.object?.name ?? ''
     if (name.includes('Paste_click_button') || name.includes('Cube003')) {
-      playClick(); pressGroup(name); onPasteClickRef.current()
+      onPasteClickRef.current()
     } else if (name.includes('Button1_low001')) {
-      playClick(); pressGroup(name); onMuteToggleRef.current?.()
+      onMuteToggleRef.current?.()
     } else if (name.includes('Button2_low001')) {
-      playClick(); pressGroup(name); onForwardRef.current?.()
+      onForwardRef.current?.()
     } else if (name.includes('Button3_low001')) {
-      playClick(); pressGroup(name); onRewindRef.current?.()
+      onRewindRef.current?.()
     } else if (name.includes('Button4_low001')) {
-      playClick(); pressGroup(name); onPlayPauseRef.current?.()
+      onPlayPauseRef.current?.()
     } else if (name.includes('Button5_low001')) {
-      playClick(); pressGroup(name); onStopRef.current?.()
+      onStopRef.current?.()
     }
-  }, [playClick])
+  }, [])
 
   const labelStyle: React.CSSProperties = {
     fontFamily: '"Courier New", monospace',
@@ -1698,7 +1699,7 @@ export default function Walkman() {
               backgroundClip: 'text',
               animation: 'textShine 4s linear infinite',
             }}>
-              copy a youtube url · click the ▣ button beside the display
+              copy a youtube url · click the Paste button beside the display
             </span>
         }
         <div style={{
