@@ -471,18 +471,18 @@ function HSBPicker({ value, onChange }: { value: string; onChange: (v: string) =
     ctx.fillRect(0,0,W,H)
   }, [hue])
 
-  function pickSB(e: React.MouseEvent<HTMLCanvasElement>) {
+  function pickSBAt(clientX: number, clientY: number) {
     const canvas = canvasRef.current!
     const rect = canvas.getBoundingClientRect()
-    const x = Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width))
-    const y = Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))
+    const x = Math.max(0,Math.min(1,(clientX-rect.left)/rect.width))
+    const y = Math.max(0,Math.min(1,(clientY-rect.top)/rect.height))
     const s=x,b=1-y
-    // Convert HSB to RGB
     const h=hue/60,i=Math.floor(h),f=h-i,p=b*(1-s),q=b*(1-f*s),t=b*(1-(1-f)*s)
     const rgb=[[b,t,p],[q,b,p],[p,b,t],[p,q,b],[t,p,b],[b,p,q]][i%6]
     const hex='#'+rgb.map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('')
     onChange(hex)
   }
+  function pickSB(e: React.MouseEvent<HTMLCanvasElement>) { pickSBAt(e.clientX, e.clientY) }
 
   const rowH = 28
 
@@ -494,6 +494,8 @@ function HSBPicker({ value, onChange }: { value: string; onChange: (v: string) =
         style={{ width:'100%', height:140, borderRadius:0, cursor:'crosshair', display:'block' }}
         onMouseDown={pickSB}
         onMouseMove={e => { if(e.buttons===1) pickSB(e) }}
+        onTouchStart={e => { e.preventDefault(); pickSBAt(e.touches[0].clientX, e.touches[0].clientY) }}
+        onTouchMove={e => { e.preventDefault(); pickSBAt(e.touches[0].clientX, e.touches[0].clientY) }}
       />
       {/* Hue slider — outer div has no overflow:hidden so knob isn't clipped */}
       <div style={{ position:'relative', height:20 }}>
@@ -574,6 +576,11 @@ function Knob({ value, onChange, min=0, max=360 }: { value: number; onChange: (v
 
   const rotation = ((value - min) / (max - min)) * 270 - 135
 
+  function getAngleFromEl(clientX: number, clientY: number): number {
+    const r = ref.current!.getBoundingClientRect()
+    return Math.atan2(clientY - (r.top + r.height / 2), clientX - (r.left + r.width / 2)) * 180 / Math.PI
+  }
+
   function onMouseDown(e: React.MouseEvent) {
     if (!ref.current) return
     dragging.current = true
@@ -582,22 +589,40 @@ function Knob({ value, onChange, min=0, max=360 }: { value: number; onChange: (v
     e.preventDefault()
   }
 
+  function onTouchStart(e: React.TouchEvent) {
+    if (!ref.current) return
+    dragging.current = true
+    startAngle.current = getAngleFromEl(e.touches[0].clientX, e.touches[0].clientY)
+    startVal.current = value
+    e.preventDefault()
+  }
+
   useEffect(() => {
-    function onMove(e: MouseEvent) {
+    function applyAngle(clientX: number, clientY: number) {
       if (!dragging.current || !ref.current) return
-      let delta = getKnobAngle(e, ref.current) - startAngle.current
+      let delta = getAngleFromEl(clientX, clientY) - startAngle.current
       if (delta > 180) delta -= 360
       if (delta < -180) delta += 360
       onChange(Math.round(Math.max(min, Math.min(max, startVal.current + (delta / 270) * (max - min)))))
     }
+    function onMove(e: MouseEvent) { applyAngle(e.clientX, e.clientY) }
     function onUp() { dragging.current = false }
+    function onTouchMove(e: TouchEvent) { if (!dragging.current) return; e.preventDefault(); applyAngle(e.touches[0].clientX, e.touches[0].clientY) }
+    function onTouchEnd() { dragging.current = false }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', onTouchEnd)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
+    }
   }, [min, max, onChange])
 
   return (
-    <div ref={ref} onMouseDown={onMouseDown}
+    <div ref={ref} onMouseDown={onMouseDown} onTouchStart={onTouchStart}
       style={{ width:48, height:48, borderRadius:'50%', cursor:'grab', position:'relative', flexShrink:0,
         background:'linear-gradient(135deg,rgb(241, 241, 241),rgb(182, 182, 182))',
         boxShadow:'5px 5px 12px rgba(0,0,0,0.35)' }}>
@@ -754,10 +779,29 @@ function VSlider({ value, onChange, min=0, max=100, label, labelColor }: {
   const pct=(value-min)/(max-min)
   const thumbTop=(1-pct)*(trackH-thumbH)
   const numColor = labelColor ?? '#999'
+  const trackRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = trackRef.current
+    if (!el) return
+    function handleTouch(e: TouchEvent) {
+      e.preventDefault()
+      const rect = el!.getBoundingClientRect()
+      const p = 1 - Math.max(0, Math.min(1, (e.touches[0].clientY - rect.top) / rect.height))
+      onChange(Math.round(min + p * (max - min)))
+    }
+    el.addEventListener('touchstart', handleTouch, { passive: false })
+    el.addEventListener('touchmove',  handleTouch, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', handleTouch)
+      el.removeEventListener('touchmove',  handleTouch)
+    }
+  }, [min, max, onChange])
+
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
       <span style={{ fontFamily:'monospace', fontSize:8, color:numColor }}>{max}</span>
-      <div style={{ position:'relative', width:thumbW, height:trackH }}>
+      <div ref={trackRef} style={{ position:'relative', width:thumbW, height:trackH }}>
         {/* Thin track */}
         <div style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', top:0, bottom:0, width:8,
           background:'linear-gradient(to bottom, #aaaaaa, #c4c4c4)',
@@ -833,13 +877,9 @@ function DrumTrack({ onNavigate, onTick }: { onNavigate: (dir: 1|-1) => void; on
   }, [])
 
   useEffect(() => {
-    function onMove(e: MouseEvent) {
-      if (!isDragging.current) return
-      const dx = e.clientX - dragX.current
-      dragX.current = e.clientX
+    function applyDrag(dx: number) {
       setDisplayOffset(prev => prev - dx)
       dragAccum.current -= dx
-      // Cap accumulation so a sudden fast flick fires at most 4 ticks per event
       tickAccum.current = Math.min(tickAccum.current + Math.abs(dx), TICK_SPACING * 4)
       while (tickAccum.current >= TICK_SPACING) {
         onTick?.()
@@ -853,16 +893,38 @@ function DrumTrack({ onNavigate, onTick }: { onNavigate: (dir: 1|-1) => void; on
         dragAccum.current -= DRAG_THRESHOLD
       }
     }
+    function onMove(e: MouseEvent) {
+      if (!isDragging.current) return
+      const dx = e.clientX - dragX.current
+      dragX.current = e.clientX
+      applyDrag(dx)
+    }
     function onUp() {
+      isDragging.current = false
+      dragAccum.current = 0
+      tickAccum.current = 0
+    }
+    function onTouchMove(e: TouchEvent) {
+      if (!isDragging.current) return
+      e.preventDefault()
+      const dx = e.touches[0].clientX - dragX.current
+      dragX.current = e.touches[0].clientX
+      applyDrag(dx)
+    }
+    function onTouchEnd() {
       isDragging.current = false
       dragAccum.current = 0
       tickAccum.current = 0
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', onTouchEnd)
     return () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
     }
   }, [onNavigate])
 
@@ -874,6 +936,7 @@ function DrumTrack({ onNavigate, onTick }: { onNavigate: (dir: 1|-1) => void; on
     <div
       ref={containerRef}
       onMouseDown={e => { isDragging.current = true; dragX.current = e.clientX; dragAccum.current = 0; e.preventDefault() }}
+      onTouchStart={e => { isDragging.current = true; dragX.current = e.touches[0].clientX; dragAccum.current = 0; }}
       style={{
         flex: 1, height: 18, borderRadius: 9999, padding: 1,
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(255, 255, 255, 0.80) 100%)',
@@ -1145,9 +1208,40 @@ export default function QR2() {
   const [pressedBtn, setPressedBtn] = useState<string|null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const svgRef = useRef<HTMLDivElement>(null)
+  const posWrapRef = useRef<HTMLDivElement>(null)
+  const cornerSliderRef = useRef<HTMLDivElement>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const bufsRef = useRef<Record<string, AudioBuffer>>({})
   const pickerWasOpen = useRef(false)
+
+  // Prevent page scroll when touching the device, but allow native range input sliding
+  useEffect(() => {
+    const el = posWrapRef.current
+    if (!el) return
+    const prevent = (e: TouchEvent) => {
+      if (!(e.target instanceof HTMLInputElement)) e.preventDefault()
+    }
+    el.addEventListener('touchmove', prevent, { passive: false })
+    return () => el.removeEventListener('touchmove', prevent)
+  }, [])
+
+  // Corner roundness slider — direct non-passive touch handler bypasses transform coordinate issues
+  useEffect(() => {
+    const el = cornerSliderRef.current
+    if (!el) return
+    function handleTouch(e: TouchEvent) {
+      e.preventDefault()
+      const rect = el!.getBoundingClientRect()
+      const p = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width))
+      set('cornerRoundness', Math.round(p * 100))
+    }
+    el.addEventListener('touchstart', handleTouch, { passive: false })
+    el.addEventListener('touchmove',  handleTouch, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', handleTouch)
+      el.removeEventListener('touchmove',  handleTouch)
+    }
+  }, [])
 
   function set<K extends keyof QRSettings>(k: K, v: QRSettings[K]) {
     setS(prev => ({ ...prev, [k]: v }))
@@ -1306,8 +1400,46 @@ export default function QR2() {
         font-style: normal;
       }
       .panel-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+      /* ── Mobile only — desktop untouched ── */
+      @media (max-width: 540px) {
+        .qr-bg-wrap {
+          padding-top: 100px !important;
+          padding-bottom: 40px !important;
+          align-items: flex-start !important;
+          background-size: cover !important;
+          background-position: center center !important;
+        }
+        .qr-pos-wrap {
+          transform: scale(0.82);
+          transform-origin: top center;
+          margin-bottom: -110px;
+        }
+        /* Picker below device, no z-index override — natural z-index:0 sits
+           behind the device (z-index:1) so closing rotation tucks it under */
+        .qr-picker-anchor {
+          right: auto !important;
+          left: 30px !important;
+          top: 100% !important;
+          bottom: auto !important;
+        }
+        /* Rotate from top-left: closes by spinning back under the device */
+        .qr-picker-panel {
+          transform-origin: top left !important;
+          border-radius: 0 0 28px 28px !important;
+          border-top: none !important;
+          border-right: 1px solid #a8a8a8 !important;
+          box-shadow: 0 14px 28px rgba(0,0,0,0.35), inset 0 -1px 0 rgba(255,255,255,0.3) !important;
+        }
+      }
+      @media (max-width: 400px) {
+        .qr-pos-wrap {
+          transform: scale(0.78);
+          margin-bottom: -130px;
+        }
+      }
     `}</style>
-    <div style={{
+    <div className="qr-bg-wrap" style={{
       minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
@@ -1321,15 +1453,17 @@ export default function QR2() {
       {/* subtle overlay — keeps desk visible, takes edge off harsh light */}
       <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.28)' }}/>
 
-      <div style={{ position:'relative', zIndex:1 }}>
+      <div ref={posWrapRef} className="qr-pos-wrap" style={{ position:'relative', zIndex:1 }}>
 
         {/* ── Color picker panel — 2D pivot from top-right anchor ── */}
-        <div style={{
-          position: 'absolute', right: '100%', top: '28%',
-          zIndex: 0,
-          pointerEvents: (activePanel==='bg'||activePanel==='fg'||activePanel==='gradient') ? 'all' : 'none',
-        }}>
-          <div style={{
+        <div
+          className="qr-picker-anchor"
+          style={{
+            position: 'absolute', right: '100%', top: '28%',
+            zIndex: 0,
+            pointerEvents: (activePanel==='bg'||activePanel==='fg'||activePanel==='gradient') ? 'all' : 'none',
+          }}>
+          <div className="qr-picker-panel" style={{
             width: 210,
             transformOrigin: 'right top',
             transform: (activePanel==='bg'||activePanel==='fg'||activePanel==='gradient')
@@ -1845,7 +1979,7 @@ export default function QR2() {
                 {/* Corner Roundness: label + slider side by side */}
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:8 }}>
                   <span style={{ ...hw.label, textAlign:'left', marginTop:0, flexShrink:0 }}>Corner Roundness</span>
-                  <div style={{ flex:1, position:'relative', height:22 }}>
+                  <div ref={cornerSliderRef} style={{ flex:1, position:'relative', height:22 }}>
                     <div style={{ position:'absolute', top:'50%', left:0, right:0, height:6, transform:'translateY(-50%)',
                       borderRadius:3, background:'linear-gradient(to right,#c0c0c0,#d8d8d8)',
                       boxShadow:'inset 1px 1px 3px rgba(0,0,0,0.2)' }}/>

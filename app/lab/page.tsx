@@ -57,22 +57,7 @@ export default function Lab() {
           max-width: 55%;
         }
 
-        /* QR sticker — hidden on desktop, shown on mobile */
-        .qr-sticker {
-          display: none;
-        }
         @media (max-width: 767px) {
-          .qr-sticker {
-            display: block;
-            position: absolute;
-            top: 12px;
-            right: 20px;
-            width: 72px;
-            transform: rotate(-8deg);
-            filter: drop-shadow(2px 3px 6px rgba(0,0,0,0.22));
-            pointer-events: none;
-            z-index: 10;
-          }
           /* Center thumbnails at bottom on mobile */
           .walkman-thumb-wrap {
             top: auto;
@@ -158,7 +143,6 @@ export default function Lab() {
           <CardContainer containerClassName="w-full p-0" className="w-full">
             <CardBody className="qr-card-body w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
               style={{ background: 'linear-gradient(135deg, #e8e8e8 0%, #ffffff 60%)', borderRadius: 0 }}>
-              <img src="/images/lab/caution-designer-at-work.png" alt="" className="qr-sticker" />
               <CardItem translateZ={50} className="block"
                 style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#1a1a1a' }}>
                 QR Device
