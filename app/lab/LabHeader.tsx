@@ -38,7 +38,7 @@ export default function LabHeader() {
 
   return (
     <div ref={headerRef} className="flex items-center gap-4 mb-12">
-      <img ref={leftIconRef} src="/images/HomeImages/HandC.svg" alt="" style={{ height: '28px', objectFit: 'contain', flexShrink: 0 }} />
+      <img ref={leftIconRef} src="/images/HomeImages/HandC-sm.webp" alt="" style={{ height: '28px', objectFit: 'contain', flexShrink: 0 }} />
       <span ref={leftLineRef} style={{ flex: 1, height: '1px', background: '#d1d5db', display: 'block' }} />
       <h1
         className="text-2xl md:text-3xl font-light text-black"
@@ -48,7 +48,7 @@ export default function LabHeader() {
         <span style={{ fontFamily: 'SatishSans, sans-serif' }}>Lab</span>
       </h1>
       <span ref={rightLineRef} style={{ flex: 1, height: '1px', background: '#d1d5db', display: 'block' }} />
-      <img ref={rightIconRef} src="/images/HomeImages/HandC.svg" alt="" style={{ height: '28px', objectFit: 'contain', flexShrink: 0 }} />
+      <img ref={rightIconRef} src="/images/HomeImages/HandC-sm.webp" alt="" style={{ height: '28px', objectFit: 'contain', flexShrink: 0 }} />
     </div>
   )
 }

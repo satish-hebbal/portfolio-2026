@@ -456,7 +456,7 @@ export default function ColorGame() {
             onMouseEnter={e => (e.currentTarget.style.color = '#111')}
             onMouseLeave={e => (e.currentTarget.style.color = '#9ca3af')}
           >
-            <img src="/images/HomeImages/HandC.svg" alt="" style={{ height: '14px', objectFit: 'contain', opacity: 0.5 }} />
+            <img src="/images/HomeImages/HandC-sm.webp" alt="" style={{ height: '14px', objectFit: 'contain', opacity: 0.5 }} />
             Back to lab
           </a>
         </div>
