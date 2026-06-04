@@ -892,19 +892,6 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
         />
       </group>
 
-      {/* Hover tooltip — world-space, sibling of pivot so coords are correct */}
-      {hoveredInfo && (
-        <Html position={[hoveredInfo.pos.x, hoveredInfo.pos.y, hoveredInfo.pos.z]} center>
-          <div style={labelStyle}>{hoveredInfo.label}</div>
-        </Html>
-      )}
-
-      {/* Peek hints — all labels shown briefly on first play */}
-      {peekHints && btnWorldPositions.current.map(({ label, pos }) => (
-        <Html key={label} position={[pos.x, pos.y, pos.z]} center>
-          <div style={{ ...labelStyle, opacity: 0.72 }}>{label}</div>
-        </Html>
-      ))}
     </>
   )
 }
