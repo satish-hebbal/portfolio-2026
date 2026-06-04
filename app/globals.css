@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+.panel-scroll::-webkit-scrollbar { display: none !important; width: 0 !important; }
+
 /* 404 page overrides */
 body.page-404 { background: black; }
 

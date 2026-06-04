@@ -1,5 +1,22 @@
 import Link from 'next/link'
 import LabHeader from './LabHeader'
+import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card'
+
+const ArrowBtn = ({ light = false }: { light?: boolean }) => (
+  <div style={{
+    width: 30, height: 30, borderRadius: '50%',
+    background: light ? 'rgba(255,255,255,0.15)' : '#efefef',
+    border: light ? '1px solid rgba(255,255,255,0.2)' : 'none',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: light ? 'none' : 'inset 2px 2px 4px rgba(0,0,0,0.18), inset -1px -1px 3px rgba(255,255,255,0.9)',
+  }}>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke={light ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)'}
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  </div>
+)
 
 export default function Lab() {
   return (
@@ -14,112 +31,137 @@ export default function Lab() {
         }
         .color-wheel-spin {
           animation: spin-slow 12s linear infinite;
+          animation-play-state: paused;
         }
-        .walkman-thumb {
+        .color-wheel-card:hover .color-wheel-spin {
+          animation-play-state: running;
+        }
+
+        /* Thumbnail positioning — CSS classes so media queries can override */
+        .walkman-thumb-wrap {
           position: absolute;
           top: -70px;
           right: -45px;
           width: 250px;
           height: 250px;
-          object-fit: contain;
           pointer-events: none;
-          opacity: 0.92;
-          transform: rotate(-45deg) scale(1);
-          transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .group:hover .walkman-thumb {
-          transform: rotate(-30deg) scale(1.12);
+        .qr-thumb-wrap {
+          position: absolute;
+          bottom: 16px;
+          right: 10px;
+          width: 200px;
+          pointer-events: none;
         }
-        .walkman-card {
-          border: 1px solid #e5e7eb;
-          transition: border-color 0.2s ease;
+        .qr-card-desc {
+          max-width: 55%;
         }
-        .walkman-card:hover {
-          border-color:rgb(147, 185, 243);
-        }
+
         @media (max-width: 767px) {
-          .walkman-thumb {
-            width: 160px;
-            height: 160px;
-            top: -45px;
-            right: -30px;
-            transform: rotate(5deg) scale(1);
+          /* Center thumbnails at bottom on mobile */
+          .walkman-thumb-wrap {
+            top: auto;
+            right: auto;
+            left: -20px;
+            bottom: -75px;
+            width: 200px;
+            height: 200px;
+            margin: 0;
           }
-          .group:hover .walkman-thumb {
-            transform: rotate(20deg) scale(1.12);
+          .walkman-thumb-wrap img {
+            transform: rotate(-14deg) !important;
+          }
+          .qr-thumb-wrap {
+            right: 0;
+            left: 0;
+            bottom: -75px;
+            width: 170px;
+            margin: 0 auto;
+          }
+          /* Full-width text on mobile */
+          .qr-card-desc {
+            max-width: 100%;
           }
         }
       `}</style>
 
       <LabHeader />
 
-      {/* Two-column grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link
-          href="/lab/color"
-          className="group relative border border-gray-200 px-6 py-8 hover:border-gray-900 transition-colors duration-200 overflow-hidden"
-          style={{ background: '#ffffff', textDecoration: 'none', borderRadius: '0 16px 0 16px', boxShadow: 'inset 8px 0 24px -8px rgba(255,222,184,0.8)' }}
-        >
-          <div
-            className="text-2xl font-light tracking-tight mb-3 text-black"
-            style={{ fontFamily: 'SatishSans, sans-serif', letterSpacing: '-0.01em' }}
-          >
-            Color
-          </div>
-          <div className="text-xs mb-8" style={{ color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: '1.5' }}>
-            How good is your color memory?
-          </div>
 
-          {/* Revolving color wheel — bottom right, half visible */}
-          <img
-            src="/images/HomeImages/color-wheel.webp"
-            alt=""
-            className="color-wheel-spin"
-            style={{
-              position: 'absolute',
-              bottom: '-45px',
-              right: '-45px',
-              width: '160px',
-              height: '160px',
-              objectFit: 'contain',
-              pointerEvents: 'none',
-            }}
-          />
-
-          <div className="absolute bottom-5 right-5" style={{ zIndex: 1, width: '30px', height: '30px', borderRadius: '50%', background: '#efefef', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.18), inset -1px -1px 3px rgba(255,255,255,0.9)' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </div>
+        {/* Color Memo */}
+        <Link href="/lab/color" className="color-wheel-card" style={{ textDecoration: 'none', display: 'block' }}>
+          <CardContainer containerClassName="w-full p-0" className="w-full">
+            <CardBody className="w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+              style={{ background: 'linear-gradient(135deg, #fff8ee 0%, #ffffff 60%)', borderRadius: 0 }}>
+              <CardItem translateZ={50} className="block"
+                style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
+                Color Memo
+              </CardItem>
+              <CardItem translateZ={60} as="p" className="block mt-3"
+                style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5 }}>
+                A game that tests how sharp<br />your color memory really is
+              </CardItem>
+              <CardItem translateZ={100} className="absolute" style={{ bottom: -45, right: -45 }}>
+                <img src="/images/HomeImages/color-wheel.webp" alt=""
+                  className="color-wheel-spin"
+                  style={{ width: 160, height: 160, objectFit: 'contain', pointerEvents: 'none', opacity: 0.92 }} />
+              </CardItem>
+              <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
+                <ArrowBtn />
+              </CardItem>
+            </CardBody>
+          </CardContainer>
         </Link>
 
-        <Link
-          href="/lab/walkman"
-          className="group walkman-card relative px-6 py-8 overflow-hidden"
-          style={{ background: '#ffffff', textDecoration: 'none', borderRadius: '0 16px 0 16px', boxShadow: 'inset 8px 0 24px -8px rgba(103,151,210,0.4)' }}
-        >
-          <div
-            className="text-2xl font-light tracking-tight mb-3 text-black"
-            style={{ fontFamily: 'SatishSans, sans-serif', letterSpacing: '-0.01em' }}
-          >
-            YT Walkman
-          </div>
-          <div className="text-xs mb-8" style={{ color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: '1.5' }}>
-            What if you could listen to any<br />YouTube track on a vintage Walkman?
-          </div>
-
-          <img
-            src="/images/lab/walkman-thumnail.png"
-            alt=""
-            className="walkman-thumb"
-          />
-
-          <div className="absolute bottom-5 right-5" style={{ zIndex: 1, width: '30px', height: '30px', borderRadius: '50%', background: '#efefef', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.18), inset -1px -1px 3px rgba(255,255,255,0.9)' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </div>
+        {/* YT Walkman */}
+        <Link href="/lab/walkman" style={{ textDecoration: 'none', display: 'block' }}>
+          <CardContainer containerClassName="w-full p-0" className="w-full">
+            <CardBody className="walkman-card-body w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+              style={{ background: 'linear-gradient(135deg, #eef4ff 0%, #ffffff 60%)', borderRadius: 0 }}>
+              <CardItem translateZ={50} className="block"
+                style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
+                YT Walkman
+              </CardItem>
+              <CardItem translateZ={60} as="p" className="block mt-3"
+                style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5 }}>
+                What if you could listen to any<br />YouTube track on a vintage Walkman?
+              </CardItem>
+              <CardItem translateZ={110} className="walkman-thumb-wrap">
+                <img src="/images/lab/walkman-thumnail.png" alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', transform: 'rotate(-45deg)', opacity: 0.92 }} />
+              </CardItem>
+              <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
+                <ArrowBtn />
+              </CardItem>
+            </CardBody>
+          </CardContainer>
         </Link>
+
+        {/* QR Device */}
+        <Link href="/lab/qr-device" style={{ textDecoration: 'none', display: 'block' }}>
+          <CardContainer containerClassName="w-full p-0" className="w-full">
+            <CardBody className="qr-card-body w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+              style={{ background: 'linear-gradient(135deg, #e8e8e8 0%, #ffffff 60%)', borderRadius: 0 }}>
+              <CardItem translateZ={50} className="block"
+                style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#1a1a1a' }}>
+                QR Device
+              </CardItem>
+              <CardItem translateZ={60} as="p" className="qr-card-desc block mt-3"
+                style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5 }}>
+                A hardware-style QR generator with gradients, textures &amp; sound
+              </CardItem>
+              <CardItem translateZ={110} className="qr-thumb-wrap">
+                <img src="/images/lab/qr-device-thumnail.png" alt=""
+                  style={{ width: '100%', opacity: 0.92, transform: 'rotate(4deg)' }} />
+              </CardItem>
+              <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
+                <ArrowBtn />
+              </CardItem>
+            </CardBody>
+          </CardContainer>
+        </Link>
+
       </div>
     </div>
   )
