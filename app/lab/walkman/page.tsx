@@ -1677,7 +1677,7 @@ export default function Walkman() {
               padding: isMobile ? '0 12px' : '0',
               width: isMobile ? 'min(90vw, 500px)' : undefined,
               // Neon green shine sweep left → right
-              background: darkBg
+              backgroundImage: darkBg
                 ? 'linear-gradient(90deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.38) 35%, #00ff88 50%, rgba(255,255,255,0.38) 65%, rgba(255,255,255,0.38) 100%)'
                 : 'linear-gradient(90deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.28) 35%, #00cc66 50%, rgba(0,0,0,0.28) 65%, rgba(0,0,0,0.28) 100%)',
               backgroundSize: '250% auto',
