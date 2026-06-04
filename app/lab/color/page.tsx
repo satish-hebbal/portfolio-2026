@@ -483,7 +483,7 @@ export default function ColorGame() {
           <div style={{ ...cardInner(), background: 'black', overflow: 'hidden' }}>
             <div style={{ padding: '28px 32px', color: 'white', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative' }}>
               <img
-                src="/images/HomeImages/color-wheel.png"
+                src="/images/HomeImages/color-wheel.webp"
                 alt=""
                 className="color-wheel-spin"
                 style={{ position: 'absolute', bottom: '-50px', right: '-50px', width: '200px', height: '200px', objectFit: 'contain', pointerEvents: 'none' }}
