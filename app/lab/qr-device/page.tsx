@@ -1246,6 +1246,11 @@ export default function QR2() {
   const hw = isNight ? HW_NIGHT : HW_DAY
 
   useEffect(() => {
+    document.body.setAttribute('data-qr-page', 'true')
+    return () => document.body.removeAttribute('data-qr-page')
+  }, [])
+
+  useEffect(() => {
     if (isNight) {
       document.body.setAttribute('data-dark-page', 'true')
     } else {
@@ -2346,10 +2351,10 @@ export default function QR2() {
                 QR Device <span style={{ fontWeight: 500, fontSize: 22, color: '#1a1a1a', letterSpacing: '-0.02em' }}>· Quick Guide</span>
               </div>
               <button onClick={() => setShowManual(false)} style={{
-                border: 'none', background: 'rgba(0,0,0,0.12)', color: '#333', fontSize: 16,
+                border: 'none', background: 'rgba(0,0,0,0.12)', color: '#333', fontSize: 18,
                 cursor: 'pointer', lineHeight: 1, padding: '5px 8px', borderRadius: 6,
                 alignSelf: 'flex-start', marginTop: -10, marginRight: -10,
-                fontWeight: 700, fontSize: 18,
+                fontWeight: 700,
               }}>✕</button>
             </div>
 

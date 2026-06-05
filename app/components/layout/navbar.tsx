@@ -23,7 +23,8 @@ export default function Navbar() {
   const navRef = useRef<HTMLElement>(null)
   const [isMounted, setIsMounted] = useState(false)
   const [isLightPage, setIsLightPage] = useState(false)
-  const [isDarkPage, setIsDarkPage] = useState(false)
+  const [isDarkPage, setIsDarkPage]   = useState(false)
+  const [isQRPage, setIsQRPage]       = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -44,6 +45,15 @@ export default function Navbar() {
       setIsDarkPage(document.body.hasAttribute('data-dark-page'))
     })
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-dark-page'] })
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    setIsQRPage(document.body.hasAttribute('data-qr-page'))
+    const observer = new MutationObserver(() => {
+      setIsQRPage(document.body.hasAttribute('data-qr-page'))
+    })
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-qr-page'] })
     return () => observer.disconnect()
   }, [])
 
@@ -257,7 +267,7 @@ export default function Navbar() {
         style={{
           background: showWhiteNav ? 'rgba(255,255,255,0.06)' : 'rgba(255, 255, 255, 0.08)',
           backdropFilter: 'url(#liquid-lens) blur(2px)',
-          border: showWhiteNav ? '2px solid rgba(255,255,255,0.14)' : '2px solid rgb(212, 212, 216)',
+          border: showWhiteNav ? '2px solid rgba(255,255,255,0.09)' : '2px solid rgba(180,180,185,0.55)',
           boxShadow: `
             inset 0 1px 0 rgba(255, 255, 255, 0.2),
             inset 0 -1px 0 rgba(255, 255, 255, 0.1),
@@ -266,10 +276,10 @@ export default function Navbar() {
         }}
       >
         {/* Corner squares - half outside */}
-        <div className={`absolute -top-1 -left-1 w-2 h-2 ${showWhiteNav ? 'bg-white/25' : 'bg-zinc-300'}`} />
-        <div className={`absolute -top-1 -right-1 w-2 h-2 ${showWhiteNav ? 'bg-white/25' : 'bg-zinc-300'}`} />
-        <div className={`absolute -bottom-1 -left-1 w-2 h-2 ${showWhiteNav ? 'bg-white/25' : 'bg-zinc-300'}`} />
-        <div className={`absolute -bottom-1 -right-1 w-2 h-2 ${showWhiteNav ? 'bg-white/25' : 'bg-zinc-300'}`} />
+        <div className={`absolute -top-1 -left-1 w-2 h-2 ${showWhiteNav ? 'bg-white/10' : 'bg-zinc-300/50'}`} />
+        <div className={`absolute -top-1 -right-1 w-2 h-2 ${showWhiteNav ? 'bg-white/10' : 'bg-zinc-300/50'}`} />
+        <div className={`absolute -bottom-1 -left-1 w-2 h-2 ${showWhiteNav ? 'bg-white/10' : 'bg-zinc-300/50'}`} />
+        <div className={`absolute -bottom-1 -right-1 w-2 h-2 ${showWhiteNav ? 'bg-white/10' : 'bg-zinc-300/50'}`} />
         {navItems.map((item, index) => (
           <div key={item.name} className={`flex items-center ${isMounted ? "gap-1 md:gap-6" : "gap-1"}`}>
             <button
@@ -285,7 +295,9 @@ export default function Navbar() {
                     ? "text-orange-400"
                     : (pathname.startsWith('/unplugged/') || showWhiteNav)
                       ? "text-white"
-                      : "text-zinc-700"
+                      : isQRPage
+                        ? "text-stone-900"
+                        : "text-zinc-700"
               }`}
               style={{ fontFamily: 'FunnelDisplay, sans-serif', fontWeight: '400' }}
             >
