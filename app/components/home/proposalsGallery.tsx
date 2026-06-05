@@ -236,7 +236,7 @@ export default function ProposalsGallery() {
             </>
           )
 
-          const cardClass = `group block relative border border-gray-200 bg-white hover:border-gray-400 transition-colors duration-300`
+          const cardClass = `group block relative border border-gray-200 bg-white hover:border-gray-400 transition-colors duration-300 overflow-hidden`
 
           return item.external ? (
             <a

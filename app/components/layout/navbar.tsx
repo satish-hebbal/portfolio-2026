@@ -23,6 +23,7 @@ export default function Navbar() {
   const navRef = useRef<HTMLElement>(null)
   const [isMounted, setIsMounted] = useState(false)
   const [isLightPage, setIsLightPage] = useState(false)
+  const [isDarkPage, setIsDarkPage] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -37,8 +38,17 @@ export default function Navbar() {
     return () => observer.disconnect()
   }, [])
 
-  // nav is white-text when on walkman dark mode (default) or toggled off light mode
-  const showWhiteNav = pathname === '/lab/walkman' && !isLightPage
+  useEffect(() => {
+    setIsDarkPage(document.body.hasAttribute('data-dark-page'))
+    const observer = new MutationObserver(() => {
+      setIsDarkPage(document.body.hasAttribute('data-dark-page'))
+    })
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-dark-page'] })
+    return () => observer.disconnect()
+  }, [])
+
+  // nav is white-text when on walkman dark mode, or any page that sets data-dark-page
+  const showWhiteNav = (pathname === '/lab/walkman' && !isLightPage) || isDarkPage
 
   useEffect(() => {
     // Create the SVG displacement map for liquid glass effect

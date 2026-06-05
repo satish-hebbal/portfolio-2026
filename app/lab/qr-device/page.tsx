@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import QRCode from 'qrcode'
+import { gsap } from 'gsap'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ModuleShape = 'square'|'circle'|'rounded'|'diamond'|'star'|'squircle'|'leaf'|'cross'|'hexagon'|'triangle'|'flower'
@@ -392,54 +393,79 @@ function buildSVG(matrix: boolean[][], s: QRSettings): string {
 }
 
 // ─── Hardware-style CSS ───────────────────────────────────────────────────────
-const hw = {
+type HwTheme = {
+  device: React.CSSProperties
+  btn: (active?: boolean) => React.CSSProperties
+  inset: React.CSSProperties
+  label: React.CSSProperties
+  screen: React.CSSProperties
+}
+
+const HW_DAY: HwTheme = {
   device: {
     background: 'linear-gradient(160deg, #e8e8e8 0%, #d4d4d4 40%, #c8c8c8 70%, #d8d8d8 100%)',
     boxShadow: '0 40px 80px rgba(0,0,0,0.45), 0 20px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.6), inset 0 -1px 0 rgba(0,0,0,0.1)',
     border: '1px solid #a0a0a0',
     borderRadius: 32,
-  } as React.CSSProperties,
-
-  btn: (active = false): React.CSSProperties => ({
-    background: active
-      ? 'linear-gradient(145deg, #b8b8b8, #d0d0d0)'
-      : 'linear-gradient(145deg, #e8e8e8, #c8c8c8)',
-    boxShadow: active
-      ? 'inset 2px 2px 5px #a0a0a0, inset -1px -1px 3px #f0f0f0'
-      : '3px 3px 6px #b0b0b0, -2px -2px 5px #f4f4f4',
+    transition: 'background 0.65s ease, box-shadow 0.65s ease',
+  },
+  btn: (active = false) => ({
+    background: active ? 'linear-gradient(145deg, #b8b8b8, #d0d0d0)' : 'linear-gradient(145deg, #e8e8e8, #c8c8c8)',
+    boxShadow: active ? 'inset 2px 2px 5px #a0a0a0, inset -1px -1px 3px #f0f0f0' : '3px 3px 6px #b0b0b0, -2px -2px 5px #f4f4f4',
     border: '1px solid #b0b0b0',
-    cursor: 'pointer',
-    transition: 'all 0.1s',
-    color: '#555',
-    fontFamily: 'inherit',
-    userSelect: 'none',
+    cursor: 'pointer', transition: 'all 0.1s', color: '#555',
+    fontFamily: 'inherit', userSelect: 'none' as const,
   }),
-
   inset: {
     background: 'linear-gradient(160deg, #c4c4c4, #d8d8d8)',
     boxShadow: 'inset 2px 2px 6px #a8a8a8, inset -1px -1px 4px #e8e8e8',
-    border: '1px solid #a8a8a8',
-    borderRadius: 16,
-  } as React.CSSProperties,
-
-  label: {
-    fontSize: 8,
-    letterSpacing: 0,
-    textTransform: 'uppercase' as const,
-    color: '#888',
-    fontFamily: 'UniversNext, sans-serif',
-    fontWeight: 400,
-    display: 'block',
-    textAlign: 'center' as const,
-    marginTop: 4,
+    border: '1px solid #a8a8a8', borderRadius: 16,
   },
-
+  label: {
+    fontSize: 8, letterSpacing: 0, textTransform: 'uppercase' as const, color: '#888',
+    fontFamily: 'UniversNext, sans-serif', fontWeight: 400, display: 'block',
+    textAlign: 'center' as const, marginTop: 4,
+  },
   screen: {
-    background: '#1a1a1a',
-    boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.8), inset 0 0 0 3px #111',
-    borderRadius: 28,
-    overflow: 'hidden',
-  } as React.CSSProperties,
+    background: '#1a1a1a', boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.8), inset 0 0 0 3px #111',
+    borderRadius: 28, overflow: 'hidden',
+  },
+}
+
+const HW_NIGHT: HwTheme = {
+  device: {
+    background: 'linear-gradient(160deg, #3d3d4a 0%, #2c2c34 40%, #252528 70%, #303038 100%)',
+    boxShadow: [
+      '0 40px 80px rgba(0,0,0,0.82)',
+      '0 20px 40px rgba(0,0,0,0.62)',
+      'inset 0 1px 0 rgba(120,140,200,0.18)',
+      'inset 0 -1px 0 rgba(0,0,0,0.55)',
+      '-24px 0 60px rgba(185,212,255,0.13)',
+    ].join(', '),
+    border: '1px solid #1c1c26', borderRadius: 32,
+    transition: 'background 0.65s ease, box-shadow 0.65s ease',
+  },
+  btn: (active = false) => ({
+    background: active ? 'linear-gradient(145deg, #252530, #333340)' : 'linear-gradient(145deg, #393944, #2b2b36)',
+    boxShadow: active ? 'inset 2px 2px 5px #13131e, inset -1px -1px 3px #45454e' : '3px 3px 6px #11111a, -2px -2px 5px #373742',
+    border: '1px solid #1b1b26',
+    cursor: 'pointer', transition: 'all 0.1s', color: '#8890a8',
+    fontFamily: 'inherit', userSelect: 'none' as const,
+  }),
+  inset: {
+    background: 'linear-gradient(160deg, #252530, #1e1e28)',
+    boxShadow: 'inset 2px 2px 6px #0d0d18, inset -1px -1px 4px #31313e',
+    border: '1px solid #16161f', borderRadius: 16,
+  },
+  label: {
+    fontSize: 8, letterSpacing: 0, textTransform: 'uppercase' as const, color: '#5e6070',
+    fontFamily: 'UniversNext, sans-serif', fontWeight: 400, display: 'block',
+    textAlign: 'center' as const, marginTop: 4,
+  },
+  screen: {
+    background: '#1a1a1a', boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.8), inset 0 0 0 3px #111',
+    borderRadius: 28, overflow: 'hidden',
+  },
 }
 
 // ─── HSB Color Picker ─────────────────────────────────────────────────────────
@@ -568,7 +594,7 @@ function getKnobAngle(e: MouseEvent | React.MouseEvent, el: HTMLElement): number
   return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * 180 / Math.PI
 }
 
-function Knob({ value, onChange, min=0, max=360 }: { value: number; onChange: (v: number) => void; min?: number; max?: number }) {
+function Knob({ value, onChange, min=0, max=360, isNight=false }: { value: number; onChange: (v: number) => void; min?: number; max?: number; isNight?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
   const startAngle = useRef(0)
@@ -624,27 +650,19 @@ function Knob({ value, onChange, min=0, max=360 }: { value: number; onChange: (v
   return (
     <div ref={ref} onMouseDown={onMouseDown} onTouchStart={onTouchStart}
       style={{ width:48, height:48, borderRadius:'50%', cursor:'grab', position:'relative', flexShrink:0,
-        background:'linear-gradient(135deg,rgb(241, 241, 241),rgb(182, 182, 182))',
-        boxShadow:'5px 5px 12px rgba(0,0,0,0.35)' }}>
+        background: isNight ? 'linear-gradient(135deg, #3c3c46, #26262e)' : 'linear-gradient(135deg,rgb(241,241,241),rgb(182,182,182))',
+        boxShadow: isNight ? '5px 5px 12px rgba(0,0,0,0.65)' : '5px 5px 12px rgba(0,0,0,0.35)' }}>
       {/* Highlight dot floating above the knob */}
       <div style={{ position:'absolute', top:-7, left:'50%', transform:'translateX(-50%)',
-        width:2, height:6, borderRadius:1, background:'rgba(255,255,255,0.9)',
+        width:2, height:6, borderRadius:1,
+        background: isNight ? 'rgba(140,160,220,0.55)' : 'rgba(255,255,255,0.9)',
         zIndex:3, pointerEvents:'none' }}/>
       {/* Inner disc — rotates with interaction, spun-metal conic texture */}
       <div style={{ position:'absolute', inset:5, borderRadius:'50%',
-        background:`conic-gradient(from 55deg,
-          #b8b8b8 0deg,
-          #f8f8f8 20deg, #cccccc 42deg,
-          #adadad 68deg,
-          #f5f5f5 90deg, #c4c4c4 115deg,
-          #b0b0b0 148deg,
-          #fafafa 168deg, #c8c8c8 190deg,
-          #b8b8b8 228deg,
-          #f0f0f0 252deg, #cccccc 275deg,
-          #aaaaaa 305deg,
-          #f6f6f6 332deg, #c2c2c2 352deg,
-          #b8b8b8 360deg)`,
-        boxShadow:'inset 0 0 6px rgba(0,0,0,0.18)',
+        background: isNight
+          ? `conic-gradient(from 55deg,#2e2e38 0deg,#4a4a56 20deg,#363640 42deg,#26262e 68deg,#464652 90deg,#363640 115deg,#282832 148deg,#484852 168deg,#363640 190deg,#2e2e38 228deg,#44444e 252deg,#363640 275deg,#242430 305deg,#46464e 332deg,#32323c 352deg,#2e2e38 360deg)`
+          : `conic-gradient(from 55deg,#b8b8b8 0deg,#f8f8f8 20deg,#cccccc 42deg,#adadad 68deg,#f5f5f5 90deg,#c4c4c4 115deg,#b0b0b0 148deg,#fafafa 168deg,#c8c8c8 190deg,#b8b8b8 228deg,#f0f0f0 252deg,#cccccc 275deg,#aaaaaa 305deg,#f6f6f6 332deg,#c2c2c2 352deg,#b8b8b8 360deg)`,
+        boxShadow: isNight ? 'inset 0 0 6px rgba(0,0,0,0.45)' : 'inset 0 0 6px rgba(0,0,0,0.18)',
         transform:`rotate(${rotation}deg)` }}>
         <div style={{ position:'absolute', top:4, left:'50%', transform:'translateX(-50%)',
           width:4, height:4, borderRadius:'50%', background:'#3EFF52',
@@ -655,7 +673,7 @@ function Knob({ value, onChange, min=0, max=360 }: { value: number; onChange: (v
 }
 
 // ─── Vertical Type Selector ────────────────────────────────────────────────────
-function TypeSelector({ value, onChange }: { value: GradType; onChange: (v: GradType) => void }) {
+function TypeSelector({ value, onChange, isNight=false, labelColor }: { value: GradType; onChange: (v: GradType) => void; isNight?: boolean; labelColor?: string }) {
   const opts: { label: string; val: GradType }[] = [
     { label:'L', val:'L' },
     { label:'R', val:'R' },
@@ -672,7 +690,7 @@ function TypeSelector({ value, onChange }: { value: GradType; onChange: (v: Grad
           <div key={o.val} onClick={()=>onChange(o.val)}
             style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:5, cursor:'pointer', width:32 }}>
             <span style={{ fontSize:8, fontWeight:400, letterSpacing:0,
-              color: value===o.val ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.35)', fontFamily:'UniversNext, sans-serif', lineHeight:1 }}>
+              color: labelColor ? (value===o.val ? labelColor : `${labelColor}66`) : (value===o.val ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.35)'), fontFamily:'UniversNext, sans-serif', lineHeight:1 }}>
               {o.label}
             </span>
             <div style={{ width:4, height:4, borderRadius:'50%', flexShrink:0,
@@ -682,12 +700,12 @@ function TypeSelector({ value, onChange }: { value: GradType; onChange: (v: Grad
       </div>
       {/* Pill track with perfect circle thumb */}
       <div style={{ position:'relative', width:30, height:trackH,
-        background:'linear-gradient(to bottom, #b0b0b0, #c8c8c8)',
-        boxShadow:'inset 2px 2px 6px rgba(0,0,0,0.25), inset -1px -1px 3px rgba(255,255,255,0.3)',
-        border:'1px solid #a8a8a8', borderRadius:15 }}>
+        background: isNight ? 'linear-gradient(to bottom, #22222c, #2c2c38)' : 'linear-gradient(to bottom, #b0b0b0, #c8c8c8)',
+        boxShadow: isNight ? 'inset 2px 2px 6px rgba(0,0,0,0.55), inset -1px -1px 3px rgba(70,80,120,0.12)' : 'inset 2px 2px 6px rgba(0,0,0,0.25), inset -1px -1px 3px rgba(255,255,255,0.3)',
+        border: isNight ? '1px solid #151520' : '1px solid #a8a8a8', borderRadius:15 }}>
         {/* Center groove line */}
         <div style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', top:10, bottom:10, width:3, borderRadius:2,
-          background:'linear-gradient(to bottom, #909090, #b0b0b0)',
+          background: isNight ? 'linear-gradient(to bottom, #141420, #20202c)' : 'linear-gradient(to bottom, #909090, #b0b0b0)',
           boxShadow:'inset 0 1px 3px rgba(0,0,0,0.35)', zIndex:0 }}/>
         {opts.map((_,i) => (
           <div key={i} onClick={()=>onChange(opts[i].val)}
@@ -696,16 +714,18 @@ function TypeSelector({ value, onChange }: { value: GradType; onChange: (v: Grad
         <div style={{ position:'absolute', left:'50%', transform:'translateX(-50%)',
           top: thumbTops[idx], transition:'top 0.18s cubic-bezier(0.34,1.56,0.64,1)',
           width:thumbSize, height:thumbSize, borderRadius:'50%', zIndex:2, pointerEvents:'none',
-          background:`conic-gradient(from 110deg,#c2c2c2 0deg,#f2f2f2 22deg,#d4d4d4 38deg,#bcbcbc 65deg,#efefef 88deg,#c8c8c8 108deg,#b8b8b8 140deg,#f4f4f4 162deg,#ccc 185deg,#c0c0c0 220deg,#ebebeb 245deg,#d0d0d0 268deg,#bbbbbb 300deg,#f0f0f0 328deg,#c6c6c6 348deg,#c2c2c2 360deg)`,
-          boxShadow:'2px 2px 6px rgba(0,0,0,0.28)',
-          border:'1px solid #b8b8b8' }}/>
+          background: isNight
+            ? `conic-gradient(from 110deg,#2e2e38 0deg,#4a4a56 22deg,#363640 38deg,#26262e 65deg,#464652 88deg,#363640 108deg,#282832 140deg,#484852 162deg,#363640 185deg,#2e2e38 220deg,#44444e 245deg,#363640 268deg,#242430 300deg,#46464e 328deg,#32323c 348deg,#2e2e38 360deg)`
+            : `conic-gradient(from 110deg,#c2c2c2 0deg,#f2f2f2 22deg,#d4d4d4 38deg,#bcbcbc 65deg,#efefef 88deg,#c8c8c8 108deg,#b8b8b8 140deg,#f4f4f4 162deg,#ccc 185deg,#c0c0c0 220deg,#ebebeb 245deg,#d0d0d0 268deg,#bbbbbb 300deg,#f0f0f0 328deg,#c6c6c6 348deg,#c2c2c2 360deg)`,
+          boxShadow: isNight ? '2px 2px 6px rgba(0,0,0,0.65)' : '2px 2px 6px rgba(0,0,0,0.28)',
+          border: isNight ? '1px solid #1e1e28' : '1px solid #b8b8b8' }}/>
       </div>
     </div>
   )
 }
 
 // ─── EC Selector ─────────────────────────────────────────────────────────────
-function ECSelector({ value, onChange }: { value: ECLevel; onChange: (v: ECLevel) => void }) {
+function ECSelector({ value, onChange, isNight=false, labelColor }: { value: ECLevel; onChange: (v: ECLevel) => void; isNight?: boolean; labelColor?: string }) {
   const levels: ECLevel[] = ['L','M','Q','H']
   const idx = levels.indexOf(value)
   const S = 22
@@ -715,16 +735,16 @@ function ECSelector({ value, onChange }: { value: ECLevel; onChange: (v: ECLevel
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4,
         paddingLeft: S/2, paddingRight: S/2 }}>
         {levels.map(l=>(
-          <span key={l} style={{ fontSize:8, color: l===value ? '#ffffff' : '#888', fontFamily:'UniversNext, sans-serif',
+          <span key={l} style={{ fontSize:8, color: labelColor ? (l===value ? labelColor : '#aaa') : (l===value ? '#ffffff' : '#888'), fontFamily:'UniversNext, sans-serif',
             fontWeight:400, letterSpacing:0 }}>{l}</span>
         ))}
       </div>
       {/* Track */}
       <div style={{ position:'relative', height:S }}>
         <div style={{ position:'absolute', inset:0, borderRadius:S/2,
-          background:'linear-gradient(180deg, #b4b4b4 0%, #cccccc 100%)',
-          boxShadow:'inset 3px 3px 7px rgba(0,0,0,0.2), inset -2px -2px 5px rgba(255,255,255,0.25)',
-          border:'1px solid #aeaeae' }}/>
+          background: isNight ? 'linear-gradient(180deg, #22222c 0%, #2c2c38 100%)' : 'linear-gradient(180deg, #b4b4b4 0%, #cccccc 100%)',
+          boxShadow: isNight ? 'inset 3px 3px 7px rgba(0,0,0,0.55), inset -2px -2px 5px rgba(70,80,120,0.1)' : 'inset 3px 3px 7px rgba(0,0,0,0.2), inset -2px -2px 5px rgba(255,255,255,0.25)',
+          border: isNight ? '1px solid #151520' : '1px solid #aeaeae' }}/>
         {/* Click zones */}
         {levels.map((l,i)=>(
           <div key={l} onClick={()=>onChange(l)}
@@ -733,15 +753,17 @@ function ECSelector({ value, onChange }: { value: ECLevel; onChange: (v: ECLevel
         ))}
         {/* Center groove line */}
         <div style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', left:S/2, right:S/2, height:3, borderRadius:2,
-          background:'linear-gradient(to right, #909090, #b0b0b0)',
+          background: isNight ? 'linear-gradient(to right, #141420, #20202c)' : 'linear-gradient(to right, #909090, #b0b0b0)',
           boxShadow:'inset 0 1px 3px rgba(0,0,0,0.35)', zIndex:0, pointerEvents:'none' }}/>
         {/* Sliding thumb */}
         <div style={{ position:'absolute', top:0, zIndex:2, pointerEvents:'none',
           left:`calc(${(idx/3)*100}% - ${(idx/3)*S}px)`,
           width:S, height:S, borderRadius:'50%',
-          background:`conic-gradient(from 195deg,#c2c2c2 0deg,#f2f2f2 22deg,#d4d4d4 38deg,#bcbcbc 65deg,#efefef 88deg,#c8c8c8 108deg,#b8b8b8 140deg,#f4f4f4 162deg,#ccc 185deg,#c0c0c0 220deg,#ebebeb 245deg,#d0d0d0 268deg,#bbbbbb 300deg,#f0f0f0 328deg,#c6c6c6 348deg,#c2c2c2 360deg)`,
-          boxShadow:'2px 3px 8px rgba(0,0,0,0.24)',
-          border:'1px solid #c4c4c4',
+          background: isNight
+            ? `conic-gradient(from 195deg,#2e2e38 0deg,#4a4a56 22deg,#363640 38deg,#26262e 65deg,#464652 88deg,#363640 108deg,#282832 140deg,#484852 162deg,#363640 185deg,#2e2e38 220deg,#44444e 245deg,#363640 268deg,#242430 300deg,#46464e 328deg,#32323c 348deg,#2e2e38 360deg)`
+            : `conic-gradient(from 195deg,#c2c2c2 0deg,#f2f2f2 22deg,#d4d4d4 38deg,#bcbcbc 65deg,#efefef 88deg,#c8c8c8 108deg,#b8b8b8 140deg,#f4f4f4 162deg,#ccc 185deg,#c0c0c0 220deg,#ebebeb 245deg,#d0d0d0 268deg,#bbbbbb 300deg,#f0f0f0 328deg,#c6c6c6 348deg,#c2c2c2 360deg)`,
+          boxShadow: isNight ? '2px 3px 8px rgba(0,0,0,0.65)' : '2px 3px 8px rgba(0,0,0,0.24)',
+          border: isNight ? '1px solid #1e1e28' : '1px solid #c4c4c4',
           transition:'left 0.15s cubic-bezier(0.34,1.56,0.64,1)' }}/>
       </div>
     </div>
@@ -749,31 +771,37 @@ function ECSelector({ value, onChange }: { value: ECLevel; onChange: (v: ECLevel
 }
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
-function HWToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function HWToggle({ checked, onChange, isNight=false }: { checked: boolean; onChange: (v: boolean) => void; isNight?: boolean }) {
   return (
     <button onClick={()=>onChange(!checked)} style={{
-      width:52, height:28, borderRadius:14, border:'1px solid #a0a0a0', cursor:'pointer', padding:0,
+      width:52, height:28, borderRadius:14,
+      border: isNight ? '1px solid #191924' : '1px solid #a0a0a0',
+      cursor:'pointer', padding:0,
       position:'relative', flexShrink:0, transition:'background 0.2s',
-      background: checked
-        ? 'linear-gradient(to right,#aaa,#bbb)'
-        : 'linear-gradient(145deg,#d0d0d0,#c0c0c0)',
-      boxShadow:'inset 2px 2px 5px rgba(0,0,0,0.2),inset -1px -1px 3px rgba(255,255,255,0.5)',
+      background: isNight
+        ? (checked ? 'linear-gradient(to right, #353540, #424250)' : 'linear-gradient(145deg, #2e2e3a, #252530)')
+        : (checked ? 'linear-gradient(to right,#aaa,#bbb)' : 'linear-gradient(145deg,#d0d0d0,#c0c0c0)'),
+      boxShadow: isNight
+        ? 'inset 2px 2px 5px rgba(0,0,0,0.5), inset -1px -1px 3px rgba(70,80,120,0.1)'
+        : 'inset 2px 2px 5px rgba(0,0,0,0.2),inset -1px -1px 3px rgba(255,255,255,0.5)',
     }}>
       {/* Center groove line */}
       <div style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', left:6, right:6, height:3, borderRadius:2,
-        background:'linear-gradient(to right, #888, #aaa)',
+        background: isNight ? 'linear-gradient(to right, #141420, #20202c)' : 'linear-gradient(to right, #888, #aaa)',
         boxShadow:'inset 0 1px 3px rgba(0,0,0,0.35)', pointerEvents:'none' }}/>
       <div style={{ position:'absolute', top:3, left: checked?27:3, width:20, height:20, borderRadius:'50%',
-        background:`conic-gradient(from 310deg,#c2c2c2 0deg,#f2f2f2 22deg,#d4d4d4 38deg,#bcbcbc 65deg,#efefef 88deg,#c8c8c8 108deg,#b8b8b8 140deg,#f4f4f4 162deg,#ccc 185deg,#c0c0c0 220deg,#ebebeb 245deg,#d0d0d0 268deg,#bbbbbb 300deg,#f0f0f0 328deg,#c6c6c6 348deg,#c2c2c2 360deg)`,
-        boxShadow:'2px 2px 5px rgba(0,0,0,0.28)',
-        border:'1px solid #b8b8b8', transition:'left 0.2s' }}/>
+        background: isNight
+          ? `conic-gradient(from 310deg,#2e2e38 0deg,#4a4a56 22deg,#363640 38deg,#26262e 65deg,#464652 88deg,#363640 108deg,#282832 140deg,#484852 162deg,#363640 185deg,#2e2e38 220deg,#44444e 245deg,#363640 268deg,#242430 300deg,#46464e 328deg,#32323c 348deg,#2e2e38 360deg)`
+          : `conic-gradient(from 310deg,#c2c2c2 0deg,#f2f2f2 22deg,#d4d4d4 38deg,#bcbcbc 65deg,#efefef 88deg,#c8c8c8 108deg,#b8b8b8 140deg,#f4f4f4 162deg,#ccc 185deg,#c0c0c0 220deg,#ebebeb 245deg,#d0d0d0 268deg,#bbbbbb 300deg,#f0f0f0 328deg,#c6c6c6 348deg,#c2c2c2 360deg)`,
+        boxShadow: isNight ? '2px 2px 5px rgba(0,0,0,0.65)' : '2px 2px 5px rgba(0,0,0,0.28)',
+        border: isNight ? '1px solid #1e1e28' : '1px solid #b8b8b8', transition:'left 0.2s' }}/>
     </button>
   )
 }
 
 // ─── Vertical Slider (analog style) ──────────────────────────────────────────
-function VSlider({ value, onChange, min=0, max=100, label, labelColor }: {
-  value: number; onChange: (v: number) => void; min?: number; max?: number; label?: string; labelColor?: string
+function VSlider({ value, onChange, min=0, max=100, label, labelColor, isNight=false }: {
+  value: number; onChange: (v: number) => void; min?: number; max?: number; label?: string; labelColor?: string; isNight?: boolean
 }) {
   const trackH=68, thumbH=20, thumbW=22
   const pct=(value-min)/(max-min)
@@ -804,25 +832,26 @@ function VSlider({ value, onChange, min=0, max=100, label, labelColor }: {
       <div ref={trackRef} style={{ position:'relative', width:thumbW, height:trackH }}>
         {/* Thin track */}
         <div style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', top:0, bottom:0, width:8,
-          background:'linear-gradient(to bottom, #aaaaaa, #c4c4c4)',
-          boxShadow:'inset 2px 2px 4px rgba(0,0,0,0.3), inset -1px -1px 2px rgba(255,255,255,0.25)',
+          background: isNight ? 'linear-gradient(to bottom, #1e1e28, #2a2a36)' : 'linear-gradient(to bottom, #aaaaaa, #c4c4c4)',
+          boxShadow: isNight ? 'inset 2px 2px 4px rgba(0,0,0,0.6), inset -1px -1px 2px rgba(70,80,120,0.1)' : 'inset 2px 2px 4px rgba(0,0,0,0.3), inset -1px -1px 2px rgba(255,255,255,0.25)',
           borderRadius:4 }}/>
         {/* Rounded square thumb with inner pill */}
         <div style={{ position:'absolute', left:'50%', transform:'translateX(-50%)',
           top:thumbTop, width:thumbW, height:thumbH, borderRadius:12, pointerEvents:'none',
-          background:'linear-gradient(145deg, #f0f0f0, #d8d8d8)',
-          boxShadow:'3px 3px 8px rgba(0,0,0,0.3)',
-          border:'1px solid #c8c8c8', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          background: isNight ? 'linear-gradient(145deg, #383844, #28282e)' : 'linear-gradient(145deg, #f0f0f0, #d8d8d8)',
+          boxShadow: isNight ? '3px 3px 8px rgba(0,0,0,0.65)' : '3px 3px 8px rgba(0,0,0,0.3)',
+          border: isNight ? '1px solid #1e1e28' : '1px solid #c8c8c8',
+          display:'flex', alignItems:'center', justifyContent:'center' }}>
           <div style={{ width:14, height:5, borderRadius:3,
-            background:'linear-gradient(145deg, #e8e8e8, #f6f6f6)',
-            boxShadow:'inset 1px 1px 2px rgba(0,0,0,0.12), inset -1px -1px 1px rgba(255,255,255,0.8)' }}/>
+            background: isNight ? 'linear-gradient(145deg, #2e2e3a, #3a3a46)' : 'linear-gradient(145deg, #e8e8e8, #f6f6f6)',
+            boxShadow: isNight ? 'inset 1px 1px 2px rgba(0,0,0,0.45), inset -1px -1px 1px rgba(70,80,120,0.1)' : 'inset 1px 1px 2px rgba(0,0,0,0.12), inset -1px -1px 1px rgba(255,255,255,0.8)' }}/>
         </div>
         <input type="range" min={min} max={max} value={value} onChange={e=>onChange(Number(e.target.value))}
           style={{ position:'absolute', inset:0, opacity:0, width:'100%', height:'100%', cursor:'pointer',
             writingMode:'vertical-lr', direction:'rtl' } as React.CSSProperties}/>
       </div>
       <span style={{ fontFamily:'monospace', fontSize:8, color:numColor }}>{min}</span>
-      {label && <span style={{ ...hw.label, color: labelColor ?? hw.label.color }}>{label}</span>}
+      {label && <span style={{ fontSize:8, letterSpacing:0, textTransform:'uppercase', fontFamily:'UniversNext, sans-serif', fontWeight:400, display:'block', textAlign:'center', marginTop:4, color: labelColor }}>{label}</span>}
     </div>
   )
 }
@@ -856,7 +885,7 @@ const TEXTURES: { id: string; label: string; bg: string; fgColor: string; bgColo
 ]
 
 // ─── Drum Track ───────────────────────────────────────────────────────────────
-function DrumTrack({ onNavigate, onTick }: { onNavigate: (dir: 1|-1) => void; onTick?: () => void }) {
+function DrumTrack({ onNavigate, onTick, isNight=false }: { onNavigate: (dir: 1|-1) => void; onTick?: () => void; isNight?: boolean }) {
   const TICK_SPACING = 6
   const TICK_W = 2
   const TICK_H = 7
@@ -939,7 +968,9 @@ function DrumTrack({ onNavigate, onTick }: { onNavigate: (dir: 1|-1) => void; on
       onTouchStart={e => { isDragging.current = true; dragX.current = e.touches[0].clientX; dragAccum.current = 0; }}
       style={{
         flex: 1, height: 18, borderRadius: 9999, padding: 1,
-        background: 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(255, 255, 255, 0.80) 100%)',
+        background: isNight
+          ? 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(80,90,140,0.45) 100%)'
+          : 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(255,255,255,0.80) 100%)',
         cursor: 'ew-resize',
         userSelect: 'none',
       }}
@@ -952,7 +983,9 @@ function DrumTrack({ onNavigate, onTick }: { onNavigate: (dir: 1|-1) => void; on
         {/* Centre glow layer — sits beneath the ticks */}
         <div style={{
           position: 'absolute', top: 2, bottom: 2, left: 0, right: 0, pointerEvents: 'none',
-          background: 'linear-gradient(to right, #333333 0%, #D6D6D6 50%, #333333 100%)',
+          background: isNight
+            ? 'linear-gradient(to right, #1a1a24 0%, #50505e 50%, #1a1a24 100%)'
+            : 'linear-gradient(to right, #333333 0%, #D6D6D6 50%, #333333 100%)',
         }} />
         {Array.from({ length: count }).map((_, j) => {
           const idx = startIdx + j
@@ -1140,8 +1173,8 @@ function ArcWheelList({
 }
 
 // ─── Color Dot Button ─────────────────────────────────────────────────────────
-function ColorDot({ color, label, active, onClick }: {
-  color: string; label: string; active: boolean; onClick: () => void
+function ColorDot({ color, label, active, onClick, isNight=false }: {
+  color: string; label: string; active: boolean; onClick: () => void; isNight?: boolean
 }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
@@ -1152,8 +1185,8 @@ function ColorDot({ color, label, active, onClick }: {
           : color,
         outline: color==='#ffffff' ? '1px solid #ccc' : 'none',
         boxShadow: active
-          ? `inset 2px 2px 5px rgba(0,0,0,0.3)`
-          : '3px 3px 6px #a0a0a0, -2px -2px 4px #f4f4f4',
+          ? `inset 2px 2px 5px rgba(0,0,0,${isNight ? 0.5 : 0.3})`
+          : isNight ? '3px 3px 6px #0c0c16, -2px -2px 4px #363644' : '3px 3px 6px #b0b0b0, -2px -2px 4px #f4f4f4',
         transition:'box-shadow 0.15s',
         position:'relative',
       }}>
@@ -1163,7 +1196,7 @@ function ColorDot({ color, label, active, onClick }: {
           </svg>
         )}
       </button>
-      {label && <span style={hw.label}>{label}</span>}
+      {label && <span style={{ fontSize:8, letterSpacing:0, textTransform:'uppercase', fontFamily:'UniversNext, sans-serif', fontWeight:400, display:'block', textAlign:'center', marginTop:4, color:'#888' }}>{label}</span>}
     </div>
   )
 }
@@ -1194,8 +1227,33 @@ function PanelContent({ panel, s, set, setMany, presetIdx, setPresetIdx }: {
   return null
 }
 
+function ManCard({ label, desc, children, style }: { label: string; desc: string; children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div className="man-card" style={{ background:'#f5f2eb', padding:'11px 13px', display:'flex', flexDirection:'column', gap:8, ...style }}>
+      <div style={{ minHeight:52, display:'flex', alignItems:'center', pointerEvents:'none' }}>{children}</div>
+      <div>
+        <div style={{ fontSize:10, fontWeight:700, color:'#1a1a1a', marginBottom:3, letterSpacing:'-0.01em' }}>{label}</div>
+        <div style={{ fontSize:9, color:'#999', lineHeight:1.5 }}>{desc}</div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function QR2() {
+  const [isNight, setIsNight]   = useState(false)
+  const [showManual, setShowManual] = useState(false)
+  const hw = isNight ? HW_NIGHT : HW_DAY
+
+  useEffect(() => {
+    if (isNight) {
+      document.body.setAttribute('data-dark-page', 'true')
+    } else {
+      document.body.removeAttribute('data-dark-page')
+    }
+    return () => document.body.removeAttribute('data-dark-page')
+  }, [isNight])
+
   const [s, setS] = useState<QRSettings>(DEFAULTS)
   const [matrix, setMatrix] = useState<boolean[][]>([])
   const [activePanel, setActivePanel] = useState<ActivePanel>('none')
@@ -1261,6 +1319,7 @@ export default function QR2() {
     load('picker', 'color-picker.mp3')
     load('btn',    'button-click.mp3')
     load('toggle', 'toggle01.mp3')
+    fetch('/images/lab/QR-out-sound-effect.mp3').then(r=>r.arrayBuffer()).then(ab=>ctx.decodeAudioData(ab)).then(buf=>{bufsRef.current['qrout']=buf}).catch(()=>{})
     return () => { ctx.close() }
   }, [])
   function playBuf(key: string, vol = 1) {
@@ -1333,14 +1392,114 @@ export default function QR2() {
     } catch {}
   }
 
-  // Download SVG
-  function downloadSVG() {
+  // Download SVG — animation fires only after the OS save dialog is fully dismissed
+  async function downloadSVG() {
     if (!svgStr) return
-    const blob = new Blob([svgStr], { type:'image/svg+xml' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = 'qr-code.svg'; a.click()
-    URL.createObjectURL(blob)
+
+    if ('showSaveFilePicker' in window) {
+      // Start tracking blur BEFORE the dialog opens so we don't miss the event
+      let blurred = false
+      const onBlur = () => { blurred = true }
+      window.addEventListener('blur', onBlur, { once: true })
+
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const handle = await (window as any).showSaveFilePicker({
+          suggestedName: 'qr-code.svg',
+          types: [{ description: 'SVG Document', accept: { 'image/svg+xml': ['.svg'] } }],
+        })
+        const writable = await handle.createWritable()
+        await writable.write(svgStr)
+        await writable.close()
+        window.removeEventListener('blur', onBlur)
+
+        if (blurred && !document.hasFocus()) {
+          // Dialog still has focus — fire when window gets it back
+          window.addEventListener('focus', () => launchFlyAnimation(), { once: true })
+        } else {
+          // Focus already returned (dialog closed), animate now
+          launchFlyAnimation()
+        }
+      } catch {
+        window.removeEventListener('blur', onBlur)
+        // AbortError — user cancelled, no animation
+      }
+    } else {
+      // Fallback: <a> download + wait for focus return from any browser prompt
+      const blob = new Blob([svgStr], { type:'image/svg+xml' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = 'qr-code.svg'; a.click()
+      URL.revokeObjectURL(url)
+      window.addEventListener('focus', () => launchFlyAnimation(), { once: true })
+    }
+  }
+
+  // Paper-fly animation: card rises from behind the device (layer 1) then arcs to toggle pill
+  function launchFlyAnimation() {
+    const wrap = posWrapRef.current
+    const bgWrap = wrap?.parentElement   // qr-bg-wrap — position:relative, no z-index
+    if (!wrap || !bgWrap || !svgStr) return
+
+    const isMobile = window.innerWidth <= 768
+
+    const bgRect    = bgWrap.getBoundingClientRect()
+
+    // Start: centre of the QR screen, converted to bgWrap-relative coords.
+    // Card is z-index:1 so it sits behind the device (z-index:2) — invisible until
+    // it clears the device edges, giving the "coming from behind the screen" feel.
+    const screenEl   = svgRef.current ?? wrap
+    const screenRect = screenEl.getBoundingClientRect()
+    const startX = screenRect.left + screenRect.width  / 2 - 40 - bgRect.left
+    const startY = screenRect.top  + screenRect.height / 2 - 40 - bgRect.top
+
+    // Destination (toggle pill) in bgWrap-relative coords
+    const pillRight = isMobile ? 17  : 37
+    const pillTop   = isMobile ? 104 : 58
+    const destX     = (window.innerWidth - pillRight) - bgRect.left
+    const destY     = pillTop - bgRect.top
+
+    const deltaX = (destX - startX - 40) * 0.75
+    const deltaY = (destY - startY - 40) * 1.35
+
+    // ── Build flying card ──────────────────────────────────────────────────
+    const outerWrap = document.createElement('div')
+    // z-index:1 → behind the device (posWrapRef is z-index:2 in the same parent)
+    outerWrap.style.cssText = `position:absolute;left:${startX}px;top:${startY}px;width:80px;height:80px;z-index:1;pointer-events:none;`
+
+    const card = document.createElement('div')
+    card.style.cssText = `width:80px;height:80px;background:#fff;border-radius:10px;box-shadow:0 6px 28px rgba(0,0,0,0.38),0 2px 6px rgba(0,0,0,0.18);overflow:hidden;display:flex;align-items:center;justify-content:center;`
+
+    const svgDataUrl = 'data:image/svg+xml,' + encodeURIComponent(svgStr)
+    card.innerHTML = `<img src="${svgDataUrl}" style="width:72px;height:72px;" />`
+
+    outerWrap.appendChild(card)
+    bgWrap.appendChild(outerWrap)
+
+    playBuf('qrout', 0.7)
+
+    // Wobble the on-screen QR as the card launches
+    if (svgRef.current) {
+      gsap.fromTo(svgRef.current,
+        { rotation: 0, scale: 1 },
+        { rotation: -3, scale: 0.98, duration: 0.08, ease: 'sine.inOut',
+          yoyo: true, repeat: 3, transformOrigin: 'center center',
+          clearProps: 'rotation,scale' }
+      )
+    }
+
+    const tl = gsap.timeline({ onComplete: () => { bgWrap.removeChild(outerWrap) } })
+
+    // Card starts fully formed behind the screen — no separate pop-out phase needed.
+    // It becomes visible the moment it clears the device boundary.
+    gsap.set(card, { opacity: 1, scale: 1 })
+
+    // Curved flight: explosive burst + spin the whole way
+    tl.to(outerWrap, { x: deltaX,   duration: 0.85, ease: 'power4.out' }, 0)
+    tl.to(card,      { y: deltaY,   duration: 0.85, ease: 'power4.in'  }, 0)
+    tl.to(card,      { rotation: 540, duration: 0.85, ease: 'power2.in' }, 0)
+    // Quick vanish at destination — no shrink during travel
+    tl.to(card,      { opacity: 0,  duration: 0.15, ease: 'none' }, 0.72)
   }
 
   function navigateStop(dir: 1|-1) {
@@ -1400,6 +1559,33 @@ export default function QR2() {
         font-style: normal;
       }
       .panel-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+      @keyframes qr-spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      @keyframes manualFadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .manual-btn { transition: padding 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease; }
+      .manual-btn:hover { padding-left: 28px !important; padding-right: 30px !important; box-shadow: -4px 2px 16px rgba(0,0,0,0.18) !important; }
+      @media (max-width: 768px) {
+        .manual-overlay { padding: 60px 12px 0 !important; align-items: flex-start !important; }
+        .manual-paper  { width: 100% !important; max-width: 100% !important; border-radius: 12px !important; height: 80vh !important; max-height: 80vh !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; }
+        .manual-body   { flex: 1 1 auto; overflow-y: auto; }
+        .manual-header-wrap { flex-shrink: 0; }
+        .manual-footer-wrap { flex-shrink: 0; }
+        .manual-logo-cell   { display: none !important; }
+        .manual-grid   { grid-template-columns: repeat(2, 1fr) !important; }
+        .man-card      { padding: 9px 10px !important; gap: 6px !important; }
+        .man-card > div:first-child { min-height: 44px !important; }
+      }
+      .manual-no-shadows * { box-shadow: none !important; }
+      @media (min-width: 769px) {
+        .qr-theme-pill { top: 0 !important; display: flex !important; flex-direction: row !important; width: 84px !important; border-radius: 0 0 21px 21px !important; border-top: none !important; }
+        .qr-pill-sun   { width: 42px !important; height: 42px !important; border-radius: 0 0 0 21px !important; }
+        .qr-pill-moon  { width: 42px !important; height: 42px !important; border-radius: 0 0 21px 0 !important; }
+      }
+      @media (max-width: 768px) {
+        .qr-theme-pill { right: 0 !important; top: calc(4.5rem - 4px) !important; width: 34px !important; border-radius: 17px 0 0 17px !important; border-right: none !important; }
+        .qr-pill-sun   { width: 34px !important; height: 36px !important; border-radius: 17px 0 0 0 !important; }
+        .qr-pill-moon  { width: 34px !important; height: 36px !important; border-radius: 0 0 0 17px !important; }
+        .qr-pill-img   { width: 15px !important; height: 15px !important; }
+      }
 
       /* ── Mobile only — desktop untouched ── */
       @media (max-width: 540px) {
@@ -1407,6 +1593,8 @@ export default function QR2() {
           padding-top: 100px !important;
           padding-bottom: 40px !important;
           align-items: flex-start !important;
+        }
+        .qr-bg-img {
           background-size: cover !important;
           background-position: center center !important;
         }
@@ -1444,16 +1632,17 @@ export default function QR2() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundImage: 'url(/images/lab/qr-page-bg.png)',
-      backgroundSize: '125%',
-      backgroundPosition: 'center -20px',
       padding: '60px 20px',
       position: 'relative',
     }}>
-      {/* subtle overlay — keeps desk visible, takes edge off harsh light */}
-      <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.28)' }}/>
+      {/* Day background — fades out when night */}
+      <div className="qr-bg-img" style={{ position:'absolute', inset:0, backgroundImage:'url(/images/lab/qr-page-bg.png)', backgroundSize:'125%', backgroundPosition:'center -20px', opacity: isNight ? 0 : 1, transition:'opacity 0.75s ease', zIndex:0 }}/>
+      {/* Night background — fades in when night */}
+      <div className="qr-bg-img" style={{ position:'absolute', inset:0, backgroundImage:'url(/images/lab/qr-page-bg-night.png)', backgroundSize:'125%', backgroundPosition:'center -20px', opacity: isNight ? 1 : 0, transition:'opacity 0.75s ease', zIndex:0 }}/>
+      {/* subtle overlay */}
+      <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.28)', zIndex:1 }}/>
 
-      <div ref={posWrapRef} className="qr-pos-wrap" style={{ position:'relative', zIndex:1 }}>
+      <div ref={posWrapRef} className="qr-pos-wrap" style={{ position:'relative', zIndex:2 }}>
 
         {/* ── Color picker panel — 2D pivot from top-right anchor ── */}
         <div
@@ -1469,11 +1658,13 @@ export default function QR2() {
             transform: (activePanel==='bg'||activePanel==='fg'||activePanel==='gradient')
               ? 'rotate(0deg)'
               : 'rotate(-90deg)',
-            transition: 'transform 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), background 0.65s ease, box-shadow 0.65s ease',
             borderRadius: '8px 0 0 28px',
-            background: 'linear-gradient(160deg, #d4d4d4 0%, #c0c0c0 40%, #b8b8b8 70%, #c8c8c8 100%)',
-            boxShadow: '-8px 0 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.5)',
-            border: '1px solid #a8a8a8',
+            background: isNight ? 'linear-gradient(160deg, #32323e 0%, #282832 40%, #242428 70%, #2c2c38 100%)' : 'linear-gradient(160deg, #d4d4d4 0%, #c0c0c0 40%, #b8b8b8 70%, #c8c8c8 100%)',
+            boxShadow: isNight ? '-8px 0 24px rgba(0,0,0,0.55), inset 0 1px 0 rgba(110,130,190,0.12)' : '-8px 0 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.5)',
+            borderTop: isNight ? '1px solid #1c1c28' : '1px solid #a8a8a8',
+            borderLeft: isNight ? '1px solid #1c1c28' : '1px solid #a8a8a8',
+            borderBottom: isNight ? '1px solid #1c1c28' : '1px solid #a8a8a8',
             borderRight: 'none',
             overflow: 'hidden',
           }}>
@@ -1497,10 +1688,15 @@ export default function QR2() {
         <div style={{
           width: '82%', marginLeft: 'auto', marginRight: 'auto',
           marginBottom: 0,
-          background: 'linear-gradient(160deg, #e0e0e0 0%, #cccccc 50%, #d4d4d4 100%)',
-          boxShadow: '0 8px 20px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.7)',
-          border: '1px solid #a8a8a8',
+          background: isNight ? 'linear-gradient(160deg, #32323e 0%, #272732 50%, #2c2c38 100%)' : 'linear-gradient(160deg, #e0e0e0 0%, #cccccc 50%, #d4d4d4 100%)',
+          boxShadow: isNight
+            ? '0 8px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(110,130,190,0.12), -16px 0 40px rgba(185,212,255,0.09)'
+            : '0 8px 20px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.7)',
+          borderTop: isNight ? '1px solid #1c1c28' : '1px solid #a8a8a8',
+          borderLeft: isNight ? '1px solid #1c1c28' : '1px solid #a8a8a8',
+          borderRight: isNight ? '1px solid #1c1c28' : '1px solid #a8a8a8',
           borderBottom: 'none',
+          transition: 'background 0.65s ease, box-shadow 0.65s ease',
           borderRadius: '14px 14px 0 0',
           padding: '7px 8px',
           display: 'flex', alignItems: 'center', gap: 8,
@@ -1533,7 +1729,7 @@ export default function QR2() {
 
           {/* Main screen */}
           <div style={{ ...hw.screen, height: 220, display:'flex', marginBottom: 12,
-            background: `url(/images/lab/QR-screen-bg-${screenBgIdx + 1}.jpg) center/cover no-repeat, #1a1a1a`,
+            background: `url(/images/lab/QR-screen-bg-${screenBgIdx + 1}.${screenBgIdx === 4 ? 'gif' : 'jpg'}) center/cover no-repeat, #1a1a1a`,
             marginTop: -8, marginLeft: -12, marginRight: -12 }}>
 
 
@@ -1565,7 +1761,7 @@ export default function QR2() {
                             style={{ display:'block', filter:'brightness(0) invert(1)', opacity: activePanel===btn.id ? 1 : 0.7 }}/>
                         </button>
                       ))}
-                      <button onClick={()=>setScreenBgIdx(prev=>(prev+1)%4)}
+                      <button onClick={()=>setScreenBgIdx(prev=>(prev+1)%5)}
                         style={{ width:32, height:32, borderRadius:9, border:'none', padding:0, cursor:'pointer',
                           display:'flex', alignItems:'center', justifyContent:'center',
                           background:'linear-gradient(145deg, #2a2a2a, #0a0a0a)',
@@ -1815,15 +2011,16 @@ export default function QR2() {
                 {/* BG group: no-bg button + color dot inside a pill */}
                 <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:3, padding:'2px 2px',
-                    background:'linear-gradient(145deg, #c8c8c8, #dcdcdc)',
-                    boxShadow:'inset 2px 2px 5px #b0b0b0, inset -1px -1px 3px #eeeeee',
-                    border:'1px solid #b8b8b8', borderRadius:40 }}>
+                    background: isNight ? 'linear-gradient(145deg, #252530, #31313e)' : 'linear-gradient(145deg, #c8c8c8, #dcdcdc)',
+                    boxShadow: isNight ? 'inset 2px 2px 5px #111120, inset -1px -1px 3px #39394a' : 'inset 2px 2px 5px #b0b0b0, inset -1px -1px 3px #eeeeee',
+                    border: isNight ? '1px solid #1b1b28' : '1px solid #b8b8b8', borderRadius:40,
+                    transition:'background 0.65s ease, box-shadow 0.65s ease' }}>
                     <button onClick={()=>{ playBtn(); set('bgColor', s.bgColor==='transparent'?'#ffffff':'transparent'); if(s.bgColor!=='transparent') setActivePanel('none') }}
                       style={{ ...hw.btn(s.bgColor==='transparent'), width:28, height:28, borderRadius:'50%',
                         padding:0, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                       <img src="/images/lab/no-bg-icon.svg" width="14" height="14" style={{ display:'block' }}/>
                     </button>
-                    <ColorDot color={s.bgColor==='transparent'?'#ffffff':s.bgColor} label="" active={activePanel==='bg'} onClick={()=>{ playBtn(); if(s.bgColor==='transparent') set('bgColor','#ffffff'); togglePanel('bg') }}/>
+                    <ColorDot color={s.bgColor==='transparent'?'#ffffff':s.bgColor} label="" active={activePanel==='bg'} onClick={()=>{ playBtn(); if(s.bgColor==='transparent') set('bgColor','#ffffff'); togglePanel('bg') }} isNight={isNight}/>
                   </div>
                   <span style={{ ...hw.label, color: activePanel==='bg' ? '#ffffff' : '#888' }}>Background</span>
                 </div>
@@ -1832,9 +2029,10 @@ export default function QR2() {
                 <div style={{ display:'flex', alignItems:'center', gap:0 }}>
                   <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
                     <div style={{ width:34, height:34, display:'flex', alignItems:'center', justifyContent:'center', paddingLeft:1, flexShrink:0,
-                      background:'linear-gradient(145deg, #cccccc, #e0e0e0)',
-                      boxShadow:'inset 4px 4px 10px rgba(0,0,0,0.45)',
-                      border:'1px solid #c0c0c0', borderRadius:'50%', overflow:'hidden' }}>
+                      background: isNight ? 'linear-gradient(145deg, #27272e, #35353e)' : 'linear-gradient(145deg, #cccccc, #e0e0e0)',
+                      boxShadow: isNight ? 'inset 4px 4px 10px rgba(0,0,0,0.7)' : 'inset 4px 4px 10px rgba(0,0,0,0.22)',
+                      border: isNight ? '1px solid #1b1b24' : '1px solid #c0c0c0', borderRadius:'50%', overflow:'hidden',
+                      transition:'background 0.65s ease' }}>
                       {s.gradientEnabled ? (
                         <button
                           onClick={()=>{ playBtn(); togglePanel('gradient') }}
@@ -1847,14 +2045,14 @@ export default function QR2() {
                           }}
                         />
                       ) : (
-                        <ColorDot color={s.fgColor} label="" active={activePanel==='fg'} onClick={()=>{ playBtn(); togglePanel('fg') }}/>
+                        <ColorDot color={s.fgColor} label="" active={activePanel==='fg'} onClick={()=>{ playBtn(); togglePanel('fg') }} isNight={isNight}/>
                       )}
                     </div>
                     <span style={{ ...hw.label, color: (activePanel==='fg'||activePanel==='gradient') ? '#ffffff' : '#888' }}>Foreground</span>
                   </div>
                   <div style={{ width:20, height:1, borderRadius:1, background:'#b5b5b5', flexShrink:0, alignSelf:'center', marginBottom:15, marginLeft:-11 }}/>
                   <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, paddingTop:6 }}>
-                    <HWToggle checked={s.gradientEnabled} onChange={v=>{ playToggle(); set('gradientEnabled',v) }}/>
+                    <HWToggle checked={s.gradientEnabled} onChange={v=>{ playToggle(); set('gradientEnabled',v) }} isNight={isNight}/>
                     <span style={{ ...hw.label, color: s.gradientEnabled ? '#ffffff' : '#888' }}>Gradient</span>
                   </div>
                 </div>
@@ -1862,9 +2060,10 @@ export default function QR2() {
 
               {/* Right: Nav pill — flex:1 matches right column width exactly */}
               <div style={{ flex:1, display:'flex', alignItems:'center', gap:6,
-                background:'linear-gradient(160deg, #c8c8c8, #d8d8d8)',
-                boxShadow:'inset 3px 3px 8px rgba(0,0,0,0.18), inset -2px -2px 5px rgba(255,255,255,0.6)',
-                borderRadius:40, padding:'6px 8px' }}>
+                background: isNight ? 'linear-gradient(160deg, #252530, #2e2e3c)' : 'linear-gradient(160deg, #c8c8c8, #d8d8d8)',
+                boxShadow: isNight ? 'inset 3px 3px 8px rgba(0,0,0,0.5), inset -2px -2px 5px rgba(70,80,130,0.1)' : 'inset 3px 3px 8px rgba(0,0,0,0.18), inset -2px -2px 5px rgba(255,255,255,0.6)',
+                borderRadius:40, padding:'6px 8px',
+                transition:'background 0.65s ease, box-shadow 0.65s ease' }}>
                 <button onClick={()=>{ playBtn(); scrollPanel(-1) }}
                   onMouseDown={()=>setPressedBtn('nav-up')} onMouseUp={()=>setPressedBtn(null)} onMouseLeave={()=>setPressedBtn(null)}
                   style={{ ...hw.btn(pressedBtn==='nav-up'), width:38, height:38, borderRadius:19,
@@ -1872,7 +2071,7 @@ export default function QR2() {
                     transition:'all 0.08s' }}>
                   <img src="/images/lab/selector-up-button-icon.svg" width="16" height="10" style={{ display:'block' }}/>
                 </button>
-                <DrumTrack onNavigate={scrollPanel} onTick={playTick} />
+                <DrumTrack onNavigate={scrollPanel} onTick={playTick} isNight={isNight}/>
                 <button onClick={()=>{ playBtn(); scrollPanel(1) }}
                   onMouseDown={()=>setPressedBtn('nav-dn')} onMouseUp={()=>setPressedBtn(null)} onMouseLeave={()=>setPressedBtn(null)}
                   style={{ ...hw.btn(pressedBtn==='nav-dn'), width:38, height:38, borderRadius:19,
@@ -1888,26 +2087,27 @@ export default function QR2() {
 
               {/* Left: Gradient inset panel */}
               <div style={{ ...hw.inset, border:'none', padding:'12px 10px', display:'flex', flexDirection:'column', gap:12, flex:'0 0 185px', alignItems:'center',
-                background:'url(/images/lab/wood-texture-1.jpg) center/cover',
-                boxShadow:'inset 0 3px 8px rgba(0,0,0,0.5), inset 3px 0 5px rgba(0,0,0,0.3), 5px 5px 14px rgba(0,0,0,0.4)' }}>
+                background:`url(/images/lab/wood-texture-${isNight ? '1' : '2'}.jpg) center/cover`,
+                boxShadow:'inset 0 3px 8px rgba(0,0,0,0.5), inset 3px 0 5px rgba(0,0,0,0.3), inset -3px 0 7px rgba(255,255,255,0.07), inset 0 -3px 7px rgba(255,255,255,0.07)' }}>
                 {/* Top: Type + Angle knob */}
                 <div style={{ display:'flex', justifyContent:'space-around', alignItems:'center', width:'100%', marginTop:10 }}>
                   <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, marginLeft:-24 }}>
-                    <TypeSelector value={s.gradientType} onChange={v=>{ playToggle(); set('gradientType',v) }}/>
+                    <TypeSelector value={s.gradientType} onChange={v=>{ playToggle(); set('gradientType',v) }} isNight={isNight}/>
                     <span style={{ ...hw.label, color:'rgba(255,255,255,0.7)', marginLeft:20 }}>Type</span>
                   </div>
                   <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-                    <Knob value={s.gradientAngle} onChange={v=>set('gradientAngle',v)}/>
+                    <Knob value={s.gradientAngle} onChange={v=>set('gradientAngle',v)} isNight={isNight}/>
                     <span style={{ ...hw.label, color:'rgba(255,255,255,0.7)' }}>Angle</span>
                   </div>
                 </div>
                 {/* Bottom: Color Stops + Distance slider */}
                 <div style={{ display:'flex', justifyContent:'space-around', alignItems:'flex-start', width:'100%' }}>
                   <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5, marginTop:20 }}>
-                    <div style={{ background:'linear-gradient(145deg, #d0d0d0, #c4c4c4)',
-                      boxShadow:'inset 3px 3px 8px rgba(0,0,0,0.35), inset -1px -1px 3px rgba(255,255,255,0.3)',
-                      border:'1px solid #b0b0b0', borderRadius:16, padding:3,
-                      display:'grid', gridTemplateColumns:'1fr 1fr', gap:3 }}>
+                    <div style={{ background: isNight ? 'linear-gradient(145deg, #272732, #1e1e28)' : 'linear-gradient(145deg, #d0d0d0, #c4c4c4)',
+                      boxShadow: isNight ? 'inset 3px 3px 8px rgba(0,0,0,0.6), inset -1px -1px 3px rgba(60,70,110,0.12)' : 'inset 3px 3px 8px rgba(0,0,0,0.35), inset -1px -1px 3px rgba(255,255,255,0.3)',
+                      border: isNight ? '1px solid #141420' : '1px solid #b0b0b0', borderRadius:16, padding:3,
+                      display:'grid', gridTemplateColumns:'1fr 1fr', gap:3,
+                      transition:'background 0.65s ease, box-shadow 0.65s ease' }}>
                       <button onClick={()=>{ playBtn(); navigateStop(-1) }}
                         onMouseDown={()=>setPressedBtn('up')} onMouseUp={()=>setPressedBtn(null)} onMouseLeave={()=>setPressedBtn(null)}
                         style={{ ...hw.btn(pressedBtn==='up'), width:30, height:30, borderRadius:'16px 16px 5px 5px', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>
@@ -1941,6 +2141,7 @@ export default function QR2() {
                     min={0} max={activePanel === 'gradient' ? 100 : 10}
                     label={activePanel === 'gradient' ? 'Position' : 'Distance'}
                     labelColor="rgba(255,255,255,0.7)"
+                    isNight={isNight}
                   />
                 </div>
               </div>
@@ -1972,7 +2173,7 @@ export default function QR2() {
                 <div style={{ display:'flex', alignItems:'flex-end', gap:10 }}>
                   <span style={{ ...hw.label, textAlign:'left', flexShrink:0, marginTop:0, marginBottom:4 }}>Error Correction</span>
                   <div style={{ flex:1 }}>
-                    <ECSelector value={s.ecLevel} onChange={v=>{ playToggle(); set('ecLevel',v) }}/>
+                    <ECSelector value={s.ecLevel} onChange={v=>{ playToggle(); set('ecLevel',v) }} isNight={isNight}/>
                   </div>
                 </div>
 
@@ -1981,19 +2182,19 @@ export default function QR2() {
                   <span style={{ ...hw.label, textAlign:'left', marginTop:0, flexShrink:0 }}>Corner Roundness</span>
                   <div ref={cornerSliderRef} style={{ flex:1, position:'relative', height:22 }}>
                     <div style={{ position:'absolute', top:'50%', left:0, right:0, height:6, transform:'translateY(-50%)',
-                      borderRadius:3, background:'linear-gradient(to right,#c0c0c0,#d8d8d8)',
-                      boxShadow:'inset 1px 1px 3px rgba(0,0,0,0.2)' }}/>
+                      borderRadius:3, background: isNight ? 'linear-gradient(to right, #1e1e28, #2a2a36)' : 'linear-gradient(to right,#c0c0c0,#d8d8d8)',
+                      boxShadow: isNight ? 'inset 1px 1px 3px rgba(0,0,0,0.6)' : 'inset 1px 1px 3px rgba(0,0,0,0.2)' }}/>
                     <input type="range" min={0} max={100} value={s.cornerRoundness}
                       onChange={e=>set('cornerRoundness',Number(e.target.value))}
                       style={{ position:'absolute', inset:0, width:'100%', opacity:0, cursor:'pointer' }}/>
                     <div style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', left:`${s.cornerRoundness}%`,
                       marginLeft:-13, width:26, height:24, borderRadius:12, pointerEvents:'none',
-                      background:'linear-gradient(145deg, #f0f0f0, #d8d8d8)',
-                      boxShadow:'3px 3px 8px rgba(0,0,0,0.3)',
-                      border:'1px solid #c8c8c8', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      background: isNight ? 'linear-gradient(145deg, #383844, #28282e)' : 'linear-gradient(145deg, #f0f0f0, #d8d8d8)',
+                      boxShadow: isNight ? '3px 3px 8px rgba(0,0,0,0.65)' : '3px 3px 8px rgba(0,0,0,0.3)',
+                      border: isNight ? '1px solid #1e1e28' : '1px solid #c8c8c8', display:'flex', alignItems:'center', justifyContent:'center' }}>
                       <div style={{ width:14, height:5, borderRadius:3,
-                        background:'linear-gradient(145deg, #e8e8e8, #f6f6f6)',
-                        boxShadow:'inset 1px 1px 2px rgba(0,0,0,0.12), inset -1px -1px 1px rgba(255,255,255,0.8)' }}/>
+                        background: isNight ? 'linear-gradient(145deg, #2e2e3a, #3a3a46)' : 'linear-gradient(145deg, #e8e8e8, #f6f6f6)',
+                        boxShadow: isNight ? 'inset 1px 1px 2px rgba(0,0,0,0.45), inset -1px -1px 1px rgba(70,80,120,0.1)' : 'inset 1px 1px 2px rgba(0,0,0,0.12), inset -1px -1px 1px rgba(255,255,255,0.8)' }}/>
                     </div>
                   </div>
                 </div>
@@ -2015,6 +2216,283 @@ export default function QR2() {
         </div>
       </div>
     </div>
+
+      {/* ── Day / Night toggle pill — same pattern as Walkman ── */}
+      <div className="qr-theme-pill" style={{
+        position: 'fixed', top: '1rem', right: '1rem', zIndex: 10010,
+        width: '42px',
+        background: isNight ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+        border: '1.5px solid rgba(255,255,255,0.15)',
+        borderRadius: '21px',
+        backdropFilter: 'blur(12px)',
+        boxShadow: isNight
+          ? 'inset -14px 0 28px rgba(200,225,255,0.22)'
+          : 'inset 14px 0 28px rgba(255,148,30,0.28)',
+        transition: 'background 0.35s ease, border-color 0.35s ease, box-shadow 0.55s ease',
+        overflow: 'hidden',
+      }}>
+        {/* Sun — day mode */}
+        <button
+          className="qr-pill-sun"
+          onClick={() => setIsNight(false)}
+          title="Day"
+          style={{
+            width: '42px', height: '42px', borderRadius: '21px 21px 0 0',
+            background: !isNight ? 'radial-gradient(circle at center, rgba(255,165,30,0.22) 0%, transparent 72%)' : 'none',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+            transition: 'background 0.4s ease',
+          }}
+        >
+          <img src="/images/lab/sun.png" alt="day"
+            className="qr-pill-img"
+            style={{
+              width: '20px', height: '20px', objectFit: 'contain',
+              opacity: isNight ? 0.72 : 1,
+              filter: !isNight ? 'drop-shadow(0 0 5px rgba(255,160,20,0.9)) drop-shadow(0 0 10px rgba(255,130,0,0.5))' : 'none',
+              animation: !isNight ? 'qr-spin-slow 20s linear infinite' : 'none',
+              transition: 'opacity 0.35s ease, filter 0.35s ease',
+            }}
+          />
+        </button>
+        {/* Moon — night mode */}
+        <button
+          className="qr-pill-moon"
+          onClick={() => setIsNight(true)}
+          title="Night"
+          style={{
+            width: '42px', height: '42px', borderRadius: '0 0 21px 21px',
+            background: isNight ? 'radial-gradient(circle at center, rgba(170,210,255,0.20) 0%, transparent 72%)' : 'none',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+            transition: 'background 0.4s ease',
+          }}
+        >
+          <img src="/images/lab/moon.png" alt="night"
+            className="qr-pill-img"
+            style={{
+              width: '20px', height: '20px', objectFit: 'contain',
+              opacity: isNight ? 1 : 0.72,
+              filter: isNight ? 'drop-shadow(0 0 5px rgba(180,215,255,0.9)) drop-shadow(0 0 10px rgba(140,190,255,0.5))' : 'none',
+              animation: isNight ? 'qr-spin-slow 20s linear infinite' : 'none',
+              transition: 'opacity 0.35s ease, filter 0.35s ease',
+            }}
+          />
+        </button>
+      </div>
+
+      {/* ── Manual button ── */}
+      <button
+        className="manual-btn"
+        onClick={() => setShowManual(true)}
+        style={{
+          position: 'fixed', bottom: 24, right: 0, zIndex: 10020,
+          padding: '8px 18px 8px 16px',
+          borderRadius: '20px 0 0 20px',
+          background: isNight
+            ? 'linear-gradient(160deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 45%), linear-gradient(160deg, #2e2e42, #16161f)'
+            : 'linear-gradient(160deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 45%), linear-gradient(160deg, #5a4030, #2a1a0e)',
+          borderTop: isNight ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.2)',
+          borderLeft: isNight ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.2)',
+          borderBottom: isNight ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.2)',
+          borderRight: 'none',
+          color: 'rgba(255,255,255,0.92)',
+          fontSize: 11, letterSpacing: '0.08em', fontFamily: 'UniversNext, sans-serif',
+          fontWeight: 500, cursor: 'pointer',
+          boxShadow: '-2px 2px 8px rgba(0,0,0,0.12)',
+          transition: 'all 0.2s ease',
+        }}
+      >
+        user manual
+      </button>
+
+      {/* ── Manual overlay ── */}
+      {showManual && (
+        <div
+          className="manual-overlay"
+          onClick={() => setShowManual(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 10030,
+            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px',
+            animation: 'manualFadeIn 0.2s ease',
+          }}
+        >
+          <div
+            className="manual-paper"
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E"), #f5f2eb`,
+              borderRadius: 4,
+              boxShadow: '0 32px 80px rgba(0,0,0,0.55), 0 4px 16px rgba(0,0,0,0.25)',
+              maxWidth: 1120, width: '96vw',
+              overflow: 'hidden',
+              position: 'relative',
+              fontFamily: 'UniversNext, system-ui, sans-serif',
+            }}
+          >
+            {/* Header */}
+            <div className="manual-header-wrap" style={{
+              padding: '18px 24px 14px',
+              borderBottom: '1px solid rgba(0,0,0,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              backgroundImage: 'url(/images/lab/menual-head-bg.png)',
+              backgroundRepeat: 'repeat-x',
+              backgroundSize: 'auto 100%',
+              backgroundPosition: '-500px top',
+            }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', letterSpacing: '-0.02em', whiteSpace: 'nowrap', textShadow: '0 1px 4px #fef5de, 0 2px 8px #fef5de' }}>
+                QR Device <span style={{ fontWeight: 500, fontSize: 22, color: '#1a1a1a', letterSpacing: '-0.02em' }}>· Quick Guide</span>
+              </div>
+              <button onClick={() => setShowManual(false)} style={{
+                border: 'none', background: 'rgba(0,0,0,0.12)', color: '#333', fontSize: 16,
+                cursor: 'pointer', lineHeight: 1, padding: '5px 8px', borderRadius: 6,
+                alignSelf: 'flex-start', marginTop: -10, marginRight: -10,
+                fontWeight: 700, fontSize: 18,
+              }}>✕</button>
+            </div>
+
+            <div className="manual-body">
+            {/* 5-column grid — all 15 items fit in 3 rows, no scroll needed */}
+            <div className="manual-no-shadows manual-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1px', background: 'rgba(0,0,0,0.06)' }}>
+
+              {/* URL Input */}
+              <ManCard label="URL / Text Input" desc="Type or paste any link or text. The QR updates live.">
+                <div style={{ display:'flex', alignItems:'center', background:'#0d0d0d', borderRadius:9, padding:'0 12px', height:32, boxShadow:'inset 0 2px 6px rgba(0,0,0,0.9)', border:'1px solid #000', width:'100%', boxSizing:'border-box' }}>
+                  <span style={{ fontSize:9, color:'#888', fontFamily:'monospace' }}>https://your-link.com/</span>
+                </div>
+              </ManCard>
+
+              {/* Background & Foreground */}
+              <ManCard label="Background & Foreground" desc="Tap a dot to open the color picker. BG = canvas, FG = dots.">
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:3, padding:'2px', background: isNight ? 'linear-gradient(145deg,#252530,#31313e)' : 'linear-gradient(145deg,#c8c8c8,#dcdcdc)', boxShadow: isNight ? 'inset 2px 2px 5px #111120' : 'inset 2px 2px 5px #b0b0b0', border: isNight ? '1px solid #1b1b28' : '1px solid #b8b8b8', borderRadius:40 }}>
+                      <div style={{ width:28, height:28, borderRadius:'50%', ...hw.btn(false), display:'flex', alignItems:'center', justifyContent:'center' }}>
+                        <img src="/images/lab/no-bg-icon.svg" width="14" height="14"/>
+                      </div>
+                      <ColorDot color="#ffffff" label="" active={false} onClick={()=>{}} isNight={isNight}/>
+                    </div>
+                    <span style={{ fontSize:7, color:'#888', textTransform:'uppercase' }}>Background</span>
+                  </div>
+                  <ColorDot color="#111111" label="Foreground" active={false} onClick={()=>{}} isNight={isNight}/>
+                </div>
+              </ManCard>
+
+              {/* Module Shape */}
+              <ManCard label="Module Shape" desc="Opens the dot shape picker — square, circle, diamond, star and more.">
+                <button style={{ ...hw.btn(false), borderRadius:22, padding:'11px 14px', display:'flex', alignItems:'center', gap:6, fontSize:10, fontWeight:500, color: isNight ? '#aaa' : '#555' }}>
+                  <img src="/images/lab/finder-pattern-icon.svg" width="14" height="14" style={{ filter: isNight ? 'brightness(0) invert(1) opacity(0.5)' : 'opacity(0.5)' }}/>
+                  Module Shape
+                </button>
+              </ManCard>
+
+              {/* Finder Pattern */}
+              <ManCard label="Finder Pattern" desc="Styles the three corner squares scanners use to orient the code.">
+                <button style={{ ...hw.btn(false), borderRadius:22, padding:'11px 14px', display:'flex', alignItems:'center', gap:6, fontSize:10, fontWeight:500, color: isNight ? '#aaa' : '#555' }}>
+                  <img src="/images/lab/mudule-shape-icon.svg" width="14" height="14" style={{ filter: isNight ? 'brightness(0) invert(1) opacity(0.5)' : 'opacity(0.5)' }}/>
+                  Finder Pattern
+                </button>
+              </ManCard>
+
+              {/* Gradient */}
+              <ManCard label="Gradient" desc="Toggle to apply a gradient across the dots. Tap FG dot to edit color stops.">
+                <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                  <HWToggle checked={false} onChange={()=>{}} isNight={isNight}/>
+                  <HWToggle checked={true}  onChange={()=>{}} isNight={isNight}/>
+                  <span style={{ fontSize:8, color: isNight ? '#444' : '#bbb' }}>off → on</span>
+                </div>
+              </ManCard>
+
+              {/* Gradient Type */}
+              <ManCard label="Gradient Type" desc="L = linear, R = radial, C = conical. Controls the direction of color flow.">
+                <TypeSelector value="L" onChange={()=>{}} isNight={isNight} labelColor="#444"/>
+              </ManCard>
+
+              {/* Angle */}
+              <ManCard label="Angle" desc="Drag the knob to rotate the gradient. Only affects linear gradients.">
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <Knob value={45} onChange={()=>{}} isNight={isNight}/>
+                  <span style={{ fontSize:8, color: isNight ? '#444' : '#bbb', lineHeight:1.4 }}>drag<br/>to rotate</span>
+                </div>
+              </ManCard>
+
+              {/* Color Stops */}
+              <ManCard label="Color Stops" desc="↑↓ cycle stops. + adds, − removes. Tap a stop dot on the screen to select it.">
+                <div style={{ background: isNight ? 'linear-gradient(145deg,#272732,#1e1e28)' : 'linear-gradient(145deg,#d0d0d0,#c4c4c4)', boxShadow: isNight ? 'inset 3px 3px 8px rgba(0,0,0,0.6)' : 'inset 3px 3px 8px rgba(0,0,0,0.35)', border: isNight ? '1px solid #141420' : '1px solid #b0b0b0', borderRadius:16, padding:3, display:'grid', gridTemplateColumns:'1fr 1fr', gap:3 }}>
+                  {[['16px 16px 5px 5px','up'],['50%','+'],['5px 5px 16px 16px','dn'],['50%','−']].map(([r,k]) => (
+                    <button key={k} style={{ ...hw.btn(false), width:30, height:30, borderRadius:r, display:'flex', alignItems:'center', justifyContent:'center', padding:0, fontSize: k==='+'||k==='−' ? 17 : undefined, fontWeight:300, color: isNight ? '#bbb' : '#555' }}>
+                      {k==='up' ? <img src="/images/lab/selector-up-button-icon.svg" width="12" height="8" style={{ filter: isNight ? 'brightness(0) invert(1) opacity(0.6)' : undefined }}/> : k==='dn' ? <img src="/images/lab/selector-down-button-icon.svg" width="12" height="8" style={{ filter: isNight ? 'brightness(0) invert(1) opacity(0.6)' : undefined }}/> : k}
+                    </button>
+                  ))}
+                </div>
+              </ManCard>
+
+              {/* Distance */}
+              <ManCard label="Distance" desc="Vertical slider — controls how far gradient colors spread across the QR modules.">
+                <VSlider value={5} onChange={()=>{}} min={0} max={10} label="Distance" labelColor={isNight ? 'rgba(255,255,255,0.4)' : '#888'} isNight={isNight}/>
+              </ManCard>
+
+              {/* Preset */}
+              <ManCard label="Preset" desc="One-tap gradient themes — Sunset, Ocean, Neon, Gold, Aurora, Fire, Candy and more.">
+                <button style={{ ...hw.btn(false), borderRadius:22, padding:'11px 14px', display:'flex', alignItems:'center', gap:6, fontSize:10, fontWeight:500, color: isNight ? '#aaa' : '#555' }}>
+                  <img src="/images/lab/preset-icon.svg" width="14" height="14" style={{ filter: isNight ? 'brightness(0) invert(1) opacity(0.5)' : 'opacity(0.5)' }}/>
+                  Preset
+                </button>
+              </ManCard>
+
+              {/* Texture */}
+              <ManCard label="Texture" desc="Apply a material skin — Brushed Silver, Carbon, Washi, Neon Glow, Blueprint and more.">
+                <button style={{ ...hw.btn(false), borderRadius:22, padding:'11px 14px', display:'flex', alignItems:'center', gap:6, fontSize:10, fontWeight:500, color: isNight ? '#aaa' : '#555' }}>
+                  <img src="/images/lab/texture-icon.svg" width="14" height="14" style={{ filter: isNight ? 'brightness(0) invert(1) opacity(0.5)' : 'opacity(0.5)' }}/>
+                  Texture
+                </button>
+              </ManCard>
+
+              {/* Corner Roundness */}
+              <ManCard label="Corner Roundness" desc="Drag to round the finder corners from sharp square to fully circular.">
+                <div style={{ width:'100%', position:'relative', height:22 }}>
+                  <div style={{ position:'absolute', top:'50%', left:0, right:0, height:6, transform:'translateY(-50%)', borderRadius:3, background: isNight ? 'linear-gradient(145deg,#272732,#1e1e28)' : 'linear-gradient(145deg,#b0b0b0,#c8c8c8)', boxShadow: isNight ? 'inset 2px 2px 6px rgba(0,0,0,0.7)' : 'inset 2px 2px 6px rgba(0,0,0,0.22)', border: isNight ? '1px solid #141420' : '1px solid #999' }}/>
+                  <div style={{ position:'absolute', top:'50%', left:'40%', transform:'translateY(-50%)', width:20, height:20, borderRadius:'50%', ...hw.btn(false) }}/>
+                </div>
+              </ManCard>
+
+              {/* Error Correction */}
+              <ManCard label="Error Correction" desc="L = smallest. H = most tolerant of damage. Use H when overlaying a logo.">
+                <div style={{ width:'100%' }}>
+                  <ECSelector value="H" onChange={()=>{}} isNight={isNight} labelColor="#444"/>
+                </div>
+              </ManCard>
+
+              {/* Download */}
+              <ManCard label="Download" desc="Saves the QR as a lossless SVG — scales perfectly to any print size.">
+                <button style={{ ...hw.btn(false), width:'100%', borderRadius:22, padding:'10px 0', fontSize:12, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:7, color: isNight ? '#bbb' : '#444', boxSizing:'border-box' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 4v12M8 13l4 5 4-5"/><path d="M4 20h16"/></svg>
+                  Download
+                </button>
+              </ManCard>
+
+              {/* 5th slot — logo (hidden on mobile) */}
+              <div className="manual-logo-cell" style={{ background:'#f5f2eb', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <img src="/images/common/sa26-filled.svg" alt="Satish Hebbal" style={{ width: 36, height: 36, opacity: 0.25 }}/>
+              </div>
+
+            </div>
+
+            </div>{/* end manual-body */}
+            {/* Footer */}
+            <div className="manual-footer-wrap" style={{
+              padding: '10px 24px',
+              borderTop: '1px solid rgba(0,0,0,0.07)',
+              fontSize: 11, color: '#888', letterSpacing: '0.1em', textAlign: 'center',
+              textTransform: 'uppercase', fontFamily: 'UniversNext, sans-serif', fontWeight: 500,
+            }}>
+              MANUFACTURED WITH ❤️ FOR CRAFT · SATISHHEBBAL.DESIGN
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

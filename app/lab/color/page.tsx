@@ -88,6 +88,32 @@ function VerticalSlider({ value, onChange, background, min = 0, max = 360 }: {
   )
 }
 
+// --- Grainy gradient CSS ---
+const GRAINY_CSS = `
+  @keyframes grainy-yellow {
+    0%   { top: 20%; left: 10%; transform: scale(1); }
+    30%  { top: 40%; left: 20%; transform: scale(1.2); }
+    60%  { top: 15%; left: 35%; transform: scale(1.3); }
+    100% { top: 20%; left: 10%; transform: scale(1); }
+  }
+  @keyframes grainy-green {
+    0%   { top: 10%; right: 5%; transform: scale(1.2); }
+    30%  { top: 50%; right: 5%; transform: scale(1); }
+    60%  { top: 35%; right: 20%; transform: scale(1); }
+    100% { top: 10%; right: 5%; transform: scale(1.2); }
+  }
+  @keyframes grainy-red {
+    0%   { bottom: 20%; right: 5%; transform: scale(1); }
+    30%  { bottom: 30%; right: 25%; transform: scale(1.4); }
+    60%  { bottom: 20%; right: 15%; transform: scale(1); }
+    100% { bottom: 20%; right: 5%; transform: scale(1); }
+  }
+  .grainy-blob { border-radius: 100px; filter: blur(80px); position: absolute; pointer-events: none; }
+  .grainy-yellow { background: rgb(255, 174, 68); width: 280px; height: 280px; animation: grainy-yellow 8s infinite ease; top: 20%; left: 10%; }
+  .grainy-green  { background: rgb(178, 255, 225); width: 350px; height: 300px; animation: grainy-green 8s infinite ease; top: 10%; right: 5%; }
+  .grainy-red    { background: rgb(255, 156, 202); width: 300px; height: 320px; animation: grainy-red 8s infinite linear; bottom: 20%; right: 5%; }
+`
+
 // --- Shine + arcade CSS ---
 const GAME_CSS = `
   @keyframes digitDrop {
@@ -410,8 +436,24 @@ export default function ColorGame() {
   })
 
   return (
-    <div style={{ height: '100vh', overflow: 'hidden', background: 'white', fontFamily: 'FunnelDisplay, sans-serif', position: 'relative' }}>
+    <div style={{ height: '100vh', overflow: 'hidden', background: 'rgb(255, 255, 255)', fontFamily: 'FunnelDisplay, sans-serif', position: 'relative' }}>
 
+      {/* Grainy gradient background */}
+      <style>{GRAINY_CSS}</style>
+      <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
+        <filter id="grainyNoiseFilter">
+          <feTurbulence type="fractalNoise" baseFrequency="0.6" stitchTiles="stitch" />
+          <feColorMatrix in="colorNoise" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0" />
+          <feComposite operator="in" in2="SourceGraphic" result="monoNoise" />
+          <feBlend in="SourceGraphic" in2="monoNoise" mode="screen" />
+        </filter>
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, background: '#8C8C8C', filter: 'url(#grainyNoiseFilter)', opacity: 0.4, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+        <div className="grainy-blob grainy-yellow" />
+        <div className="grainy-blob grainy-red" />
+        <div className="grainy-blob grainy-green" />
+      </div>
 
       {/* Leaderboard button — fixed, centered, always above the card, never moves */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 10 }}>
@@ -697,7 +739,7 @@ export default function ColorGame() {
         </div>{/* end Panel 1 */}
 
         {/* Panel 2 — Leaderboard */}
-        <div style={{ width: '50%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'white' }}>
+        <div style={{ width: '50%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
           <div style={{ width: '100%', maxWidth: '400px' }}>
 
             {/* Header */}
