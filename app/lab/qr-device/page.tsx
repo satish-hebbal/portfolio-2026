@@ -1641,9 +1641,9 @@ export default function QR2() {
       position: 'relative',
     }}>
       {/* Day background — fades out when night */}
-      <div className="qr-bg-img" style={{ position:'absolute', inset:0, backgroundImage:'url(/images/lab/qr-page-bg.png)', backgroundSize:'125%', backgroundPosition:'center -20px', opacity: isNight ? 0 : 1, transition:'opacity 0.75s ease', zIndex:0 }}/>
+      <div className="qr-bg-img" style={{ position:'absolute', inset:0, backgroundImage:'url(/images/lab/qr-page-bg.webp)', backgroundSize:'125%', backgroundPosition:'center -20px', opacity: isNight ? 0 : 1, transition:'opacity 0.75s ease', zIndex:0 }}/>
       {/* Night background — fades in when night */}
-      <div className="qr-bg-img" style={{ position:'absolute', inset:0, backgroundImage:'url(/images/lab/qr-page-bg-night.png)', backgroundSize:'125%', backgroundPosition:'center -20px', opacity: isNight ? 1 : 0, transition:'opacity 0.75s ease', zIndex:0 }}/>
+      <div className="qr-bg-img" style={{ position:'absolute', inset:0, backgroundImage:'url(/images/lab/qr-page-bg-night.webp)', backgroundSize:'125%', backgroundPosition:'center -20px', opacity: isNight ? 1 : 0, transition:'opacity 0.75s ease', zIndex:0 }}/>
       {/* subtle overlay */}
       <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.28)', zIndex:1 }}/>
 
