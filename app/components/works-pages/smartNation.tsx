@@ -6,6 +6,15 @@ import Image from 'next/image'
 import SmartTouchSwitchBoard, { SwitchState } from './abhiyantrik/SmartTouchSwitchBoard'
 import SmartMCB, { MCBState } from './abhiyantrik/SmartMCB'
 import PhoneShell from './abhiyantrik/PhoneShell'
+import { SketchyArrow } from '../ui/SketchyArrow'
+
+// Hand-drawn nudge pointing at an interactive element, easy to scroll past otherwise
+const InteractiveNudge = ({ text, flip = false }: { text: string; flip?: boolean }) => (
+  <div className="flex flex-col items-center -mb-1 select-none pointer-events-none">
+    <p className="text-lg md:text-xl -rotate-2 whitespace-nowrap" style={{ fontFamily: 'Excalifont, sans-serif', color: '#f97316' }}>{text}</p>
+    <SketchyArrow color="#f97316" flip={flip} width={40} height={52} />
+  </div>
+)
 
 const Plus = ({ h, v = 'bottom' }: { h: 'left' | 'right'; v?: 'top' | 'bottom' }) => (
   <span
@@ -1032,7 +1041,8 @@ const SmartNation = () => {
           </div>
 
           {/* Icon picker — vintage radio button console */}
-          <div className="relative overflow-visible border-t border-gray-200 py-8 px-6 md:px-10 flex justify-center">
+          <div className="relative overflow-visible border-t border-gray-200 py-8 px-6 md:px-10 flex flex-col items-center">
+            <InteractiveNudge text="go ahead, tap one!" />
             {/* Console panel */}
             <div
               className="flex-wrap md:flex-nowrap max-w-[320px] md:max-w-none"
@@ -1212,6 +1222,7 @@ const SmartNation = () => {
           <div className="flex justify-center py-12 px-6">
             <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12 w-full">
               <div className="flex-1 w-full order-1 md:order-1 flex flex-col gap-3">
+                <InteractiveNudge text="go ahead, give it a try!" flip />
                 {activeDemo === 'switch' ? (
                   <>
                     <p className="text-center text-[10px] uppercase tracking-widest text-gray-400" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>Click any switch to toggle</p>

@@ -125,6 +125,14 @@ body.page-404 { background: black; }
 }
 
 @font-face {
+  font-family: 'Excalifont';
+  src: url('/fonts/Excalifont.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Poppins';
   src: url('/fonts/Poppins/Poppins-Light.ttf') format('truetype');
   font-weight: 300;
