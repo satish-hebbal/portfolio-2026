@@ -389,7 +389,7 @@ const SmartNation = () => {
           {/* Hero Image */}
           <div className="relative overflow-visible border-b border-gray-200">
             <Image
-              src="/images/WorkImages/smartNationImages/SNN.png"
+              src="/images/WorkImages/smartNationImages/SNN.webp"
               alt="Smart Nation switchboard"
               width={2000}
               height={900}
