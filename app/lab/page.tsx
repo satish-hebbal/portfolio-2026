@@ -180,7 +180,7 @@ export default function Lab() {
                 A hyper-real instrument cluster with a fully synthesised engine you can rev
               </CardItem>
               <CardItem translateZ={110} className="speedo-thumb-wrap">
-                <img src="/images/lab/tumbnail-speedoo.png" alt="Speedoo Preview"
+                <img src="/images/tumbnail-speedoo.png" alt="Speedoo Preview"
                   style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.92 }} />
               </CardItem>
               <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
@@ -204,7 +204,7 @@ export default function Lab() {
                 A mini music studio: program beats, play instruments, record &amp; layer your voice
               </CardItem>
               <CardItem translateZ={110} className="studio-kapi-thumb-wrap">
-                <img src="/images/lab/studio-kapi-tumbnail.png" alt="Studio Kapi Preview"
+                <img src="/images/studio-kapi-tumbnail.png" alt="Studio Kapi Preview"
                   style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.92 }} />
               </CardItem>
               <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 10 }}>
