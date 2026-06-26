@@ -312,7 +312,11 @@ export default function SpeedoPage() {
     const p = PRESETS[i]
     simRef.current?.setPreset(p)
     audioRef.current?.setVoice(voicePayload(p, voiceOf(p)))
-    setGear(0)
+    // EVs are single-speed: default to Drive (driveline engaged) so the car
+    // pulls on throttle immediately and the cluster reads "D" instead of "N"
+    const initGear = p.ev ? 1 : 0
+    simRef.current?.setGear(initGear)
+    setGear(initGear)
   }, [])
 
   // TEMP: live-tune the current engine's sound

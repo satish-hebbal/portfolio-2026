@@ -6,6 +6,6 @@ const Navbar = dynamic(() => import("./navbar"), { ssr: false })
 
 export default function NavbarClient() {
   const pathname = usePathname()
-  if (pathname?.startsWith('/proposals')) return null
+  if (pathname?.startsWith('/proposals') || pathname?.startsWith('/lab/studio-kapi') || pathname?.startsWith('/lab/speedo')) return null
   return <Navbar />
 }

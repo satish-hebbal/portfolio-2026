@@ -20,8 +20,11 @@ export default function Footer() {
   const pathname = usePathname()
   const isUnpluggedPage = pathname?.startsWith('/unplugged/')
   const isProposalPage = pathname?.startsWith('/proposals')
+  // fullscreen lab projects render their own chrome (back button) and must not
+  // show the site footer bleeding into their fixed-overlay layout
+  const isFullscreenLab = pathname?.startsWith('/lab/studio-kapi') || pathname?.startsWith('/lab/speedo')
 
-  if (isProposalPage) return null
+  if (isProposalPage || isFullscreenLab) return null
 
   return (
     <footer className={`mt-16 relative overflow-visible${isUnpluggedPage ? ' md:hidden' : ''}`}>

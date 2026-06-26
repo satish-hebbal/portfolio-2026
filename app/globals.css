@@ -85,6 +85,14 @@ body.page-404 { background: black; }
 
 
 @font-face {
+  font-family: 'Draco';
+  src: url('/fonts/Draco.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Garamond';
   src: url('/fonts/garamond/Garamond_Condensed_Light_Regular.ttf') format('truetype');
   font-weight: normal;
@@ -120,6 +128,35 @@ body.page-404 { background: black; }
   font-family: 'FunnelDisplay';
   src: url('/fonts/FunnelDisplay/FunnelDisplay-Regular.ttf') format('truetype');
   font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Siegra';
+  src: url('/fonts/siegra.regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ProRacing';
+  src: url('/fonts/ProRacing/ProRacing.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ProRacingSlant';
+  src: url('/fonts/ProRacing/ProRacingSlant.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ProRacingSlantOutline';
+  src: url('/fonts/ProRacing/ProRacingSlantOutline.otf') format('opentype');
+  font-weight: normal;
   font-style: normal;
   font-display: swap;
 }
