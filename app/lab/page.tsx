@@ -56,6 +56,22 @@ export default function Lab() {
         .qr-card-desc {
           max-width: 55%;
         }
+        .speedo-thumb-wrap {
+          position: absolute;
+          bottom: -58px;
+          right: -44px;
+          width: 320px;
+          height: 320px;
+          pointer-events: none;
+        }
+        .studio-kapi-thumb-wrap {
+          position: absolute;
+          bottom: -50px;
+          right: -80px;
+          width: 280px;
+          height: 280px;
+          pointer-events: none;
+        }
 
         @media (max-width: 767px) {
           /* Center thumbnails at bottom on mobile */
@@ -81,6 +97,18 @@ export default function Lab() {
           /* Full-width text on mobile */
           .qr-card-desc {
             max-width: 100%;
+          }
+          .speedo-thumb-wrap {
+            right: -15px;
+            bottom: -45px;
+            width: 210px;
+            height: 210px;
+          }
+          .studio-kapi-thumb-wrap {
+            right: -80px;
+            bottom: -40px;
+            width: 220px;
+            height: 220px;
           }
         }
       `}</style>
@@ -114,6 +142,78 @@ export default function Lab() {
           </CardContainer>
         </Link>
 
+        {/* QR Device */}
+        <Link href="/lab/qr-device" style={{ textDecoration: 'none', display: 'block' }}>
+          <CardContainer containerClassName="w-full p-0" className="w-full">
+            <CardBody className="qr-card-body w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+              style={{ background: 'linear-gradient(135deg, #f3f3f3 0%, #ffffff 60%)', borderRadius: 0 }}>
+              <CardItem translateZ={50} className="block"
+                style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#1a1a1a' }}>
+                QR Device
+              </CardItem>
+              <CardItem translateZ={60} as="p" className="qr-card-desc block mt-3"
+                style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5 }}>
+                A hardware-style QR generator with gradients, textures &amp; sound
+              </CardItem>
+              <CardItem translateZ={110} className="qr-thumb-wrap">
+                <img src="/images/lab/qr-device-thumnail.png" alt=""
+                  style={{ width: '100%', opacity: 0.92, transform: 'rotate(4deg)' }} />
+              </CardItem>
+              <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
+                <ArrowBtn />
+              </CardItem>
+            </CardBody>
+          </CardContainer>
+        </Link>
+
+        {/* Speedoo */}
+        <Link href="/lab/speedo" style={{ textDecoration: 'none', display: 'block' }}>
+          <CardContainer containerClassName="w-full p-0" className="w-full">
+            <CardBody className="w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+              style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #ffffff 60%)', borderRadius: 0 }}>
+              <CardItem translateZ={50} className="block"
+                style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
+                Speedoo
+              </CardItem>
+              <CardItem translateZ={60} as="p" className="block mt-3"
+                style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '58%' }}>
+                A hyper-real instrument cluster with a fully synthesised engine you can rev
+              </CardItem>
+              <CardItem translateZ={110} className="speedo-thumb-wrap">
+                <img src="/images/lab/tumbnail-speedoo.png" alt="Speedoo Preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.92 }} />
+              </CardItem>
+              <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
+                <ArrowBtn />
+              </CardItem>
+            </CardBody>
+          </CardContainer>
+        </Link>
+
+        {/* Studio-Kapi */}
+        <Link href="/lab/studio-kapi" style={{ textDecoration: 'none', display: 'block' }}>
+          <CardContainer containerClassName="w-full p-0" className="w-full">
+            <CardBody className="w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+              style={{ background: 'linear-gradient(135deg, #f4f1ff 0%, #ffffff 60%)', borderRadius: 0 }}>
+              <CardItem translateZ={50} className="block"
+                style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
+                Studio-Kapi
+              </CardItem>
+              <CardItem translateZ={60} as="p" className="block mt-3"
+                style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '60%' }}>
+                A mini music studio: program beats, play instruments, record &amp; layer your voice
+              </CardItem>
+              <CardItem translateZ={110} className="studio-kapi-thumb-wrap">
+                <img src="/images/lab/studio-kapi-tumbnail.png" alt="Studio Kapi Preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.92 }} />
+              </CardItem>
+              <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 10 }}>
+                <ArrowBtn />
+              </CardItem>
+            </CardBody>
+          </CardContainer>
+        </Link>
+
         {/* YT Walkman */}
         <Link href="/lab/walkman" style={{ textDecoration: 'none', display: 'block' }}>
           <CardContainer containerClassName="w-full p-0" className="w-full">
@@ -130,30 +230,6 @@ export default function Lab() {
               <CardItem translateZ={110} className="walkman-thumb-wrap">
                 <img src="/images/lab/walkman-thumnail.png" alt=""
                   style={{ width: '100%', height: '100%', objectFit: 'contain', transform: 'rotate(-45deg)', opacity: 0.92 }} />
-              </CardItem>
-              <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
-                <ArrowBtn />
-              </CardItem>
-            </CardBody>
-          </CardContainer>
-        </Link>
-
-        {/* QR Device */}
-        <Link href="/lab/qr-device" style={{ textDecoration: 'none', display: 'block' }}>
-          <CardContainer containerClassName="w-full p-0" className="w-full">
-            <CardBody className="qr-card-body w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
-              style={{ background: 'linear-gradient(135deg, #e8e8e8 0%, #ffffff 60%)', borderRadius: 0 }}>
-              <CardItem translateZ={50} className="block"
-                style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#1a1a1a' }}>
-                QR Device
-              </CardItem>
-              <CardItem translateZ={60} as="p" className="qr-card-desc block mt-3"
-                style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5 }}>
-                A hardware-style QR generator with gradients, textures &amp; sound
-              </CardItem>
-              <CardItem translateZ={110} className="qr-thumb-wrap">
-                <img src="/images/lab/qr-device-thumnail.png" alt=""
-                  style={{ width: '100%', opacity: 0.92, transform: 'rotate(4deg)' }} />
               </CardItem>
               <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
                 <ArrowBtn />
