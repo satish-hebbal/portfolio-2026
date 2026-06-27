@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { ArrowLeft, Volume2, VolumeX, Smartphone, Info } from 'lucide-react'
+import { ArrowLeft, Volume2, VolumeX, Smartphone, Info, Music } from 'lucide-react'
 import s from './speedo.module.css'
 import Gauge, { GaugeHandle } from './components/Gauge'
 import ArcMeter, { ArcMeterHandle } from './components/ArcMeter'
@@ -14,6 +14,7 @@ import EVCluster from './components/EVCluster'
 import StartButton from './components/StartButton'
 import { EngineSim, PRESETS } from './sim/engineSim'
 import { EngineAudio } from './sim/engineAudio'
+import { buildSong, type SongNote } from './sim/song'
 
 const GEAR_LABEL = (g: number) => (g === 0 ? 'N' : String(g))
 
@@ -65,6 +66,10 @@ export default function SpeedoPage() {
   const [lit, setLit] = useState(false) // backlight/glow powered (fades in/out)
   const [intro, setIntro] = useState(false) // startup self-test: glitch logo on the screen
   const [muted, setMuted] = useState(false)
+  const [songOn, setSongOn] = useState(false) // Happy Birthday melody playing
+
+  // melody-player state (drives audio rpm directly while playing)
+  const songRef = useRef<{ playing: boolean; notes: SongNote[]; t0: number }>({ playing: false, notes: [], t0: 0 })
 
   // power sequence state machine (drives gauge sweep + audio spin-down)
   const phaseRef = useRef<'off' | 'startup' | 'running' | 'shutdown'>('off')
@@ -115,6 +120,7 @@ export default function SpeedoPage() {
   const evBattRef = useRef<HTMLSpanElement>(null)
   const evBattFillRef = useRef<HTMLSpanElement>(null)
   const evPowerRef = useRef<HTMLSpanElement>(null)
+  const evFramesRef = useRef<HTMLDivElement>(null)
 
   // pedal input refs
   const gasDown = useRef(false)
@@ -145,6 +151,7 @@ export default function SpeedoPage() {
     let lastTempIdx = -1 // last lit pill on the V10 temp ladder
     let lastSpeedMs = 0 // for the V10 G-meter (longitudinal g)
     let gSmooth = 0
+    let evPhase = 0 // EV tunnel: marches inward, faster with speed
     const loop = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.05)
       last = now
@@ -153,6 +160,31 @@ export default function SpeedoPage() {
       sim.brakeInput = brakeDown.current ? 1 : 0
       sim.update(dt)
       const st = sim.getState()
+
+      // ── melody player: resolve the note being sung right now, so both the
+      // tach needle and the audio land on its exact rpm (feels live) ──
+      let songRpm = -1 // -1 = not playing
+      let songSounding = false
+      const song = songRef.current
+      if (song.playing) {
+        const t = (now - song.t0) / 1000
+        if (t < 0) { songRpm = preset.idle; songSounding = false }
+        else {
+          let acc = 0, idx = 0
+          for (; idx < song.notes.length; idx++) {
+            if (t < acc + song.notes[idx].dur) break
+            acc += song.notes[idx].dur
+          }
+          if (idx >= song.notes.length) {
+            song.playing = false
+            audioRef.current?.setSongGain(1)
+            setSongOn(false)
+          } else {
+            songRpm = song.notes[idx].rpm
+            songSounding = (t - acc) < song.notes[idx].dur * 0.78
+          }
+        }
+      }
 
       // ── power sequence: gauge self-test sweep on start, spin-down on stop ──
       let tachVal = st.rpm
@@ -173,6 +205,10 @@ export default function SpeedoPage() {
           audioRef.current?.setRunning(false)
         }
       }
+
+      // while a song plays, the tach needle jumps to the rpm of each note so you
+      // can watch the melody being played on the gauge in real time
+      if (songRpm >= 0) tachVal = songRpm
 
       tachRef.current?.setValue(tachVal)
       speedoRef.current?.setValue(speedoVal)
@@ -249,6 +285,31 @@ export default function SpeedoPage() {
         evPowerRef.current.textContent = kw > 0 ? '+' + kw : String(kw)
       }
 
+      // ── EV tunnel: sharp rectangles marching toward the centre. The faster
+      // you go, the quicker they recede and the brighter they glow, so it reads
+      // as an infinite mirror pulling you inward. ──
+      if (isEV && evFramesRef.current) {
+        const v = Math.max(0, speedoVal)
+        // idle drift + a march that quickens steeply toward top speed
+        evPhase += (0.05 + Math.pow(Math.min(1, v / 220), 0.85) * 1.5) * dt
+        evPhase -= Math.floor(evPhase)
+        const intensity = Math.min(1, v / 150) // glow ramps to full by ~150 km/h
+        const kids = evFramesRef.current.children
+        const N = kids.length
+        for (let k = 0; k < N; k++) {
+          const el = kids[k] as HTMLElement
+          const p = (evPhase + k / N) % 1            // 0 = born at the rim, 1 = gone at centre
+          const scale = 1 - p                        // shrinks inward toward the vanishing point
+          // fade in just off the rim, fade out into the centre
+          const fade = Math.min(1, p / 0.14) * Math.min(1, (1 - p) / 0.22)
+          el.style.transform = `scale(${scale.toFixed(4)})`
+          // lines actually dim a touch as speed climbs, so the fast motion stays calm
+          el.style.opacity = (fade * (0.3 - 0.1 * intensity)).toFixed(3)
+        }
+        // soft glow that eases in only slightly with speed (kept gentle to avoid flicker)
+        evFramesRef.current.style.setProperty('--evGlow', (0.12 + intensity * 0.23).toFixed(3))
+      }
+
       // ── trip computer: average speed + estimated range ──
       if (running) {
         tripTime += dt
@@ -263,7 +324,14 @@ export default function SpeedoPage() {
       if (brakeTellRef.current) brakeTellRef.current.classList.toggle(s.lit, st.brake > 0.05)
       if (shiftTellRef.current) shiftTellRef.current.classList.toggle(s.lit, st.rpm > preset.redline * 0.9)
 
-      audioRef.current?.update(st.rpm, st.throttle, st.brake)
+      // drive the audio: melody notes while a song plays (pulsing the gain
+      // between notes so repeats re-articulate), otherwise the live engine
+      if (songRpm >= 0) {
+        audioRef.current?.update(songRpm, songSounding ? 0.85 : 0, 0)
+        audioRef.current?.setSongGain(songSounding ? 1 : 0)
+      } else {
+        audioRef.current?.update(st.rpm, st.throttle, st.brake)
+      }
       raf = requestAnimationFrame(loop)
     }
     raf = requestAnimationFrame(loop)
@@ -293,6 +361,8 @@ export default function SpeedoPage() {
     setEngineOn(false)
     setLit(false)
     setIntro(false)
+    // a song can't play on a dead engine
+    if (songRef.current.playing) { songRef.current.playing = false; audioRef.current?.setSongGain(1); setSongOn(false) }
     // keep audio "running" so it pitches down with the falling rpm; the loop
     // calls setRunning(false) for a clean cut once the engine reaches 0 rpm
   }, [])
@@ -307,7 +377,28 @@ export default function SpeedoPage() {
     setMuted((m) => { audioRef.current?.setMuted(!m); return !m })
   }, [])
 
+  const stopSong = useCallback(() => {
+    songRef.current.playing = false
+    audioRef.current?.setSongGain(1)
+    setSongOn(false)
+  }, [])
+
+  // play (or stop) Happy Birthday on the currently-selected engine
+  const toggleSong = useCallback(async () => {
+    if (songRef.current.playing) { stopSong(); return }
+    // make sure the engine is running so there's a voice to play it on
+    if (phaseRef.current === 'off' || phaseRef.current === 'shutdown') {
+      await beginStartup()
+    } else if (!audioRef.current?.isReady) {
+      await audioRef.current?.start()
+    }
+    songRef.current = { playing: true, notes: buildSong(preset), t0: performance.now() + 250 }
+    setSongOn(true)
+  }, [preset, beginStartup, stopSong])
+
   const choosePreset = useCallback((i: number) => {
+    // switching engines mid-song would mix tunings — stop it
+    if (songRef.current.playing) { songRef.current.playing = false; audioRef.current?.setSongGain(1); setSongOn(false) }
     setPresetIdx(i)
     const p = PRESETS[i]
     simRef.current?.setPreset(p)
@@ -401,6 +492,10 @@ export default function SpeedoPage() {
               aria-label="Mute" title={muted ? 'Sound off' : 'Sound on'}>
               {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
             </button>
+            <button className={`${s.barIcon} ${s.songIcon} ${songOn ? s.songOn : ''}`} onClick={toggleSong}
+              aria-label="Play Happy Birthday on the engine" title={songOn ? 'Stop melody' : 'Play Happy Birthday on this engine'}>
+              <Music size={14} />
+            </button>
           </div>
         </div>
       </div>
@@ -426,7 +521,7 @@ export default function SpeedoPage() {
           ) : isEV ? (
             <EVCluster theme={theme} powered={lit} gearLabel={GEAR_LABEL(gear)}
               speedNumRef={speedNumRef} battRef={evBattRef} battFillRef={evBattFillRef}
-              powerRef={evPowerRef} rangeRef={rangeRef} />
+              powerRef={evPowerRef} rangeRef={rangeRef} framesRef={evFramesRef} />
           ) : (
           <div className={s.binnacle}>
             <div className={s.hood} />

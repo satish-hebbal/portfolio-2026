@@ -14,18 +14,20 @@ interface Props {
   battFillRef: RefObject<HTMLSpanElement | null>
   powerRef: RefObject<HTMLSpanElement | null>
   rangeRef: RefObject<HTMLSpanElement | null>
+  framesRef: RefObject<HTMLDivElement | null>
 }
 
-// Minimal EV cluster: a set of mirrored rectangles drawing the eye inward to a
-// central speed readout, motor power flow on the left, battery on the right.
-const FRAMES = 7
+// Minimal EV cluster: an infinite tunnel of sharp rectangles drawn continuously
+// toward the centre vanishing point. The march speeds up and glows brighter with
+// km/h (driven per-frame in page.tsx), so it feels like being pulled inward.
+const FRAMES = 11
 
-export default function EVCluster({ theme, powered, gearLabel, speedNumRef, battRef, battFillRef, powerRef, rangeRef }: Props) {
+export default function EVCluster({ theme, powered, gearLabel, speedNumRef, battRef, battFillRef, powerRef, rangeRef, framesRef }: Props) {
   return (
     <div className={`${s.ev} ${powered ? s.evOn : ''}`}
       style={{ '--glow': theme.glow, '--arc': theme.arc } as CSSProperties}>
-      {/* mirrored rectangles receding inward */}
-      <div className={s.evFrames} aria-hidden>
+      {/* sharp rectangles marching inward toward the vanishing point */}
+      <div ref={framesRef} className={s.evFrames} aria-hidden>
         {Array.from({ length: FRAMES }).map((_, i) => (
           <span key={i} className={s.evFrame} style={{ '--i': i } as CSSProperties} />
         ))}

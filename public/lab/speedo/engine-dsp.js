@@ -99,33 +99,38 @@ export class EngineDSP {
       // how hard it screams: ramps in steeply toward redline, opens with throttle
       const screamAmt = scream * (0.2 + 0.8 * rpmNorm * rpmNorm) * (0.45 + 0.55 * thr)
 
-      // ── ELECTRIC: sci-fi inverter / motor whine (no combustion) ──
+      // ── ELECTRIC: warm motor hum (no combustion) ──
+      // Built around a deep fundamental with only octave-related partials, so it
+      // reads as a smooth hum that rises with revs. The old perfect-fifth layer
+      // (f0 * 1.5) was what gave it that feline / vocal "meow"; it's gone.
       if (this.ev) {
-        const f0 = 110 + rpmNorm * 2100                 // whine pitch rises with revs
-        this.evPhase  += f0 / sr;          if (this.evPhase  >= 1) this.evPhase  -= 1
-        this.evPhase2 += (f0 * 2.001) / sr; if (this.evPhase2 >= 1) this.evPhase2 -= 1  // octave (slow chorus beat)
-        this.evPhase3 += (f0 * 3) / sr;     if (this.evPhase3 >= 1) this.evPhase3 -= 1
-        this.evPhase4 += (f0 * 1.5) / sr;   if (this.evPhase4 >= 1) this.evPhase4 -= 1  // perfect fifth = sci-fi
-        let tone =
-          Math.sin(TAU * this.evPhase)  * 0.55 +
-          Math.sin(TAU * this.evPhase2) * 0.30 * (0.4 + 0.6 * thr) +
-          Math.sin(TAU * this.evPhase3) * 0.16 * thr +
-          Math.sin(TAU * this.evPhase4) * 0.18 * (0.3 + 0.7 * rpmNorm)
-        // inverter PWM shimmer (high, glassy)
-        this.nlp += 0.55 * ((Math.random() * 2 - 1) - this.nlp)
-        const shimmer = this.nlp * 0.07 * (0.25 + 0.75 * rpmNorm) * (0.35 + 0.65 * thr)
-        // low sub hum for body
-        this.subPhase += (f0 * 0.5) / sr; if (this.subPhase >= 1) this.subPhase -= 1
-        const subHum = Math.sin(TAU * this.subPhase) * 0.16 * (0.5 + 0.5 * rpmNorm)
-        let sig = tone * (0.2 + 0.55 * thr) + shimmer + subHum * 0.4
-        sig = Math.tanh(sig * 1.35)
+        const f0 = 64 + rpmNorm * 1300                  // deeper base = hum, not whine
+        this.evPhase  += f0 / sr;            if (this.evPhase  >= 1) this.evPhase  -= 1
+        this.evPhase2 += (f0 * 2.004) / sr;  if (this.evPhase2 >= 1) this.evPhase2 -= 1  // octave, tiny detune = slow chorus
+        this.evPhase3 += (f0 * 3) / sr;      if (this.evPhase3 >= 1) this.evPhase3 -= 1  // gentle presence, fades in up high
+        // sub one octave below the fundamental — the body of the hum
+        this.subPhase += (f0 * 0.5) / sr;    if (this.subPhase >= 1) this.subPhase -= 1
+        const tone =
+          Math.sin(TAU * this.evPhase)  * 0.62 +
+          Math.sin(TAU * this.evPhase2) * 0.26 * (0.5 + 0.5 * thr) +
+          Math.sin(TAU * this.evPhase3) * 0.09 * rpmNorm * rpmNorm  // only bites near top speed
+        const subHum = Math.sin(TAU * this.subPhase) * 0.5 * (0.6 + 0.4 * rpmNorm)
+        // faint inverter shimmer — whispers in only at high revs, never glassy
+        this.nlp += 0.5 * ((Math.random() * 2 - 1) - this.nlp)
+        const shimmer = this.nlp * 0.022 * rpmNorm * rpmNorm * (0.4 + 0.6 * thr)
+        let sig = tone * (0.3 + 0.5 * thr) + subHum * 0.6 + shimmer
+        // one-pole lowpass rounds off the top so it hums; opens a touch with speed
+        const evCut = 0.10 + 0.32 * rpmNorm + 0.08 * thr
+        this.lp += evCut * (sig - this.lp)
+        sig = this.lp * 0.82 + sig * 0.18
+        sig = Math.tanh(sig * 1.3)
         const yEv = sig - this.dcx + 0.997 * this.dcy
         this.dcx = sig; this.dcy = yEv
         const tgtEv = this.running ? 1 : 0
         this.amp += (tgtEv - this.amp) * 0.0008
-        const oEv = yEv * 0.5 * this.amp
+        const oEv = yEv * 0.55 * this.amp
         L[i] = oEv
-        R[i] = oEv * 0.93 + (Math.random() * 2 - 1) * 0.004 * this.amp
+        R[i] = oEv * 0.95 + (Math.random() * 2 - 1) * 0.003 * this.amp
         continue
       }
 

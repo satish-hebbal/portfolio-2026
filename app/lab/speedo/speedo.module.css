@@ -196,6 +196,7 @@
 .barIcon:hover { filter: brightness(1.2); color: #eef2f8; }
 .barIcon:active { filter: brightness(0.92); }
 .soundBar.on .soundIcon { color: #36e0ff; box-shadow: inset 0 1px 0 rgba(230,238,250,0.28), inset 0 -2px 4px rgba(0,0,0,0.5), 0 0 9px rgba(54,224,255,0.4); }
+.songOn { color: #36e0ff; box-shadow: inset 0 1px 0 rgba(230,238,250,0.28), inset 0 -2px 4px rgba(0,0,0,0.5), 0 0 9px rgba(54,224,255,0.4); }
 
 /* engine ignition button */
 .powerBtn { color: #ff5a4a; }
@@ -212,26 +213,41 @@
 /* ─────────────────────────  EV cluster  ───────────────────────── */
 .ev {
   position: relative; width: min(1080px, 94vw); aspect-ratio: 1080 / 440;
-  border-radius: 22px; overflow: hidden; isolation: isolate;
+  border-radius: 0; overflow: hidden; isolation: isolate;
   background: radial-gradient(130% 150% at 50% -10%, #15171d 0%, #0a0b0f 52%, #050507 100%);
   color: #fff; font-family: 'UniversNext', sans-serif;
   box-shadow: 0 44px 96px -34px rgba(0,0,0,0.92), inset 0 1px 0 rgba(255,255,255,0.05),
     inset 0 0 0 1px rgba(255,255,255,0.04);
 }
 
-/* mirrored rectangles receding inward */
-.evFrames { position: absolute; inset: 0; z-index: 1; opacity: 0.4; transition: opacity 0.6s ease; }
+/* infinite tunnel of sharp rectangles marching toward the centre.
+   Each frame's scale + opacity is written per-frame from JS (page.tsx);
+   the container glow brightens with speed via --evGlow. */
+.evFrames {
+  position: absolute; inset: 0; z-index: 1; opacity: 0.4;
+  transition: opacity 0.6s ease;
+  --evGlow: 0;
+  /* a single soft bloom — kept gentle so the rushing lines don't flicker harshly */
+  filter: drop-shadow(0 0 calc(1px + var(--evGlow) * 6px) color-mix(in srgb, var(--evLine, #6a5c9e) calc(28% + var(--evGlow) * 22%), transparent));
+}
 .evOn .evFrames { opacity: 1; }
 .evFrame {
-  position: absolute; inset: calc(16px + var(--i) * 26px);
-  border: 1px solid var(--glow, #8a6cff);
-  border-radius: calc(20px - var(--i) * 1.6px);
-  /* outer frames whisper-faint, each step inward a touch brighter */
-  opacity: calc(0.05 + var(--i) * 0.045);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  /* dimmed, desaturated line colour so the moving tunnel reads calm not hypnotic */
+  --evLine: color-mix(in srgb, var(--glow, #8a6cff) 46%, #161922);
+  position: absolute; inset: 0;
+  border: 1.5px solid var(--evLine);
+  border-radius: 0;            /* sharp corners — no rounding */
+  transform-origin: center;
+  opacity: 0;                  /* JS fades each ring in/out across its travel */
+  box-shadow:
+    0 0 4px color-mix(in srgb, var(--evLine) 28%, transparent),
+    inset 0 0 9px color-mix(in srgb, var(--evLine) 12%, transparent);
+  will-change: transform, opacity;
 }
-/* every other frame picks up a cool-white edge so the borders stay interesting */
-.evFrame:nth-child(even) { border-color: #c7cedb; opacity: calc(0.04 + var(--i) * 0.03); }
+/* every other frame picks up a muted cool-grey edge so the tunnel stays interesting */
+.evFrame:nth-child(even) {
+  --evLine: color-mix(in srgb, #c7cedb 38%, #161922);
+}
 
 .evGrid { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; }
 .ev:not(.evOn) .evGrid { opacity: 0.14; transition: opacity 0.5s ease; }
@@ -861,10 +877,11 @@
   .engineCluster { padding: 8px 40px 0; gap: 12px; transform: translateX(-50%) scale(0.8); transform-origin: bottom center; }
   .controls { display: none; } /* key guide is desktop-only */
 
-  /* hide the info / controls icon — that guide is desktop-only anyway */
-  .barIcon:not(.soundIcon) { display: none; }
-  /* only the sound button remains, so shrink the module to fit it snugly */
-  .soundBar { min-width: 0; gap: 0; padding: 0 9px 0 16px; }
+  /* hide the info / controls icon — that guide is desktop-only anyway —
+     but keep the sound + melody buttons */
+  .barIcon:not(.soundIcon):not(.songIcon) { display: none; }
+  /* only the sound + melody buttons remain, so shrink the module to fit snugly */
+  .soundBar { min-width: 0; gap: 5px; padding: 0 9px 0 16px; }
   /* the keyboard-controls guide on the start screen is desktop-only too */
   .gateKeys { display: none; }
 

@@ -20,9 +20,25 @@ export class EngineAudio {
   private master: GainNode | null = null
   private ready = false
   private starting = false
+  private songEnv = 1 // 0..1 note-articulation envelope for the melody player
   muted = false
 
   get isReady() { return this.ready }
+
+  // master gain = base level × song envelope, so the melody player can pulse
+  // notes without fighting the mute state
+  private applyGain(tc = 0.012) {
+    if (this.master && this.ctx) {
+      const base = this.muted ? 0 : 0.9
+      this.master.gain.setTargetAtTime(base * this.songEnv, this.ctx.currentTime, tc)
+    }
+  }
+
+  // called by the melody player each frame: 1 = note sounding, 0 = gap between notes
+  setSongGain(env: number) {
+    this.songEnv = env
+    this.applyGain(0.008)
+  }
 
   async start(): Promise<boolean> {
     if (this.ready || this.starting) return this.ready
@@ -79,9 +95,7 @@ export class EngineAudio {
 
   setMuted(muted: boolean) {
     this.muted = muted
-    if (this.master && this.ctx) {
-      this.master.gain.setTargetAtTime(muted ? 0 : 0.9, this.ctx.currentTime, 0.03)
-    }
+    this.applyGain(0.03)
   }
 
   setCylinders(cylinders: number) {
