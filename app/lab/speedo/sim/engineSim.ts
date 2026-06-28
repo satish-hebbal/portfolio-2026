@@ -18,6 +18,7 @@ export interface EnginePreset {
   peakTorqueNm: number
   peakRpm: number
   inertia: number // free-rev responsiveness (lower = snappier)
+  finalDrive: number // axle ratio: sets where the rev limiter caps top speed
   grunt: number   // sound: low-end body / rumble (0..1)
   scream: number  // sound: aggressive high-rpm top end (0..1)
   noise: number   // sound: induction "air" hiss on throttle (0..1.5)
@@ -25,16 +26,19 @@ export interface EnginePreset {
   ev?: boolean    // electric motor (sci-fi whine instead of combustion)
 }
 
-// ordered ascending: calm/low-power → aggressive/high-power, then electric
+// ordered ascending: calm/low-power → aggressive/high-power, then electric.
+// Top speed climbs across the lineup: the Inline-4 runs out of breath first,
+// the V8 pulls a bit further, and the V10 screams to ~300 km/h. peakTorqueNm +
+// finalDrive are tuned together so each engine actually drags itself to the rev
+// limiter in top gear (verified in sim), so the V10 feels genuinely brutal.
 export const PRESETS: EnginePreset[] = [
-  { name: 'Inline-4',  cylinders: 4, idle: 950, redline: 8600, limiter: 8400, peakTorqueNm: 250, peakRpm: 6000, inertia: 0.18, grunt: 0.75, scream: 0.93, noise: 0.32, turbo: 1.00 },
-  { name: 'V8',        cylinders: 8, idle: 820, redline: 7200, limiter: 7000, peakTorqueNm: 430, peakRpm: 4600, inertia: 0.30, grunt: 1.00, scream: 0.25, noise: 0.73, turbo: 1.00 },
-  { name: 'V10',       cylinders: 10, idle: 1000, redline: 8800, limiter: 8600, peakTorqueNm: 400, peakRpm: 5800, inertia: 0.26, grunt: 1.00, scream: 0.31, noise: 1.13, turbo: 0.89 },
-  { name: 'EV',        cylinders: 1, idle: 1, redline: 12000, limiter: 11800, peakTorqueNm: 520, peakRpm: 3000, inertia: 0.12, grunt: 0, scream: 0, noise: 0, turbo: 0, ev: true },
+  { name: 'Inline-4',  cylinders: 4, idle: 950, redline: 8600, limiter: 8400, peakTorqueNm: 360, peakRpm: 6000, inertia: 0.18, finalDrive: 3.95, grunt: 0.75, scream: 0.93, noise: 0.32, turbo: 1.00 },
+  { name: 'V8',        cylinders: 8, idle: 820, redline: 7200, limiter: 7000, peakTorqueNm: 620, peakRpm: 4600, inertia: 0.30, finalDrive: 2.92, grunt: 1.00, scream: 0.25, noise: 0.73, turbo: 1.00 },
+  { name: 'V10',       cylinders: 10, idle: 1000, redline: 8800, limiter: 8600, peakTorqueNm: 1050, peakRpm: 5800, inertia: 0.26, finalDrive: 3.04, grunt: 1.00, scream: 0.31, noise: 1.13, turbo: 0.89 },
+  { name: 'EV',        cylinders: 1, idle: 1, redline: 12000, limiter: 11800, peakTorqueNm: 900, peakRpm: 3000, inertia: 0.12, finalDrive: 4.45, grunt: 0, scream: 0, noise: 0, turbo: 0, ev: true },
 ]
 
 const GEARS = [3.4, 2.36, 1.85, 1.47, 1.24, 1.07]
-const FINAL_DRIVE = 3.44
 const WHEEL_RADIUS = 0.31 // m
 const MASS = 1320 // kg
 
@@ -142,7 +146,7 @@ export class EngineSim {
       this.speedMs += (-(Fdrag + Froll + Fbrake)) / MASS * dt
       if (this.speedMs < 0) this.speedMs = 0
     } else {
-      const totalRatio = GEARS[this.gear - 1] * FINAL_DRIVE
+      const totalRatio = GEARS[this.gear - 1] * this.preset.finalDrive
       const wheelOmega = this.speedMs / WHEEL_RADIUS
       const lockedRpm = wheelOmega * totalRatio * RAD_TO_RPM
 
