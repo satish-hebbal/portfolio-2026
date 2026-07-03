@@ -30,6 +30,7 @@ interface Props {
   onSave: () => void
   onOpen: () => void
   busyProject: boolean
+  dirty: boolean
 }
 
 export default function Transport(p: Props) {
@@ -94,9 +95,12 @@ export default function Transport(p: Props) {
       </div>
 
       <div className={s.projectBtns}>
-        <button className={s.iconBtn} onClick={p.onOpen} disabled={p.busyProject} title="Open project (.kapi) — continue editing"><FolderOpen size={15} /></button>
-        <button className={s.iconBtn} onClick={p.onSave} disabled={p.busyProject} title="Save project (.kapi) — keep all layers to edit later">
+        {p.dirty && <span className={s.unsavedTag} title="You have unsaved changes">Unsaved changes · save to keep them</span>}
+        <button className={s.iconBtn} onClick={p.onOpen} disabled={p.busyProject} title="Open project (.kapi) · continue a saved project"><FolderOpen size={15} /></button>
+        <button className={`${s.iconBtn} ${p.dirty ? s.iconBtnAlert : ''}`} onClick={p.onSave} disabled={p.busyProject}
+          title={p.dirty ? 'Save project (Ctrl+S) · keep all your layers to edit later' : 'Save project (Ctrl+S) · all changes saved'}>
           {p.busyProject ? <Loader2 size={15} className={s.spin} /> : <Save size={15} />}
+          {p.dirty && <span className={s.unsavedDot} />}
         </button>
       </div>
 

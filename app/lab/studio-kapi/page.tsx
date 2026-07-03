@@ -123,6 +123,10 @@ export default function StudioKapiPage() {
   const [exporting, setExporting] = useState(false)
   const [busyProject, setBusyProject] = useState(false)
   const projectFileRef = useRef<HTMLInputElement>(null)
+  // "unsaved edits" tracking for the leave-page warning
+  const savedProjectRef = useRef<ProjectState>(project)
+  const savedTakesRef = useRef<RichTake[]>(takes)
+  const dirtyRef = useRef(false)
   const [level, setLevel] = useState(0)
   const [playhead, setPlayhead] = useState(0)
   const [octave, setOctave] = useState(4)
@@ -214,6 +218,22 @@ export default function StudioKapiPage() {
     return () => cancelAnimationFrame(raf)
   }, [isPlaying, engine])
   useEffect(() => () => engine.dispose(), [engine])
+
+  // Track unsaved edits (project or takes differ from the last save / open).
+  useEffect(() => {
+    dirtyRef.current = project !== savedProjectRef.current || takes !== savedTakesRef.current
+  }, [project, takes])
+
+  // Warn before refresh / close / leaving the tab when there are unsaved edits.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [])
 
   // ─── pattern data mutation ──────────────────────────────────────────────────
   const updateData = useCallback((trackId: string, fn: (d: PatternData) => PatternData) => {
@@ -533,6 +553,8 @@ export default function StudioKapiPage() {
       const blob = packProject({ project, takes: takeMetas, audioTracks }, audioParts)
       const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')
       downloadBlob(blob, `studio-kapi-${stamp}.kapi`)
+      // snapshot: these are now the last-saved state
+      savedProjectRef.current = project; savedTakesRef.current = takes; dirtyRef.current = false
     } finally { setBusyProject(false) }
   }, [takes, project, engine])
 
@@ -560,6 +582,8 @@ export default function StudioKapiPage() {
 
       setTakes((prev) => { prev.forEach((t) => URL.revokeObjectURL(t.url)); return newTakes })
       takeCount.current = Math.max(takeCount.current, newTakes.length)
+      // a freshly opened project is not "unsaved"
+      savedProjectRef.current = manifest.project; savedTakesRef.current = newTakes; dirtyRef.current = false
 
       // load the restored state and reset undo history to this baseline
       timeTravel.current = true
@@ -594,7 +618,8 @@ export default function StudioKapiPage() {
     const onKey = (e: KeyboardEvent) => {
       const el = document.activeElement
       const typing = el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA')
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); exportWav(); return }
+      // Ctrl/Cmd+S = save the editable project; Ctrl/Cmd+Shift+S = export WAV mix
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); if (e.shiftKey) exportWav(); else saveProject(); return }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return }
       if (typing) return
@@ -611,7 +636,9 @@ export default function StudioKapiPage() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [togglePlay, onRecordClick, toggleMetro, exportWav, previewNote, selected, undo, redo])
+  }, [togglePlay, onRecordClick, toggleMetro, exportWav, saveProject, previewNote, selected, undo, redo])
+
+  const dirty = project !== savedProjectRef.current || takes !== savedTakesRef.current
 
   const dockTabs: { id: DockTab; label: string }[] = [
     { id: 'mixer', label: 'Mixer' }, { id: 'synth', label: 'Synth' },
@@ -628,7 +655,7 @@ export default function StudioKapiPage() {
         onBpm={(v) => { setProject((pr) => ({ ...pr, bpm: v })); engine.setBpm(v) }}
         onSteps={setSteps} onSwing={(v) => setProject((pr) => ({ ...pr, swing: v }))}
         onToggleMetro={toggleMetro} onExport={exportWav}
-        onSave={saveProject} onOpen={() => projectFileRef.current?.click()} busyProject={busyProject}
+        onSave={saveProject} onOpen={() => projectFileRef.current?.click()} busyProject={busyProject} dirty={dirty}
       />
       <input ref={projectFileRef} type="file" accept=".kapi,application/octet-stream" style={{ display: 'none' }}
         onChange={(e) => { const f = e.target.files?.[0]; if (f) openProjectFile(f); e.target.value = '' }} />

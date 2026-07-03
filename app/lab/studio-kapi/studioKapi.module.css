@@ -408,10 +408,15 @@
 .mobileOnly { display: none; }
 .paletteToggle { display: inline-flex; }
 .exportBtn { white-space: nowrap; }
-.projectBtns { display: flex; gap: 6px; margin-right: 10px; }
-.iconBtn { width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #0c0d10; background: var(--raised-grad); color: var(--dim); cursor: pointer; box-shadow: var(--bevel); padding: 0; }
+.projectBtns { display: flex; align-items: center; gap: 6px; margin-right: 10px; }
+.iconBtn { position: relative; width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #0c0d10; background: var(--raised-grad); color: var(--dim); cursor: pointer; box-shadow: var(--bevel); padding: 0; }
 .iconBtn:hover { color: #fff; }
 .iconBtn:disabled { opacity: .5; cursor: default; }
+.iconBtnAlert { color: var(--accent); border-color: rgba(255,122,69,0.55); box-shadow: inset 0 0 0 1px rgba(255,122,69,0.35), 0 0 8px rgba(255,122,69,0.18); }
+.iconBtnAlert:hover { color: var(--accent); }
+.unsavedDot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); border: 1.5px solid #1c1e24; box-shadow: 0 0 6px rgba(255,122,69,0.7); }
+.unsavedTag { font-size: 10.5px; font-weight: 600; color: var(--accent); white-space: nowrap; opacity: .95; margin-right: 2px; }
+@media (pointer: coarse) { .unsavedTag { display: none; } }
 
 @media (pointer: coarse) {
   /* channel rack: collapse the per-track buttons into the 3-dot menu and
