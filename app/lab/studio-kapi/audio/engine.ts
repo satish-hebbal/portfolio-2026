@@ -8,6 +8,24 @@ const SIXTEENTH_TICKS = () => Tone.getTransport().PPQ / 4
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
 const logFreq = (v: number) => 80 * Math.pow(18000 / 80, clamp01(v)) // 80..18000 Hz
 
+// Resolve per-lane mixer state (mute / solo / volume) for the arranger.
+function laneAudibility(project: ProjectState) {
+  const meta = project.arrangement.laneMeta ?? []
+  const anySolo = meta.some((m) => m?.solo)
+  return {
+    audible: (lane: number) => {
+      const m = meta[lane]
+      if (m?.mute) return false
+      if (anySolo) return !!m?.solo
+      return true
+    },
+    gain: (lane: number) => {
+      const m = meta[lane]
+      return m ? m.volume : 1
+    },
+  }
+}
+
 // ─── instrument factory ───────────────────────────────────────────────────────
 function makeInstrument(presetId: string, audioBuffer?: AudioBuffer): Tone.ToneAudioNode {
   if (DRUM_SAMPLES[presetId]) return new Tone.Player({ url: DRUM_SAMPLES[presetId], fadeOut: 0.01 })
@@ -297,9 +315,11 @@ class KapiEngine {
       }
 
       if (songMode) {
+        const la = laneAudibility(proj)
         for (const clip of proj.arrangement.clips) {
           if (clip.type !== 'pattern') continue
           if (step < clip.start || step >= clip.start + clip.length) continue
+          if (clip.mute || !la.audible(clip.lane)) continue
           const pat = proj.patterns.find((p) => p.id === clip.refId)
           if (!pat) continue
           const local = (((step - clip.start + clip.offset) % pat.length) + pat.length) % pat.length
@@ -326,8 +346,34 @@ class KapiEngine {
     }
   }
 
+  // ─── per-lane arranger channels (live mute / solo / volume) ─────────────────
+  private laneChannels = new Map<number, Tone.Channel>()
+  private laneChannel(lane: number): Tone.Channel {
+    let ch = this.laneChannels.get(lane)
+    if (!ch && this.master) { ch = new Tone.Channel().connect(this.master); this.laneChannels.set(lane, ch) }
+    return ch!
+  }
+  // Reflect lane mixer state onto the persistent channels — takes effect live,
+  // even mid-playback. Solo is emulated with mute (Tone's channel-solo bus would
+  // also mute master), so soloing a lane silences the non-soloed lanes only.
+  applyLaneMix(project: ProjectState) {
+    this.ensureMaster()
+    if (!this.master) return
+    const meta = project.arrangement.laneMeta ?? []
+    const anySolo = meta.some((m) => m?.solo)
+    const laneCount = Math.max(project.arrangement.lanes, ...project.arrangement.clips.map((c) => c.lane + 1), 1)
+    for (let l = 0; l < laneCount; l++) {
+      const ch = this.laneChannel(l)
+      if (!ch) continue
+      const m = meta[l]
+      const vol = m ? m.volume : 0.9
+      ch.volume.value = vol <= 0.001 ? -Infinity : Tone.gainToDb(vol)
+      ch.mute = !!(m?.mute) || (anySolo && !m?.solo)
+    }
+  }
+
   // Song-mode audio clips: place each take's player at its clip start.
-  private arrPlayers: Tone.Player[] = []
+  private arrPlayers: (Tone.Player | Tone.GrainPlayer)[] = []
   private clearArrPlayers() { this.arrPlayers.forEach((p) => p.dispose()); this.arrPlayers = [] }
   private buildArrPlayers() {
     this.clearArrPlayers()
@@ -335,10 +381,20 @@ class KapiEngine {
     const stepSec = 60 / this.project.bpm / 4
     for (const clip of this.project.arrangement.clips) {
       if (clip.type !== 'audio') continue
+      if (clip.mute) continue                 // lane mute is handled live on the channel
       const buf = this.takeBuffers.get(clip.refId)
       if (!buf) continue
-      const p = new Tone.Player(buf).connect(this.master)
-      // play only the cropped region [offset, offset+length)
+      const rate = clip.rate ?? 1
+      const gain = clip.gain ?? 1
+      // rate === 1 → plain Player (cleanest); otherwise GrainPlayer time-stretches
+      // pitch-preserved so tracks with different BPMs can be matched.
+      const p: Tone.Player | Tone.GrainPlayer = rate === 1
+        ? new Tone.Player(buf)
+        : new Tone.GrainPlayer({ url: buf, grainSize: 0.12, overlap: 0.05, playbackRate: rate })
+      if (p instanceof Tone.Player) { p.fadeIn = (clip.fadeIn ?? 0) * stepSec; p.fadeOut = (clip.fadeOut ?? 0) * stepSec }
+      p.volume.value = gain <= 0.001 ? -Infinity : Tone.gainToDb(gain)
+      p.connect(this.laneChannel(clip.lane))
+      // duration is the OUTPUT length; the cropped source region starts at offset
       p.sync().start(`${clip.start * SIXTEENTH_TICKS()}i`, clip.offset * stepSec, clip.length * stepSec)
       this.arrPlayers.push(p)
     }
@@ -357,7 +413,7 @@ class KapiEngine {
   async play() {
     await this.start()
     this.syncAudioPlayers()
-    if (this.project?.mode === 'song') this.buildArrPlayers()
+    if (this.project?.mode === 'song') { this.buildArrPlayers(); this.applyLaneMix(this.project) }
     Tone.getTransport().start(undefined, `${this.cursorTicks}i`)
   }
   stop() { Tone.getTransport().stop(); Tone.getTransport().position = 0; this.cursorTicks = 0; this.clearArrPlayers(); if (this.onStep) this.onStep(-1) }
@@ -423,6 +479,7 @@ class KapiEngine {
     return Tone.getContext().rawContext.decodeAudioData(arr.slice(0))
   }
   registerAudioBuffer(trackId: string, buffer: AudioBuffer) { this.audioBuffers.set(trackId, buffer) }
+  getAudioBuffer(trackId: string): AudioBuffer | undefined { return this.audioBuffers.get(trackId) }
 
   // ─── export (offline render -> WAV) ───────────────────────────────────────
   async exportWav(project: ProjectState, bars = 2): Promise<Blob> {
@@ -473,14 +530,24 @@ class KapiEngine {
       await Tone.loaded()
 
       if (songMode) {
+        const la = laneAudibility(project)
         for (const clip of project.arrangement.clips) {
+          if (clip.mute || !la.audible(clip.lane)) continue
           if (clip.type === 'pattern') {
             const p = project.patterns.find((x) => x.id === clip.refId)
             if (!p) continue
             for (let s = clip.start; s < clip.start + clip.length; s++) fireStep(insts, p, (((s - clip.start + clip.offset) % p.length) + p.length) % p.length, s * sixteenthSec)
           } else {
             const buf = this.takeBuffers.get(clip.refId)
-            if (buf) new Tone.Player(buf).connect(master).start(clip.start * sixteenthSec, clip.offset * sixteenthSec, clip.length * sixteenthSec)
+            if (!buf) continue
+            const rate = clip.rate ?? 1
+            const gain = (clip.gain ?? 1) * la.gain(clip.lane)
+            const p: Tone.Player | Tone.GrainPlayer = rate === 1
+              ? new Tone.Player(buf)
+              : new Tone.GrainPlayer({ url: buf, grainSize: 0.12, overlap: 0.05, playbackRate: rate })
+            if (p instanceof Tone.Player) { p.fadeIn = (clip.fadeIn ?? 0) * sixteenthSec; p.fadeOut = (clip.fadeOut ?? 0) * sixteenthSec }
+            p.volume.value = gain <= 0.001 ? -Infinity : Tone.gainToDb(gain)
+            p.connect(master).start(clip.start * sixteenthSec, clip.offset * sixteenthSec, clip.length * sixteenthSec)
           }
         }
       } else {
@@ -502,6 +569,7 @@ class KapiEngine {
     this.repeatId = null
     Tone.getTransport().stop()
     this.clearArrPlayers()
+    this.laneChannels.forEach((ch) => ch.dispose()); this.laneChannels.clear()
     for (const id of [...this.live.keys()]) this.removeTrack(id)
     this.meter?.dispose(); this.master?.dispose(); this.click?.dispose()
     this.micStream?.getTracks().forEach((t) => t.stop())

@@ -52,6 +52,15 @@ export const SYNTH_SPECS: Record<string, SynthSpec> = {
   arp:    { voice: 'mono', defaultWave: 'square', options: {} },
   brass:  { voice: 'am', defaultWave: 'sawtooth', options: { harmonicity: 1.5 } },
   stab:   { voice: 'poly', defaultWave: 'square', options: {} },
+  // Electronic / French house / Daft-Punk flavoured (pure synthesis, no samples)
+  funkbass: { voice: 'mono', defaultWave: 'square', options: { filter: { Q: 4, type: 'lowpass' } } },
+  disco:    { voice: 'poly', defaultWave: 'sawtooth', options: {} },
+  hoover:   { voice: 'mono', defaultWave: 'fatsawtooth', options: { oscillator: { count: 3, spread: 60 }, filter: { Q: 3, type: 'lowpass' } } },
+  prophet:  { voice: 'poly', defaultWave: 'fatsawtooth', options: { oscillator: { count: 2, spread: 20 } } },
+  digibell: { voice: 'fm', defaultWave: 'sine', options: { harmonicity: 7, modulationIndex: 10, modulation: { type: 'sine' } } },
+  // Keys
+  fmep:   { voice: 'fm', defaultWave: 'sine', options: { harmonicity: 5, modulationIndex: 8, modulation: { type: 'sine' } } },
+  clav:   { voice: 'poly', defaultWave: 'square', options: {} },
 }
 
 // Default synth macro values, tuned per preset where useful
@@ -76,6 +85,13 @@ export const SYNTH_DEFAULT_OVERRIDES: Record<string, Partial<SynthParams>> = {
   arp:    { attack: 0.005, decay: 0.12, sustain: 0.2, release: 0.18, cutoff: 0.75 },
   brass:  { attack: 0.06, decay: 0.2, sustain: 0.7, release: 0.3, cutoff: 0.7 },
   stab:   { attack: 0.005, decay: 0.18, sustain: 0.1, release: 0.2, cutoff: 0.8 },
+  funkbass: { attack: 0.008, decay: 0.2, sustain: 0.35, release: 0.2, cutoff: 0.5, reso: 0.35 },
+  disco:    { attack: 0.005, decay: 0.25, sustain: 0.1, release: 0.25, cutoff: 0.7 },
+  hoover:   { attack: 0.02, decay: 0.3, sustain: 0.8, release: 0.4, cutoff: 0.55, detune: 0.5, glide: 0.3 },
+  prophet:  { attack: 0.04, decay: 0.4, sustain: 0.6, release: 0.5, cutoff: 0.75, detune: 0.15 },
+  digibell: { attack: 0.001, decay: 0.7, sustain: 0.0, release: 0.7, cutoff: 1 },
+  fmep:   { attack: 0.005, decay: 0.6, sustain: 0.25, release: 0.5, cutoff: 0.85 },
+  clav:   { attack: 0.004, decay: 0.18, sustain: 0.15, release: 0.15, cutoff: 0.8, reso: 0.2 },
 }
 
 export const PRESETS: PresetDef[] = [
@@ -109,8 +125,16 @@ export const PRESETS: PresetDef[] = [
   { id: 'arp', label: 'Arp', kind: 'instrument', color: '#ab47bc', group: 'Synth' },
   { id: 'brass', label: 'Brass', kind: 'instrument', color: '#ffa726', group: 'Synth' },
   { id: 'stab', label: 'Stab', kind: 'instrument', color: '#ff7043', group: 'Synth' },
+  // Electronic / French house
+  { id: 'funkbass', label: 'Funk Bass', kind: 'instrument', color: '#5e35b1', group: 'Electronic' },
+  { id: 'disco', label: 'Disco Stab', kind: 'instrument', color: '#d81b60', group: 'Electronic' },
+  { id: 'hoover', label: 'Hoover', kind: 'instrument', color: '#3949ab', group: 'Electronic' },
+  { id: 'prophet', label: 'Prophet', kind: 'instrument', color: '#00897b', group: 'Electronic' },
+  { id: 'digibell', label: 'Digi Bell', kind: 'instrument', color: '#00acc1', group: 'Electronic' },
   // Keys
   { id: 'keys', label: 'E-Keys', kind: 'instrument', color: '#90a4ae', group: 'Keys' },
+  { id: 'fmep', label: 'FM Rhodes', kind: 'instrument', color: '#8d6e63', group: 'Keys' },
+  { id: 'clav', label: 'Clavinet', kind: 'instrument', color: '#a1887f', group: 'Keys' },
   { id: 'organ', label: 'Organ', kind: 'instrument', color: '#a1887f', group: 'Keys' },
   { id: 'piano', label: 'Piano', kind: 'instrument', color: '#bdbdbd', group: 'Keys' },
 ]

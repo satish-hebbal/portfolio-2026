@@ -24,7 +24,7 @@ interface Props {
   onPreview: (track: Track) => void
 }
 
-const GROUPS = ['Drums', '808 & Perc', 'Bass', 'Synth', 'Keys'] as const
+const GROUPS = ['Drums', '808 & Perc', 'Bass', 'Synth', 'Electronic', 'Keys'] as const
 
 function stepIsOn(track: Track, d: PatternData | undefined, i: number) {
   if (!d) return false

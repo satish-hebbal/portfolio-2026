@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Plus, Pencil, Copy, Trash2 } from 'lucide-react'
 import s from '../studioKapi.module.css'
 import type { Pattern, DawMode } from '../audio/types'
@@ -20,6 +20,24 @@ interface Props {
 
 export default function PatternBar(p: Props) {
   const [editing, setEditing] = useState<string | null>(null)
+  const chipsRef = useRef<HTMLDivElement>(null)
+
+  // keep the active pattern visible (it can scroll off when there are many)
+  useEffect(() => {
+    const wrap = chipsRef.current
+    const el = wrap?.querySelector<HTMLElement>(`[data-pid="${p.activeId}"]`)
+    if (!wrap || !el) return
+    const left = el.offsetLeft, right = left + el.offsetWidth
+    if (left < wrap.scrollLeft) wrap.scrollLeft = left - 8
+    else if (right > wrap.scrollLeft + wrap.clientWidth - 36) wrap.scrollLeft = right - wrap.clientWidth + 40
+  }, [p.activeId, p.patterns.length])
+
+  // vertical wheel scrolls the tab strip horizontally
+  const onWheel = (e: React.WheelEvent) => {
+    const wrap = chipsRef.current
+    if (!wrap) return
+    wrap.scrollLeft += e.deltaY + e.deltaX
+  }
 
   return (
     <div className={s.patternBar}>
@@ -28,9 +46,9 @@ export default function PatternBar(p: Props) {
         <button className={`${s.modeBtn} ${p.mode === 'song' ? s.modeActive : ''}`} onClick={() => p.onMode('song')}>Song</button>
       </div>
       <span className={s.patternLabel}>Patterns</span>
-      <div className={s.patternChips}>
+      <div className={s.patternChips} ref={chipsRef} onWheel={onWheel}>
         {p.patterns.map((pat) => (
-          <div key={pat.id} className={`${s.patternChip} ${pat.id === p.activeId ? s.patternActive : ''}`} onClick={() => p.onSelect(pat.id)}>
+          <div key={pat.id} data-pid={pat.id} className={`${s.patternChip} ${pat.id === p.activeId ? s.patternActive : ''}`} onClick={() => p.onSelect(pat.id)}>
             {editing === pat.id ? (
               <input
                 className={s.renameInput}
@@ -53,8 +71,8 @@ export default function PatternBar(p: Props) {
             />
           </div>
         ))}
+        <button className={s.patternBtn} onClick={p.onAdd} title="New pattern"><Plus size={13} /></button>
       </div>
-      <button className={s.patternBtn} onClick={p.onAdd} title="New pattern"><Plus size={13} /></button>
     </div>
   )
 }

@@ -1,11 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { PanelRightClose, PanelRightOpen } from 'lucide-react'
 import s from './studioKapi.module.css'
 import { getEngine } from './audio/engine'
 import { getPreset, defaultFxChain, defaultSynthFor } from './audio/presets'
-import type { ProjectState, Track, FxType, MixerState, SynthParams, Pattern, PatternData, Clip, DawMode } from './audio/types'
+import type { ProjectState, Track, FxType, MixerState, SynthParams, Pattern, PatternData, Clip, DawMode, RollNote, LaneMeta } from './audio/types'
 import { downloadBlob, audioBufferToWav } from './audio/wav'
+import { packProject, unpackProject } from './audio/projectFile'
 import { denoiseBuffer } from './audio/denoise'
 import Transport from './components/Transport'
 import ChannelRack from './components/ChannelRack'
@@ -27,7 +29,7 @@ type RichTake = Take & {
 
 const CLIP_COLORS = ['#5b7cfa', '#e0518a', '#27b8a6', '#e9913a', '#9b6cf0', '#3aa6e9']
 
-function computePeaks(buffer: AudioBuffer, n = 240): number[] {
+function computePeaks(buffer: AudioBuffer, n = 600): number[] {
   const ch = buffer.getChannelData(0)
   const block = Math.floor(ch.length / n) || 1
   const peaks: number[] = []
@@ -41,7 +43,24 @@ function computePeaks(buffer: AudioBuffer, n = 240): number[] {
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 const defaultMixer = (): MixerState => ({ volume: 0.8, pan: 0, mute: false, solo: false })
+const defaultLaneMeta = (): LaneMeta => ({ name: '', mute: false, solo: false, volume: 0.9 })
 const emptyData = (): PatternData => ({ steps: [], notes: [] })
+
+// lowest unused "Pat N" so deleting a middle pattern never produces a duplicate name
+function nextPatternName(patterns: Pattern[]): string {
+  const used = new Set(patterns.map((p) => p.name))
+  let n = 1
+  while (used.has(`Pat ${n}`)) n++
+  return `Pat ${n}`
+}
+// unique "<base> copy", "<base> copy 2", ... for duplicates
+function uniqueCopyName(patterns: Pattern[], base: string): string {
+  const used = new Set(patterns.map((p) => p.name))
+  let name = `${base} copy`
+  let i = 2
+  while (used.has(name)) name = `${base} copy ${i++}`
+  return name
+}
 
 function makeTrack(presetId: string, index: number): Track {
   const isAudio = presetId === 'audio'
@@ -62,24 +81,33 @@ function makeTrack(presetId: string, index: number): Track {
 const note = (step: number, n: string, length = 1): { id: string; step: number; note: string; length: number; velocity: number } =>
   ({ id: uid(), step, note: n, length, velocity: 0.9 })
 
+// The initial project must be identical on server and client (it's the useState
+// initializer, so it runs during SSR too). Random uids would mismatch on
+// hydration, so the seed uses fixed ids — runtime uid() is only for user actions.
 function seedProject(): ProjectState {
-  const kick = makeTrack('kick', 0)
-  const snare = makeTrack('snare', 0)
-  const hat = makeTrack('hat-closed', 0)
-  const bass = makeTrack('bass', 0)
+  const kick = makeTrack('kick', 0); kick.id = 'seed-kick'
+  const snare = makeTrack('snare', 0); snare.id = 'seed-snare'
+  const hat = makeTrack('hat-closed', 0); hat.id = 'seed-hat'
+  const bass = makeTrack('bass', 0); bass.id = 'seed-bass'
+  const bassNotes = [
+    { id: 'seed-n0', step: 0, note: 'C3', length: 2, velocity: 0.9 },
+    { id: 'seed-n1', step: 6, note: 'C3', length: 1, velocity: 0.9 },
+    { id: 'seed-n2', step: 8, note: 'D#3', length: 2, velocity: 0.9 },
+    { id: 'seed-n3', step: 14, note: 'A#2', length: 1, velocity: 0.9 },
+  ]
   const data: Record<string, PatternData> = {
     [kick.id]: { steps: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false], notes: [] },
     [snare.id]: { steps: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false], notes: [] },
     [hat.id]: { steps: Array.from({ length: 16 }, (_, i) => i % 2 === 0), notes: [] },
-    [bass.id]: { steps: [], notes: [note(0, 'C3', 2), note(6, 'C3'), note(8, 'D#3', 2), note(14, 'A#2')] },
+    [bass.id]: { steps: [], notes: bassNotes },
   }
-  const pattern: Pattern = { id: uid(), name: 'Pat 1', length: 16, data }
+  const pattern: Pattern = { id: 'seed-pat-1', name: 'Pat 1', length: 16, data }
   return {
     bpm: 120, swing: 0, masterVolume: 0.85, metronome: false, mode: 'pattern',
     tracks: [kick, snare, hat, bass], patterns: [pattern], activePatternId: pattern.id,
     selectedTrackId: kick.id,
     arrangement: { lanes: 4, clips: [
-      { id: uid(), lane: 0, type: 'pattern', refId: pattern.id, start: 0, length: 32, offset: 0, name: 'Pat 1', color: CLIP_COLORS[0] },
+      { id: 'seed-clip-1', lane: 0, type: 'pattern', refId: pattern.id, start: 0, length: 32, offset: 0, name: 'Pat 1', color: CLIP_COLORS[0] },
     ] },
   }
 }
@@ -93,11 +121,14 @@ export default function StudioKapiPage() {
   const [permissionError, setPermissionError] = useState<string | null>(null)
   const [takes, setTakes] = useState<RichTake[]>([])
   const [exporting, setExporting] = useState(false)
+  const [busyProject, setBusyProject] = useState(false)
+  const projectFileRef = useRef<HTMLInputElement>(null)
   const [level, setLevel] = useState(0)
   const [playhead, setPlayhead] = useState(0)
   const [octave, setOctave] = useState(4)
   const [cleaningId, setCleaningId] = useState<string | null>(null)
   const [dockWidth, setDockWidth] = useState(408)
+  const [dockOpen, setDockOpen] = useState(true)
   const dockDrag = useRef(false)
   const takeCount = useRef(0)
   const octaveRef = useRef(4)
@@ -169,7 +200,7 @@ export default function StudioKapiPage() {
     return () => { main.style.transform = prev.transform; main.style.willChange = prev.willChange }
   }, [])
 
-  useEffect(() => { engine.sync(project) }, [project, engine])
+  useEffect(() => { engine.sync(project); engine.applyLaneMix(project) }, [project, engine])
   useEffect(() => { engine.onStep = (st) => setCurrentStep(st); return () => { engine.onStep = null } }, [engine])
   useEffect(() => {
     if (!isPlaying) { setLevel(0); return }
@@ -212,13 +243,9 @@ export default function StudioKapiPage() {
     })
   }, [project.tracks, updateData])
 
-  const toggleNote = useCallback((step: number, n: string) => {
+  const setNotes = useCallback((notes: RollNote[]) => {
     if (!project.selectedTrackId) return
-    updateData(project.selectedTrackId, (d) => {
-      const exists = d.notes.some((x) => x.step === step && x.note === n)
-      const notes = exists ? d.notes.filter((x) => !(x.step === step && x.note === n)) : [...d.notes, note(step, n)]
-      return { ...d, notes }
-    })
+    updateData(project.selectedTrackId, (d) => ({ ...d, notes }))
   }, [project.selectedTrackId, updateData])
 
   const addTrack = useCallback((presetId: string) => {
@@ -288,7 +315,7 @@ export default function StudioKapiPage() {
   // ─── patterns ────────────────────────────────────────────────────────────────
   const addPattern = useCallback(() => {
     setProject((pr) => {
-      const p: Pattern = { id: uid(), name: `Pat ${pr.patterns.length + 1}`, length: activePattern?.length ?? 16, data: {} }
+      const p: Pattern = { id: uid(), name: nextPatternName(pr.patterns), length: activePattern?.length ?? 16, data: {} }
       return { ...pr, patterns: [...pr.patterns, p], activePatternId: p.id }
     })
   }, [activePattern])
@@ -301,7 +328,7 @@ export default function StudioKapiPage() {
       if (!cur) return pr
       const data: Record<string, PatternData> = {}
       for (const [k, d] of Object.entries(cur.data)) data[k] = { steps: [...d.steps], notes: d.notes.map((n) => ({ ...n, id: uid() })) }
-      const np: Pattern = { id: uid(), name: `${cur.name} copy`, length: cur.length, data }
+      const np: Pattern = { id: uid(), name: uniqueCopyName(pr.patterns, cur.name), length: cur.length, data }
       return { ...pr, patterns: [...pr.patterns, np], activePatternId: np.id }
     })
   }, [])
@@ -349,6 +376,33 @@ export default function StudioKapiPage() {
   const deleteClips = useCallback((ids: string[]) => patchArr((a) => ({ ...a, clips: a.clips.filter((c) => !ids.includes(c.id)) })), [patchArr])
   const addClips = useCallback((clips: Clip[]) => patchArr((a) => ({ ...a, clips: [...a.clips, ...clips] })), [patchArr])
   const addLane = useCallback(() => patchArr((a) => ({ ...a, lanes: a.lanes + 1 })), [patchArr])
+
+  // ─── per-clip mix (volume / mute / fades / speed) ─────────────────────────────
+  const patchClip = useCallback((id: string, fn: (c: Clip) => Clip) =>
+    patchArr((a) => ({ ...a, clips: a.clips.map((c) => (c.id === id ? fn(c) : c)) })), [patchArr])
+  const setClipGain = useCallback((id: string, gain: number) => patchClip(id, (c) => ({ ...c, gain })), [patchClip])
+  const toggleClipMute = useCallback((id: string) => patchClip(id, (c) => ({ ...c, mute: !c.mute })), [patchClip])
+  const setClipFade = useCallback((id: string, side: 'in' | 'out', steps: number) =>
+    patchClip(id, (c) => ({ ...c, [side === 'in' ? 'fadeIn' : 'fadeOut']: Math.max(0, steps) })), [patchClip])
+  // Changing speed keeps the same source region audible by rescaling the clip's
+  // visible length (source span = length × rate stays constant).
+  const setClipRate = useCallback((id: string, rate: number) => patchClip(id, (c) => {
+    const r = Math.max(0.25, Math.min(4, rate))
+    const span = c.length * (c.rate ?? 1)
+    return { ...c, rate: r, length: Math.max(1, Math.round(span / r)) }
+  }), [patchClip])
+
+  // ─── per-lane mixer (name / mute / solo / volume) ─────────────────────────────
+  const setLaneField = useCallback(<K extends keyof LaneMeta>(lane: number, key: K, value: LaneMeta[K]) => {
+    patchArr((a) => {
+      const meta = [...(a.laneMeta ?? [])]
+      while (meta.length <= lane) meta.push(defaultLaneMeta())
+      meta[lane] = { ...meta[lane], [key]: value }
+      return { ...a, laneMeta: meta }
+    })
+  }, [patchArr])
+  const toggleLaneMute = useCallback((lane: number) => setLaneField(lane, 'mute', !(project.arrangement.laneMeta?.[lane]?.mute)), [setLaneField, project.arrangement.laneMeta])
+  const toggleLaneSolo = useCallback((lane: number) => setLaneField(lane, 'solo', !(project.arrangement.laneMeta?.[lane]?.solo)), [setLaneField, project.arrangement.laneMeta])
 
   // ─── transport ───────────────────────────────────────────────────────────────
   const play = useCallback(async () => { await engine.play(); setIsPlaying(true) }, [engine])
@@ -457,6 +511,68 @@ export default function StudioKapiPage() {
     try { downloadBlob(await engine.exportWav(project), 'studio-kapi-mix.wav') } finally { setExporting(false) }
   }, [engine, project])
 
+  // ─── save / open project (.kapi — full editable state + audio) ────────────────
+  const saveProject = useCallback(async () => {
+    setBusyProject(true)
+    try {
+      const audioParts: { key: string; blob: Blob }[] = []
+      const takeMetas = takes.map((t) => {
+        const key = `take:${t.id}`
+        audioParts.push({ key, blob: t.buffer ? audioBufferToWav(t.buffer) : t.blob })
+        return { id: t.id, name: t.name, seconds: t.seconds, cleaned: t.cleaned, key }
+      })
+      const audioTracks: { trackId: string; key: string }[] = []
+      for (const tr of project.tracks) {
+        if (tr.kind !== 'audio') continue
+        const buf = engine.getAudioBuffer(tr.id)
+        if (!buf) continue
+        const key = `track:${tr.id}`
+        audioParts.push({ key, blob: audioBufferToWav(buf) })
+        audioTracks.push({ trackId: tr.id, key })
+      }
+      const blob = packProject({ project, takes: takeMetas, audioTracks }, audioParts)
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')
+      downloadBlob(blob, `studio-kapi-${stamp}.kapi`)
+    } finally { setBusyProject(false) }
+  }, [takes, project, engine])
+
+  const openProjectFile = useCallback(async (file: File) => {
+    setBusyProject(true)
+    try {
+      const { manifest, parts } = await unpackProject(file)
+      engine.stop(); setIsPlaying(false); setCurrentStep(-1); setPlayhead(0)
+
+      const newTakes: RichTake[] = []
+      for (const meta of manifest.takes) {
+        const blob = parts.get(meta.key)
+        if (!blob) continue
+        const buffer = await engine.decodeBlob(blob)
+        engine.registerTake(meta.id, buffer)
+        const url = URL.createObjectURL(blob)
+        const peaks = computePeaks(buffer)
+        newTakes.push({ id: meta.id, name: meta.name, seconds: meta.seconds, cleaned: meta.cleaned, url, blob, peaks, buffer, origBuffer: buffer, origUrl: url, origPeaks: peaks, origBlob: blob })
+      }
+      for (const at of manifest.audioTracks) {
+        const blob = parts.get(at.key)
+        if (!blob) continue
+        engine.registerAudioBuffer(at.trackId, await engine.decodeBlob(blob))
+      }
+
+      setTakes((prev) => { prev.forEach((t) => URL.revokeObjectURL(t.url)); return newTakes })
+      takeCount.current = Math.max(takeCount.current, newTakes.length)
+
+      // load the restored state and reset undo history to this baseline
+      timeTravel.current = true
+      committed.current = manifest.project
+      past.current = []; future.current = []
+      setProject(manifest.project)
+      setHistVer((v) => v + 1)
+      setTimeout(() => engine.rebuildAllFx(manifest.project), 0)
+    } catch (e) {
+      alert((e as Error).message || 'Could not open this project file.')
+    } finally { setBusyProject(false) }
+  }, [engine])
+
   const toggleMetro = useCallback(() => setProject((pr) => ({ ...pr, metronome: !pr.metronome })), [])
 
   // resizable dock divider
@@ -503,7 +619,7 @@ export default function StudioKapiPage() {
   ]
 
   return (
-    <div className={s.root}>
+    <div className={s.root} data-lenis-prevent>
       <Transport
         bpm={project.bpm} steps={activePattern?.length ?? 16} swing={project.swing} metronome={project.metronome}
         isPlaying={isPlaying} isRecording={isRecording} level={level} exporting={exporting}
@@ -512,7 +628,10 @@ export default function StudioKapiPage() {
         onBpm={(v) => { setProject((pr) => ({ ...pr, bpm: v })); engine.setBpm(v) }}
         onSteps={setSteps} onSwing={(v) => setProject((pr) => ({ ...pr, swing: v }))}
         onToggleMetro={toggleMetro} onExport={exportWav}
+        onSave={saveProject} onOpen={() => projectFileRef.current?.click()} busyProject={busyProject}
       />
+      <input ref={projectFileRef} type="file" accept=".kapi,application/octet-stream" style={{ display: 'none' }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) openProjectFile(f); e.target.value = '' }} />
 
       <PatternBar
         patterns={project.patterns} activeId={project.activePatternId} mode={project.mode} onMode={setMode}
@@ -533,19 +652,31 @@ export default function StudioKapiPage() {
         ) : (
           <Arranger
             patterns={project.patterns} takes={takes} clips={project.arrangement.clips}
-            lanes={project.arrangement.lanes} bpm={project.bpm} playhead={playhead} onSeek={seek}
+            lanes={project.arrangement.lanes} laneMeta={project.arrangement.laneMeta} bpm={project.bpm}
+            playhead={playhead} onSeek={seek}
             onMoveClips={moveClips} onResizeClip={resizeClip} onTrimClip={trimClip}
             onSplitClip={splitClip} onDuplicateClip={duplicateClip} onAddClips={addClips}
             onAddPatternClip={addPatternClip} onAddTakeClip={addTakeClip}
             onImportFiles={importToTimeline}
             onDeleteClips={deleteClips} onAddLane={addLane}
+            onClipGain={setClipGain} onClipMute={toggleClipMute} onClipFade={setClipFade} onClipRate={setClipRate}
+            onLaneField={setLaneField} onLaneMute={toggleLaneMute} onLaneSolo={toggleLaneSolo}
           />
         )}
 
+        {!dockOpen && (
+          <button className={s.dockReopen} onClick={() => setDockOpen(true)} title="Show panels">
+            <PanelRightOpen size={15} />
+          </button>
+        )}
+
+        {dockOpen && (
         <div className={s.divider} onPointerDown={onDividerDown} onPointerMove={onDividerMove} onPointerUp={onDividerUp} title="Drag to resize">
           <span className={s.dividerGrip} />
         </div>
+        )}
 
+        {dockOpen && (
         <div className={s.dock} style={{ flex: `0 0 ${dockWidth}px` }}>
           <div className={s.panelHead}>
             <div className={s.tabs}>
@@ -553,7 +684,10 @@ export default function StudioKapiPage() {
                 <button key={tab.id} className={`${s.tab} ${dock === tab.id ? s.active : ''}`} onClick={() => setDock(tab.id)}>{tab.label}</button>
               ))}
             </div>
-            <span className={s.panelHint}>oct {octave} · z/x</span>
+            <div className={s.panelHeadRight}>
+              <span className={s.panelHint}>oct {octave} · z/x</span>
+              <button className={s.dockCollapse} onClick={() => setDockOpen(false)} title="Collapse panels"><PanelRightClose size={15} /></button>
+            </div>
           </div>
           <div className={s.dockBody}>
             {dock === 'mixer' && (
@@ -568,7 +702,7 @@ export default function StudioKapiPage() {
             {dock === 'fx' && <FXRack track={selected} onToggle={toggleFx} onChange={changeFx} />}
             {dock === 'roll' && (
               <PianoRoll track={selected} notes={selected ? activeData[selected.id]?.notes ?? [] : []}
-                steps={activePattern?.length ?? 16} currentStep={currentStep} onToggleNote={toggleNote} onPreview={previewNote} />
+                steps={activePattern?.length ?? 16} currentStep={currentStep} onChange={setNotes} onPreview={previewNote} />
             )}
             {dock === 'rec' && (
               <MicRecorder isRecording={isRecording} permissionError={permissionError} takes={takes}
@@ -577,6 +711,7 @@ export default function StudioKapiPage() {
             )}
           </div>
         </div>
+        )}
       </div>
 
       <RotateGate />

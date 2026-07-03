@@ -81,15 +81,29 @@ export interface Clip {
   type: ClipType
   refId: string     // patternId (pattern clip) or takeId (audio clip)
   start: number     // absolute position in 16th steps
-  length: number    // visible length in 16th steps
+  length: number    // visible (output) length in 16th steps
   offset: number    // steps trimmed from the source start (crop in-point)
   name: string
   color: string
+  gain?: number     // per-clip volume, linear 0..1.5 (default 1)
+  mute?: boolean    // per-clip mute
+  fadeIn?: number   // fade-in length in output steps (default 0)
+  fadeOut?: number  // fade-out length in output steps (default 0)
+  rate?: number     // playback speed multiplier, pitch-preserving (default 1)
+}
+
+// Per-lane strip settings (mixer for the arranger). Keyed by lane index.
+export interface LaneMeta {
+  name: string
+  mute: boolean
+  solo: boolean
+  volume: number   // 0..1 linear
 }
 
 export interface Arrangement {
   lanes: number
   clips: Clip[]
+  laneMeta?: LaneMeta[]   // parallel to lane index; sparse-safe via helpers
 }
 
 export type DawMode = 'pattern' | 'song'
@@ -112,5 +126,5 @@ export interface PresetDef {
   label: string
   kind: TrackKind
   color: string
-  group: 'Drums' | '808 & Perc' | 'Bass' | 'Synth' | 'Keys'
+  group: 'Drums' | '808 & Perc' | 'Bass' | 'Synth' | 'Electronic' | 'Keys'
 }

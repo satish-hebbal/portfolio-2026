@@ -1,9 +1,10 @@
 'use client'
 
-import { Play, Square, Circle, Download, Loader2, Bell, BellOff, Undo2, Redo2, ArrowLeft } from 'lucide-react'
+import { Play, Square, Circle, Download, Loader2, Bell, BellOff, Undo2, Redo2, ArrowLeft, Save, FolderOpen } from 'lucide-react'
 import s from '../studioKapi.module.css'
 import Knob from './Knob'
 import Select from './Select'
+import BpmInput from './BpmInput'
 
 interface Props {
   bpm: number
@@ -26,6 +27,9 @@ interface Props {
   onSwing: (v: number) => void
   onToggleMetro: () => void
   onExport: () => void
+  onSave: () => void
+  onOpen: () => void
+  busyProject: boolean
 }
 
 export default function Transport(p: Props) {
@@ -60,8 +64,7 @@ export default function Transport(p: Props) {
       <div className={s.readouts}>
         <div className={s.field}>
           <span className={s.fieldLabel}>Tempo</span>
-          <input className={s.bpmInput} type="number" min={40} max={240} value={p.bpm}
-            onChange={(e) => p.onBpm(Math.max(40, Math.min(240, Number(e.target.value) || 0)))} />
+          <BpmInput value={p.bpm} min={40} max={240} onChange={p.onBpm} />
         </div>
         <div className={s.field}>
           <span className={s.fieldLabel}>Steps</span>
@@ -88,6 +91,13 @@ export default function Transport(p: Props) {
       <div className={s.meterWrap}>
         <span className={s.fieldLabel}>Master</span>
         <div className={s.meterBar}><div className={s.meterFill} style={{ width: `${Math.round(p.level * 100)}%` }} /></div>
+      </div>
+
+      <div className={s.projectBtns}>
+        <button className={s.iconBtn} onClick={p.onOpen} disabled={p.busyProject} title="Open project (.kapi) — continue editing"><FolderOpen size={15} /></button>
+        <button className={s.iconBtn} onClick={p.onSave} disabled={p.busyProject} title="Save project (.kapi) — keep all layers to edit later">
+          {p.busyProject ? <Loader2 size={15} className={s.spin} /> : <Save size={15} />}
+        </button>
       </div>
 
       <button className={s.exportBtn} onClick={p.onExport} disabled={p.exporting}>
