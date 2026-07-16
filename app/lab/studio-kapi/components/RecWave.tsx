@@ -40,9 +40,9 @@ export default function RecWave({ active }: { active: boolean }) {
         const amp = Math.min(1, bars[i] * 3.2)
         const bh = Math.max(2, amp * h * 0.9)
         const grad = ctx.createLinearGradient(0, mid - bh / 2, 0, mid + bh / 2)
-        grad.addColorStop(0, '#ff7a45')
+        grad.addColorStop(0, '#cfd4dd')
         grad.addColorStop(0.5, '#4dd2c0')
-        grad.addColorStop(1, '#ff7a45')
+        grad.addColorStop(1, '#cfd4dd')
         ctx.fillStyle = grad
         ctx.fillRect(x, mid - bh / 2, bw, bh)
       }

@@ -97,9 +97,9 @@ export const SYNTH_DEFAULT_OVERRIDES: Record<string, Partial<SynthParams>> = {
 export const PRESETS: PresetDef[] = [
   // Drums
   { id: 'kick', label: 'Kick', kind: 'drum', color: '#ef5350', group: 'Drums' },
-  { id: 'snare', label: 'Snare', kind: 'drum', color: '#ff9800', group: 'Drums' },
-  { id: 'rim', label: 'Rim', kind: 'drum', color: '#ffa726', group: 'Drums' },
-  { id: 'clap', label: 'Clap', kind: 'drum', color: '#ff7043', group: 'Drums' },
+  { id: 'snare', label: 'Snare', kind: 'drum', color: '#4db6e8', group: 'Drums' },
+  { id: 'rim', label: 'Rim', kind: 'drum', color: '#37c2a8', group: 'Drums' },
+  { id: 'clap', label: 'Clap', kind: 'drum', color: '#e46a9b', group: 'Drums' },
   { id: 'hat-closed', label: 'Closed Hat', kind: 'drum', color: '#ffd54f', group: 'Drums' },
   { id: 'hat-open', label: 'Open Hat', kind: 'drum', color: '#cddc39', group: 'Drums' },
   { id: 'ride', label: 'Ride', kind: 'drum', color: '#dce775', group: 'Drums' },
@@ -123,8 +123,8 @@ export const PRESETS: PresetDef[] = [
   { id: 'pad', label: 'Pad', kind: 'instrument', color: '#42a5f5', group: 'Synth' },
   { id: 'bell', label: 'Bell', kind: 'instrument', color: '#ec407a', group: 'Synth' },
   { id: 'arp', label: 'Arp', kind: 'instrument', color: '#ab47bc', group: 'Synth' },
-  { id: 'brass', label: 'Brass', kind: 'instrument', color: '#ffa726', group: 'Synth' },
-  { id: 'stab', label: 'Stab', kind: 'instrument', color: '#ff7043', group: 'Synth' },
+  { id: 'brass', label: 'Brass', kind: 'instrument', color: '#e6c34a', group: 'Synth' },
+  { id: 'stab', label: 'Stab', kind: 'instrument', color: '#b57be0', group: 'Synth' },
   // Electronic / French house
   { id: 'funkbass', label: 'Funk Bass', kind: 'instrument', color: '#5e35b1', group: 'Electronic' },
   { id: 'disco', label: 'Disco Stab', kind: 'instrument', color: '#d81b60', group: 'Electronic' },

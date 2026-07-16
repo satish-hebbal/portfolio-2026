@@ -53,7 +53,7 @@ export default function Mixer(p: Props) {
       ))}
 
       <div className={`${s.channelStrip} ${s.masterStrip}`}>
-        <span className={s.stripName} style={{ color: '#ff7a45' }}>Master</span>
+        <span className={s.stripName} style={{ color: '#d7dbe3' }}>Master</span>
         <LEDMeter level={p.level} height={120} width={10} />
         <div className={s.fader}>
           <input type="range" min={0} max={1} step={0.01} value={p.masterVolume} onChange={(e) => p.onMaster(Number(e.target.value))} />

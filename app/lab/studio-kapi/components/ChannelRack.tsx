@@ -1,11 +1,34 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Trash2, Piano, SlidersHorizontal, X, Volume2, VolumeX, Headphones } from 'lucide-react'
+import {
+  Plus, Trash2, Piano, SlidersHorizontal, X, Volume2, VolumeX, Headphones,
+  Drum, Disc3, Bell, Waves, Zap, Sparkles, Music, Layers, Wind, AudioWaveform, Hand, Mic,
+  type LucideIcon,
+} from 'lucide-react'
 import s from '../studioKapi.module.css'
-import type { Track, PatternData } from '../audio/types'
+import type { Track, PatternData, PresetDef } from '../audio/types'
 import { PRESETS } from '../audio/presets'
 import Menu from './Menu'
+
+// icon per instrument (falls back to a per-group icon, then a generic note)
+const PRESET_ICON: Record<string, LucideIcon> = {
+  'hat-closed': Disc3, 'hat-open': Disc3, ride: Disc3, crash: Disc3, disco: Disc3,
+  clap: Hand, cowbell: Bell, bell: Bell, digibell: Bell,
+  bass: Waves, sub: Waves, reese: Waves, acid: Waves, funkbass: Waves,
+  supersaw: AudioWaveform, lead: Zap, stab: Zap, pad: Layers, hoover: Wind,
+  pluck: Music, arp: Sparkles, prophet: Sparkles,
+}
+const GROUP_ICON: Record<string, LucideIcon> = {
+  Drums: Drum, '808 & Perc': Drum, Bass: Waves, Synth: Zap, Electronic: Sparkles, Keys: Piano,
+}
+function pickIcon(id: string, group?: string | null): LucideIcon {
+  return PRESET_ICON[id] ?? GROUP_ICON[group ?? ''] ?? Music
+}
+function IconFor({ preset }: { preset: PresetDef }) {
+  const Icon = pickIcon(preset.id, preset.group)
+  return <Icon size={15} />
+}
 
 interface Props {
   tracks: Track[]
@@ -44,10 +67,18 @@ export default function ChannelRack(p: Props) {
       <div className={s.rackScroll}>
         {p.tracks.map((track) => {
           const d = p.data[track.id]
+          const RowIcon = track.kind === 'audio' ? Mic : pickIcon(track.presetId, track.group)
+          const selectPreview = () => { p.onSelect(track.id); p.onPreview(track) }
           return (
             <div key={track.id} className={`${s.trackRow} ${p.selectedTrackId === track.id ? s.selected : ''}`}>
-              <div className={s.trackHandle} style={{ background: track.color }} />
-              <div className={s.trackInfo} onClick={() => { p.onSelect(track.id); p.onPreview(track) }}>
+              <span
+                className={s.trackIcon}
+                style={{ color: track.color, background: `${track.color}1f`, boxShadow: `inset 0 0 0 1px ${track.color}44` }}
+                onClick={selectPreview}
+              >
+                <RowIcon size={14} />
+              </span>
+              <div className={s.trackInfo} onClick={selectPreview}>
                 <span className={s.trackName}>{track.name}</span>
                 <span className={s.trackPreset}>{track.kind === 'audio' ? 'recording' : track.presetId}</span>
               </div>
@@ -112,7 +143,9 @@ export default function ChannelRack(p: Props) {
                 <div className={s.pickerGrid}>
                   {PRESETS.filter((pr) => pr.group === g).map((pr) => (
                     <button key={pr.id} className={s.presetChip} onClick={() => { p.onAdd(pr.id); setPicking(false) }}>
-                      <span className={s.presetSwatch} style={{ background: pr.color }} />
+                      <span className={s.presetIcon} style={{ color: pr.color, background: `${pr.color}1f`, boxShadow: `inset 0 0 0 1px ${pr.color}44` }}>
+                        <IconFor preset={pr} />
+                      </span>
                       {pr.label}
                     </button>
                   ))}

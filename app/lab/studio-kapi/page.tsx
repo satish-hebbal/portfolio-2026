@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { PanelRightClose, PanelRightOpen } from 'lucide-react'
+import { PanelRightClose, PanelRightOpen, SlidersHorizontal, AudioWaveform, Wand2, Piano, Mic } from 'lucide-react'
 import s from './studioKapi.module.css'
 import { getEngine } from './audio/engine'
 import { getPreset, defaultFxChain, defaultSynthFor } from './audio/presets'
@@ -19,6 +19,7 @@ import PatternBar from './components/PatternBar'
 import Arranger from './components/Arranger'
 import MicRecorder, { Take } from './components/MicRecorder'
 import RotateGate from './components/RotateGate'
+import IntroSplash from './components/IntroSplash'
 
 type DockTab = 'mixer' | 'synth' | 'fx' | 'roll' | 'rec'
 type RichTake = Take & {
@@ -133,6 +134,9 @@ export default function StudioKapiPage() {
   const [cleaningId, setCleaningId] = useState<string | null>(null)
   const [dockWidth, setDockWidth] = useState(408)
   const [dockOpen, setDockOpen] = useState(true)
+  // Launch splash — starts hidden (avoids an SSR/hydration flash) then shows on
+  // every load.
+  const [showIntro, setShowIntro] = useState(false)
   const dockDrag = useRef(false)
   const takeCount = useRef(0)
   const octaveRef = useRef(4)
@@ -203,6 +207,10 @@ export default function StudioKapiPage() {
     main.style.willChange = 'auto'
     return () => { main.style.transform = prev.transform; main.style.willChange = prev.willChange }
   }, [])
+
+  // Show the launch card on every load (after mount, to avoid a hydration flash).
+  useEffect(() => { setShowIntro(true) }, [])
+  const dismissIntro = useCallback(() => setShowIntro(false), [])
 
   useEffect(() => { engine.sync(project); engine.applyLaneMix(project) }, [project, engine])
   useEffect(() => { engine.onStep = (st) => setCurrentStep(st); return () => { engine.onStep = null } }, [engine])
@@ -640,9 +648,12 @@ export default function StudioKapiPage() {
 
   const dirty = project !== savedProjectRef.current || takes !== savedTakesRef.current
 
-  const dockTabs: { id: DockTab; label: string }[] = [
-    { id: 'mixer', label: 'Mixer' }, { id: 'synth', label: 'Synth' },
-    { id: 'fx', label: 'FX' }, { id: 'roll', label: 'Roll' }, { id: 'rec', label: 'Rec' },
+  const dockTabs: { id: DockTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'mixer', label: 'Mixer', icon: <SlidersHorizontal size={13} /> },
+    { id: 'synth', label: 'Synth', icon: <AudioWaveform size={13} /> },
+    { id: 'fx', label: 'FX', icon: <Wand2 size={13} /> },
+    { id: 'roll', label: 'Roll', icon: <Piano size={13} /> },
+    { id: 'rec', label: 'Rec', icon: <Mic size={13} /> },
   ]
 
   return (
@@ -708,7 +719,9 @@ export default function StudioKapiPage() {
           <div className={s.panelHead}>
             <div className={s.tabs}>
               {dockTabs.map((tab) => (
-                <button key={tab.id} className={`${s.tab} ${dock === tab.id ? s.active : ''}`} onClick={() => setDock(tab.id)}>{tab.label}</button>
+                <button key={tab.id} className={`${s.tab} ${dock === tab.id ? s.active : ''}`} onClick={() => setDock(tab.id)}>
+                  {tab.icon}{tab.label}
+                </button>
               ))}
             </div>
             <div className={s.panelHeadRight}>
@@ -742,6 +755,7 @@ export default function StudioKapiPage() {
       </div>
 
       <RotateGate />
+      {showIntro && <IntroSplash onClose={dismissIntro} />}
     </div>
   )
 }

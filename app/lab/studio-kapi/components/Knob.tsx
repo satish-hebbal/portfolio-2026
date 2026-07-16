@@ -15,7 +15,7 @@ interface Props {
 
 // Realistic metallic rotary knob, drag vertically to adjust. Premium black finish.
 export default function Knob({
-  value, onChange, label, size = 44, accent = '#ff7a45', bipolar = false, defaultValue, display,
+  value, onChange, label, size = 44, accent = '#e7ebf2', bipolar = false, defaultValue, display,
 }: Props) {
   const startY = useRef(0)
   const startV = useRef(0)
