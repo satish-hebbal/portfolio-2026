@@ -220,6 +220,7 @@ export default function ColorGame() {
   })
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState(false)
   const [leaderboard, setLeaderboard] = useState<{ name: string; avg_score: number; country: string }[]>([])
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [borderFlash, setBorderFlash] = useState(false)
@@ -254,15 +255,22 @@ export default function ColorGame() {
   const submitScore = async () => {
     if (!playerName.trim()) return
     setSubmitting(true)
+    setSubmitError(false)
     localStorage.setItem('color_player_name', playerName.trim())
-    await fetch('/api/scores', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: playerName.trim(), avg_score: avgScore, country }),
-    })
-    setSubmitted(true)
-    setSubmitting(false)
-    fetchLeaderboard()
+    try {
+      const res = await fetch('/api/scores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: playerName.trim(), avg_score: avgScore, country }),
+      })
+      if (!res.ok) throw new Error('save failed')
+      setSubmitted(true)
+      fetchLeaderboard()
+    } catch {
+      setSubmitError(true)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   // Score count-up after flip settles
@@ -315,6 +323,7 @@ export default function ColorGame() {
     setPlayerName('')
     setSubmitted(false)
     setSubmitting(false)
+    setSubmitError(false)
     setShowLeaderboard(false)
     setLeaderboard([])
   }
@@ -718,6 +727,11 @@ export default function ColorGame() {
                       {submitting ? '...' : 'Submit'}
                     </button>
                   </div>
+                  {submitError && (
+                    <div style={{ fontSize: '11px', color: '#ff8a8a', marginTop: '8px' }}>
+                      Couldn&rsquo;t save your score. Please try again.
+                    </div>
+                  )}
                 </div>
               ) : null}
 

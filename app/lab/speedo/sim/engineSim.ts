@@ -34,7 +34,7 @@ export interface EnginePreset {
 export const PRESETS: EnginePreset[] = [
   { name: 'Inline-4',  cylinders: 4, idle: 950, redline: 8600, limiter: 8400, peakTorqueNm: 360, peakRpm: 6000, inertia: 0.18, finalDrive: 3.95, grunt: 0.75, scream: 0.93, noise: 0.32, turbo: 1.00 },
   { name: 'V8',        cylinders: 8, idle: 820, redline: 7200, limiter: 7000, peakTorqueNm: 620, peakRpm: 4600, inertia: 0.30, finalDrive: 2.92, grunt: 1.00, scream: 0.25, noise: 0.73, turbo: 1.00 },
-  { name: 'V10',       cylinders: 10, idle: 1000, redline: 8800, limiter: 8600, peakTorqueNm: 1050, peakRpm: 5800, inertia: 0.26, finalDrive: 3.04, grunt: 1.00, scream: 0.31, noise: 1.13, turbo: 0.89 },
+  { name: 'V10',       cylinders: 10, idle: 1000, redline: 8800, limiter: 8600, peakTorqueNm: 860, peakRpm: 5800, inertia: 0.34, finalDrive: 3.04, grunt: 1.00, scream: 0.31, noise: 1.13, turbo: 0.89 },
   { name: 'EV',        cylinders: 1, idle: 1, redline: 12000, limiter: 11800, peakTorqueNm: 900, peakRpm: 3000, inertia: 0.12, finalDrive: 4.45, grunt: 0, scream: 0, noise: 0, turbo: 0, ev: true },
 ]
 

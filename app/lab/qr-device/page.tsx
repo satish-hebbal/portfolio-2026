@@ -1359,6 +1359,10 @@ export default function QR2() {
 
   const svgStr = matrix.length ? buildSVG(matrix, s) : ''
 
+  // Color Stops buttons "light up" (pure white icons) when a color panel is active,
+  // i.e. when they can actually alter gradient / foreground / background values.
+  const stopsLit = activePanel === 'gradient' || activePanel === 'fg' || activePanel === 'bg'
+
   function togglePanel(p: ActivePanel) {
     setActivePanel(prev => prev===p ? 'none' : p)
   }
@@ -1377,6 +1381,7 @@ export default function QR2() {
     const color = sampleStops(sorted, pos)
     setMany({ gradientStops: [...s.gradientStops, { id, color, position: pos }], gradientEnabled: true })
     setSelectedStopId(id)
+    setActivePanel('gradient')
   }
   function removeStop() {
     if (s.gradientStops.length <= 2) return
@@ -1385,8 +1390,9 @@ export default function QR2() {
     const stopToRemove = sorted[selIdx]
     const newStops = s.gradientStops.filter(st => st.id !== stopToRemove.id)
     const newSorted = [...newStops].sort((a,b)=>a.position-b.position)
-    set('gradientStops', newStops)
+    setMany({ gradientStops: newStops, gradientEnabled: true })
     setSelectedStopId(newSorted[Math.min(selIdx, newSorted.length-1)]?.id ?? newSorted[0].id)
+    setActivePanel('gradient')
   }
 
   // Paste from clipboard
@@ -1512,6 +1518,8 @@ export default function QR2() {
     const curIdx = Math.max(0, sorted.findIndex(st => st.id === selectedStopId))
     const nextIdx = Math.max(0, Math.min(sorted.length-1, curIdx + dir))
     setSelectedStopId(sorted[nextIdx].id)
+    setMany({ gradientEnabled: true })
+    setActivePanel('gradient')
   }
 
   // Scroll panel
@@ -2097,11 +2105,11 @@ export default function QR2() {
                 {/* Top: Type + Angle knob */}
                 <div style={{ display:'flex', justifyContent:'space-around', alignItems:'center', width:'100%', marginTop:10 }}>
                   <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, marginLeft:-24 }}>
-                    <TypeSelector value={s.gradientType} onChange={v=>{ playToggle(); set('gradientType',v) }} isNight={isNight}/>
+                    <TypeSelector value={s.gradientType} onChange={v=>{ playToggle(); setMany({ gradientType: v, gradientEnabled: true }); setActivePanel('gradient') }} isNight={isNight}/>
                     <span style={{ ...hw.label, color:'rgba(255,255,255,0.7)', marginLeft:20 }}>Type</span>
                   </div>
                   <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-                    <Knob value={s.gradientAngle} onChange={v=>set('gradientAngle',v)} isNight={isNight}/>
+                    <Knob value={s.gradientAngle} onChange={v=>{ setMany({ gradientAngle: v, gradientEnabled: true }); setActivePanel('gradient') }} isNight={isNight}/>
                     <span style={{ ...hw.label, color:'rgba(255,255,255,0.7)' }}>Angle</span>
                   </div>
                 </div>
@@ -2116,19 +2124,19 @@ export default function QR2() {
                       <button onClick={()=>{ playBtn(); navigateStop(-1) }}
                         onMouseDown={()=>setPressedBtn('up')} onMouseUp={()=>setPressedBtn(null)} onMouseLeave={()=>setPressedBtn(null)}
                         style={{ ...hw.btn(pressedBtn==='up'), width:30, height:30, borderRadius:'16px 16px 5px 5px', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>
-                        <img src="/images/lab/selector-up-button-icon.svg" width="12" height="8" style={{ display:'block' }}/>
+                        <img src="/images/lab/selector-up-button-icon.svg" width="12" height="8" style={{ display:'block', filter:'brightness(0) invert(1)', opacity: stopsLit ? 1 : 0.4, transition:'opacity 0.2s' }}/>
                       </button>
                       <button onClick={()=>{ playBtn(); addStop() }}
                         onMouseDown={()=>setPressedBtn('add')} onMouseUp={()=>setPressedBtn(null)} onMouseLeave={()=>setPressedBtn(null)}
-                        style={{ ...hw.btn(pressedBtn==='add'), width:30, height:30, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', padding:0, fontSize:17, fontWeight:300 }}>+</button>
+                        style={{ ...hw.btn(pressedBtn==='add'), width:30, height:30, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', padding:0, fontSize:17, fontWeight:300, color: stopsLit ? '#ffffff' : hw.btn(pressedBtn==='add').color }}>+</button>
                       <button onClick={()=>{ playBtn(); navigateStop(1) }}
                         onMouseDown={()=>setPressedBtn('dn')} onMouseUp={()=>setPressedBtn(null)} onMouseLeave={()=>setPressedBtn(null)}
                         style={{ ...hw.btn(pressedBtn==='dn'), width:30, height:30, borderRadius:'5px 5px 16px 16px', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>
-                        <img src="/images/lab/selector-down-button-icon.svg" width="12" height="8" style={{ display:'block' }}/>
+                        <img src="/images/lab/selector-down-button-icon.svg" width="12" height="8" style={{ display:'block', filter:'brightness(0) invert(1)', opacity: stopsLit ? 1 : 0.4, transition:'opacity 0.2s' }}/>
                       </button>
                       <button onClick={()=>{ playBtn(); removeStop() }}
                         onMouseDown={()=>setPressedBtn('rm')} onMouseUp={()=>setPressedBtn(null)} onMouseLeave={()=>setPressedBtn(null)}
-                        style={{ ...hw.btn(pressedBtn==='rm'), width:30, height:30, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', padding:0, fontSize:18, fontWeight:300 }}>−</button>
+                        style={{ ...hw.btn(pressedBtn==='rm'), width:30, height:30, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', padding:0, fontSize:18, fontWeight:300, color: stopsLit ? '#ffffff' : hw.btn(pressedBtn==='rm').color }}>−</button>
                     </div>
                     <span style={{ ...hw.label, color:'rgba(255,255,255,0.7)' }}>Color Stops</span>
                   </div>
@@ -2138,9 +2146,9 @@ export default function QR2() {
                       : s.gradientSpread}
                     onChange={v => {
                       if (activePanel === 'gradient') {
-                        set('gradientStops', s.gradientStops.map(st=>st.id===selectedStopId?{...st,position:v}:st))
+                        setMany({ gradientStops: s.gradientStops.map(st=>st.id===selectedStopId?{...st,position:v}:st), gradientEnabled: true })
                       } else {
-                        set('gradientSpread', v)
+                        setMany({ gradientSpread: v, gradientEnabled: true })
                       }
                     }}
                     min={0} max={activePanel === 'gradient' ? 100 : 10}

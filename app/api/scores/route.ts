@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '../../../lib/supabase'
+import { supabaseAdmin } from '../../../lib/supabaseAdmin'
 
 export async function GET() {
   const { data, error } = await supabase
@@ -24,7 +25,9 @@ export async function POST(req: NextRequest) {
   const score = Math.max(0, Math.min(10, Number(avg_score.toFixed(2))))
   const cleanCountry = typeof country === 'string' ? country.slice(0, 2).toUpperCase() : ''
 
-  const { error } = await supabase
+  // Use the service-role client: the leaderboard table's RLS blocks anon
+  // inserts, so writes must go through a server-side privileged client.
+  const { error } = await supabaseAdmin
     .from('leaderboard')
     .insert({ name: cleanName, avg_score: score, country: cleanCountry })
 

@@ -31,13 +31,15 @@
     repeating-linear-gradient(-45deg, rgba(0,0,0,0.18) 0 2px, transparent 2px 5px);
   pointer-events: none;
 }
-/* red edge vignette that fades in at extreme speed (driven by --glowI) */
-.root::after {
-  content: '';
+/* red edge vignette that fades in at extreme speed. its own compositing layer
+   (will-change) so per-frame opacity writes stay on the GPU — no style recalc
+   of the cluster subtree (mutating a root CSS var each frame tanked the fps). */
+.edgeGlow {
   position: absolute; inset: 0; z-index: 6; pointer-events: none;
   background: radial-gradient(118% 86% at 50% 48%, transparent 60%,
-    color-mix(in srgb, var(--glow, #ff3b2a) 62%, transparent) 100%);
-  opacity: calc(var(--glowI, 0) * 0.85);
+    color-mix(in srgb, var(--edge, #ff3b2a) 62%, transparent) 100%);
+  opacity: 0;
+  will-change: opacity;
 }
 
 .topbar {

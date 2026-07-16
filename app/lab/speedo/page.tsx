@@ -75,6 +75,7 @@ export default function SpeedoPage() {
   const phaseRef = useRef<'off' | 'startup' | 'running' | 'shutdown'>('off')
   const phaseStartRef = useRef(0)
   const rootRef = useRef<HTMLDivElement>(null)
+  const edgeGlowRef = useRef<HTMLDivElement>(null) // red "on the limit" edge vignette
   const [presetIdx, setPresetIdx] = useState(0)
   const [gear, setGear] = useState(0)
 
@@ -215,11 +216,22 @@ export default function SpeedoPage() {
       v8TachRef.current?.setValue(tachVal / 1000) // V8 tach dial is in ×1000
       v8SpeedoRef.current?.setValue(speedoVal)
 
-      // V8: above 160 km/h the dial backlight halos blend to red and intensify
-      if (isV8 && rootRef.current) {
-        const f = Math.pow(Math.min(1, Math.max(0, (speedoVal - 160) / 40)), 0.7)
-        rootRef.current.style.setProperty('--glow', mixHex(theme.glow, theme.redline, f))
-        rootRef.current.style.setProperty('--glowI', f.toFixed(3))
+      // edges redden as the engine is pushed hard — near the redline (any gear)
+      // or at high speed. every engine gets this "on the limit" glow. we write
+      // opacity straight onto the vignette's own layer (cheap, GPU-composited)
+      // rather than mutating a root CSS var, which would force a style recalc of
+      // the whole cluster subtree every frame and tank the fps at speed.
+      {
+        const revF = Math.max(0, (st.rpm / preset.redline - 0.82) / 0.18) // 82%→redline
+        const spdF = Math.max(0, (speedoVal - 150) / 90)                  // 150→240 km/h
+        const f = Math.pow(Math.min(1, Math.max(revF, spdF)), 0.8)
+        if (edgeGlowRef.current) edgeGlowRef.current.style.opacity = (f * 0.85).toFixed(3)
+        // V8 also blends its dial backlight halos toward red as it intensifies.
+        // these do read the root CSS vars, but only in V8 mode (lighter subtree).
+        if (isV8 && rootRef.current) {
+          rootRef.current.style.setProperty('--glowI', f.toFixed(3))
+          rootRef.current.style.setProperty('--glow', mixHex(theme.glow, theme.redline, f))
+        }
       }
 
       if (speedNumRef.current) speedNumRef.current.textContent = String(Math.round(speedoVal))
@@ -460,7 +472,8 @@ export default function SpeedoPage() {
   if (!mounted) return null
 
   return createPortal(
-    <div ref={rootRef} className={`${s.root} ${lit ? '' : s.dim}`} style={{ '--glow': theme.glow, '--screen': theme.screen } as React.CSSProperties}>
+    <div ref={rootRef} className={`${s.root} ${lit ? '' : s.dim}`} style={{ '--glow': theme.glow, '--screen': theme.screen, '--edge': theme.redline } as React.CSSProperties}>
+      <div ref={edgeGlowRef} className={s.edgeGlow} aria-hidden />
       <div className={s.topbar}>
         <span className={s.topRail} aria-hidden />
         <Link href="/lab" className={s.backLink} aria-label="Back to Lab">
