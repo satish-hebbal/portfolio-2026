@@ -91,10 +91,15 @@ function seedProject(): ProjectState {
   const hat = makeTrack('hat-closed', 0); hat.id = 'seed-hat'
   const bass = makeTrack('bass', 0); bass.id = 'seed-bass'
   const bassNotes = [
-    { id: 'seed-n0', step: 0, note: 'C3', length: 2, velocity: 0.9 },
-    { id: 'seed-n1', step: 6, note: 'C3', length: 1, velocity: 0.9 },
-    { id: 'seed-n2', step: 8, note: 'D#3', length: 2, velocity: 0.9 },
-    { id: 'seed-n3', step: 14, note: 'A#2', length: 1, velocity: 0.9 },
+    { id: 'seed-n0', step: 0, note: 'F2', length: 1, velocity: 0.9 },
+    { id: 'seed-n1', step: 3, note: 'F#2', length: 1, velocity: 0.9 },
+    { id: 'seed-n2', step: 6, note: 'A#2', length: 1, velocity: 0.9 },
+    { id: 'seed-n3', step: 8, note: 'C3', length: 1, velocity: 0.9 },
+    { id: 'seed-n4', step: 11, note: 'D#3', length: 1, velocity: 0.9 },
+    { id: 'seed-n5', step: 12, note: 'F3', length: 1, velocity: 0.9 },
+    { id: 'seed-n6', step: 13, note: 'G3', length: 1, velocity: 0.9 },
+    { id: 'seed-n7', step: 14, note: 'A#2', length: 1, velocity: 0.9 },
+    { id: 'seed-n8', step: 15, note: 'G#3', length: 1, velocity: 0.9 },
   ]
   const data: Record<string, PatternData> = {
     [kick.id]: { steps: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false], notes: [] },
@@ -106,7 +111,7 @@ function seedProject(): ProjectState {
   return {
     bpm: 120, swing: 0, masterVolume: 0.85, metronome: false, mode: 'pattern',
     tracks: [kick, snare, hat, bass], patterns: [pattern], activePatternId: pattern.id,
-    selectedTrackId: kick.id,
+    selectedTrackId: bass.id,
     arrangement: { lanes: 4, clips: [
       { id: 'seed-clip-1', lane: 0, type: 'pattern', refId: pattern.id, start: 0, length: 32, offset: 0, name: 'Pat 1', color: CLIP_COLORS[0] },
     ] },
@@ -117,7 +122,7 @@ export default function StudioKapiPage() {
   const [project, setProject] = useState<ProjectState>(seedProject)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentStep, setCurrentStep] = useState(-1)
-  const [dock, setDock] = useState<DockTab>('mixer')
+  const [dock, setDock] = useState<DockTab>('roll')
   const [isRecording, setIsRecording] = useState(false)
   const [permissionError, setPermissionError] = useState<string | null>(null)
   const [takes, setTakes] = useState<RichTake[]>([])
