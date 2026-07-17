@@ -90,6 +90,7 @@ function seedProject(): ProjectState {
   const snare = makeTrack('snare', 0); snare.id = 'seed-snare'
   const hat = makeTrack('hat-closed', 0); hat.id = 'seed-hat'
   const bass = makeTrack('bass', 0); bass.id = 'seed-bass'
+  const tomLow = makeTrack('tom-low', 0); tomLow.id = 'seed-tom-low'
   const bassNotes = [
     { id: 'seed-n0', step: 0, note: 'F2', length: 1, velocity: 0.9 },
     { id: 'seed-n1', step: 3, note: 'F#2', length: 1, velocity: 0.9 },
@@ -106,11 +107,12 @@ function seedProject(): ProjectState {
     [snare.id]: { steps: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false], notes: [] },
     [hat.id]: { steps: Array.from({ length: 16 }, (_, i) => i % 2 === 0), notes: [] },
     [bass.id]: { steps: [], notes: bassNotes },
+    [tomLow.id]: { steps: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false], notes: [] },
   }
   const pattern: Pattern = { id: 'seed-pat-1', name: 'Pat 1', length: 16, data }
   return {
     bpm: 120, swing: 0, masterVolume: 0.85, metronome: false, mode: 'pattern',
-    tracks: [kick, snare, hat, bass], patterns: [pattern], activePatternId: pattern.id,
+    tracks: [kick, snare, hat, bass, tomLow], patterns: [pattern], activePatternId: pattern.id,
     selectedTrackId: bass.id,
     arrangement: { lanes: 4, clips: [
       { id: 'seed-clip-1', lane: 0, type: 'pattern', refId: pattern.id, start: 0, length: 32, offset: 0, name: 'Pat 1', color: CLIP_COLORS[0] },
