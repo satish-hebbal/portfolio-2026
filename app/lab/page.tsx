@@ -2,7 +2,7 @@ import Link from 'next/link'
 import LabHeader from './LabHeader'
 import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card'
 
-const ArrowBtn = ({ light = false }: { light?: boolean }) => (
+const ArrowBtn = ({ light = false, external = false }: { light?: boolean; external?: boolean }) => (
   <div style={{
     width: 30, height: 30, borderRadius: '50%',
     background: light ? 'rgba(255,255,255,0.15)' : '#efefef',
@@ -13,8 +13,22 @@ const ArrowBtn = ({ light = false }: { light?: boolean }) => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
       stroke={light ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)'}
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 12h14M13 6l6 6-6 6" />
+      {external
+        ? <path d="M7 17L17 7M17 7H8M17 7V16" />
+        : <path d="M5 12h14M13 6l6 6-6 6" />}
     </svg>
+  </div>
+)
+
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex items-center gap-3 mb-4 mt-2">
+    <span style={{
+      fontFamily: 'SatishSans, sans-serif', fontSize: '0.8rem', fontWeight: 500,
+      letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.45)', flexShrink: 0,
+    }}>
+      {children}
+    </span>
+    <span style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
   </div>
 )
 
@@ -115,6 +129,7 @@ export default function Lab() {
 
       <LabHeader />
 
+      <SectionLabel>Playground</SectionLabel>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Color Memo */}
@@ -190,30 +205,6 @@ export default function Lab() {
           </CardContainer>
         </Link>
 
-        {/* Studio-Kapi */}
-        <Link href="/lab/studio-kapi" style={{ textDecoration: 'none', display: 'block' }}>
-          <CardContainer containerClassName="w-full p-0" className="w-full">
-            <CardBody className="w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
-              style={{ background: 'linear-gradient(135deg, #f4f1ff 0%, #ffffff 60%)', borderRadius: 0 }}>
-              <CardItem translateZ={50} className="block"
-                style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
-                Studio-Kapi
-              </CardItem>
-              <CardItem translateZ={60} as="p" className="block mt-3"
-                style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '60%' }}>
-                A mini music studio: program beats, play instruments, record &amp; layer your voice
-              </CardItem>
-              <CardItem translateZ={110} className="studio-kapi-thumb-wrap">
-                <img src="/images/lab/studio-kapi-tumbnail.png" alt="Studio Kapi Preview"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.92 }} />
-              </CardItem>
-              <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 10 }}>
-                <ArrowBtn />
-              </CardItem>
-            </CardBody>
-          </CardContainer>
-        </Link>
-
         {/* YT Walkman */}
         <Link href="/lab/walkman" style={{ textDecoration: 'none', display: 'block' }}>
           <CardContainer containerClassName="w-full p-0" className="w-full">
@@ -238,6 +229,77 @@ export default function Lab() {
           </CardContainer>
         </Link>
 
+      </div>
+
+      <div className="mt-14">
+        <SectionLabel>Toolbox</SectionLabel>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          {/* Studio-Kapi */}
+          <Link href="/lab/studio-kapi" style={{ textDecoration: 'none', display: 'block' }}>
+            <CardContainer containerClassName="w-full p-0" className="w-full">
+              <CardBody className="w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+                style={{ background: 'linear-gradient(135deg, #f4f1ff 0%, #ffffff 60%)', borderRadius: 0 }}>
+                <CardItem translateZ={50} className="block"
+                  style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
+                  Studio-Kapi
+                </CardItem>
+                <CardItem translateZ={60} as="p" className="block mt-3"
+                  style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '60%' }}>
+                  A mini music studio: program beats, play instruments, record &amp; layer your voice
+                </CardItem>
+                <CardItem translateZ={110} className="studio-kapi-thumb-wrap">
+                  <img src="/images/lab/studio-kapi-tumbnail.png" alt="Studio Kapi Preview"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.92 }} />
+                </CardItem>
+                <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 10 }}>
+                  <ArrowBtn />
+                </CardItem>
+              </CardBody>
+            </CardContainer>
+          </Link>
+
+          {/* Ribbit */}
+          <a href="https://ribbit.satishhebbal.design/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
+            <CardContainer containerClassName="w-full p-0" className="w-full">
+              <CardBody className="w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+                style={{ background: 'linear-gradient(135deg, #eafaf0 0%, #ffffff 60%)', borderRadius: 0 }}>
+                <CardItem translateZ={50} className="block"
+                  style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
+                  Ribbit
+                </CardItem>
+                <CardItem translateZ={60} as="p" className="block mt-3"
+                  style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '70%' }}>
+                  A fast, no-fuss mockup tool for sketching UI ideas
+                </CardItem>
+                <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
+                  <ArrowBtn external />
+                </CardItem>
+              </CardBody>
+            </CardContainer>
+          </a>
+
+          {/* Datagini */}
+          <a href="https://datagini.satishhebbal.design/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
+            <CardContainer containerClassName="w-full p-0" className="w-full">
+              <CardBody className="w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+                style={{ background: 'linear-gradient(135deg, #e8f7fa 0%, #ffffff 60%)', borderRadius: 0 }}>
+                <CardItem translateZ={50} className="block"
+                  style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
+                  Datagini
+                </CardItem>
+                <CardItem translateZ={60} as="p" className="block mt-3"
+                  style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '70%' }}>
+                  A tool for turning raw data into something useful
+                </CardItem>
+                <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
+                  <ArrowBtn external />
+                </CardItem>
+              </CardBody>
+            </CardContainer>
+          </a>
+
+        </div>
       </div>
     </div>
   )
