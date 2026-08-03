@@ -36,11 +36,10 @@ const SectionHeading = ({ children }: { children: React.ReactNode }) => (
   </h2>
 );
 
-export default function BlumeHealth() {
+export default function HsaasPublic() {
   const [mounted, setMounted] = useState(false);
-  const [activeSection, setActiveSection] = useState('bh-brief');
+  const [activeSection, setActiveSection] = useState('hs-brief');
   const [hoveredStat, setHoveredStat] = useState<string | null>(null);
-  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const onboardingScrollRef = useRef<HTMLDivElement>(null);
   const [onboardingSlide, setOnboardingSlide] = useState(0);
   const reviewScrollRef = useRef<HTMLDivElement>(null);
@@ -55,14 +54,13 @@ export default function BlumeHealth() {
   };
 
   const sections = [
-    { id: 'bh-brief', label: 'Overview' },
-    { id: 'bh-02',    label: 'Onboarding' },
+    { id: 'hs-brief', label: 'Overview' },
+    { id: 'hs-02',    label: 'Onboarding' },
 
-    { id: 'bh-05',    label: 'Channel Store' },
-    { id: 'bh-06',    label: 'Channel Dashboard' },
-    { id: 'bh-08',    label: 'Landing Page' },
-    { id: 'bh-ds',    label: 'Design System' },
-    { id: 'bh-logo',  label: 'Logo' },
+    { id: 'hs-05',    label: 'Channel Store' },
+    { id: 'hs-06',    label: 'Channel Dashboard' },
+    { id: 'hs-08',    label: 'Landing Page' },
+    { id: 'hs-ds',    label: 'Design System' },
   ];
 
   useEffect(() => { setMounted(true); }, []);
@@ -175,10 +173,12 @@ export default function BlumeHealth() {
             className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center overflow-hidden"
             style={{ background: '#1F9E6F', borderRadius: '10px' }}
           >
-            <Image src="/images/WorkImages/blumeHealthImages/BH-logo-vector.svg" alt="Blume Health" width={28} height={28} className="w-6 h-6 md:w-7 md:h-7 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" className="w-6 h-6 md:w-7 md:h-7" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
           </div>
           <h1 className="text-2xl md:text-4xl font-light tracking-tight" style={{ fontFamily: 'SatishSans, sans-serif' }}>
-            Blume Health
+            Healthcare SaaS
           </h1>
           <Image src="/images/common/sa26.svg" alt="SA" width={40} height={40} className="w-8 h-8 md:w-10 md:h-10 object-contain opacity-20" />
           <Plus h="left" />
@@ -186,10 +186,10 @@ export default function BlumeHealth() {
         </div>
 
         {/* ── Project Meta ────────────────────────────────────────────── */}
-        <div id="bh-brief" className="relative overflow-visible border-b border-gray-200">
+        <div id="hs-brief" className="relative overflow-visible border-b border-gray-200">
           <div className="relative flex flex-wrap md:flex-nowrap items-stretch gap-0 border-b border-gray-200">
             {[
-              { label: 'Company',     value: 'Blume Health' },
+              { label: 'Company',     value: 'Confidential, US' },
               { label: 'Role',        value: 'Product Designer' },
               { label: 'Deliverable', value: 'Zero to V1' },
             ].map((item, i) => (
@@ -211,8 +211,8 @@ export default function BlumeHealth() {
           {/* Hero image — edge to edge */}
           <div className="relative overflow-visible border-b border-gray-200">
             <Image
-              src="/images/WorkImages/blumeHealthImages/bh-01.png"
-              alt="Blume Health"
+              src="/images/WorkImages/hsaasImages/hs-hero.png"
+              alt="Healthcare SaaS product design"
               width={2000}
               height={900}
               className="w-full h-auto object-cover"
@@ -224,32 +224,13 @@ export default function BlumeHealth() {
             <SectionLabel>The Brief</SectionLabel>
             <SectionHeading>One profile. Everywhere patients search.</SectionHeading>
             <p className="text-sm text-gray-500 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
-              Blume Health is a subscription SaaS built for independent US physicians: doctors who are clinically excellent but completely invisible online.
+              This is a subscription SaaS built for independent US physicians: doctors who are clinically excellent but completely invisible online.
               Most solo practitioners have no presence across the 40+ platforms patients use to find care, and the manual fix is brutal. Create an account on each platform, upload credentials, write a bio. Dozens of hours they don&apos;t have, repeated every time something changes.
               <br /><br />
               The co-founder came in with a clear problem and a one-line brief: let a doctor fill out one form, and handle everything else on their behalf. Every listing, every update, every patient inquiry forwarded to their inbox.
               <br /><br />
               I was brought in to design the entire product from scratch. In three weeks I delivered the full onboarding flow, credential verification, a channel distribution marketplace, and subscription and pricing UI. The scope covered what the doctor interacts with directly: building their profile, selecting their channels, and managing their plan. Inbox and patient inquiry tracking are out of scope for V1. All incoming messages are forwarded straight to the doctor&apos;s email, so no in-app messaging surface was needed. End-to-end product design, logo mark, and visual identity. Shipped as V1.
             </p>
-            <a
-              href="http://blumehealthco.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              onMouseEnter={() => setHoveredLink('brief')}
-              onMouseLeave={() => setHoveredLink(null)}
-              className="inline-flex items-center gap-2 mt-4 text-[11px] px-3 py-1.5 border"
-              style={{
-                fontFamily: 'FunnelDisplay, sans-serif',
-                background: hoveredLink === 'brief' ? ACCENT : 'transparent',
-                borderColor: hoveredLink === 'brief' ? ACCENT : '#e5e7eb',
-                color: hoveredLink === 'brief' ? 'white' : '#6b7280',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Image src="/images/WorkImages/blumeHealthImages/BH-logo-vector.svg" alt="Blume Health" width={16} height={16} className="w-4 h-4 object-contain" style={{ filter: hoveredLink === 'brief' ? 'brightness(0) invert(1)' : 'none', transition: 'filter 0.2s ease' }} />
-              blumehealthco.com
-              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            </a>
           </div>
         </div>
 
@@ -292,7 +273,7 @@ export default function BlumeHealth() {
         </div>
 
         {/* ── Onboarding ──────────────────────────────────────────────── */}
-        <div id="bh-02" className="relative overflow-visible border-b border-gray-200">
+        <div id="hs-02" className="relative overflow-visible border-b border-gray-200">
           <Plus h="left"  v="top" />
           <Plus h="right" v="top" />
           <div className="px-6 md:px-10 py-4 md:py-6">
@@ -301,8 +282,8 @@ export default function BlumeHealth() {
           </div>
           <div className="border-t border-gray-200">
             <Image
-              src="/images/WorkImages/blumeHealthImages/BH-2.png"
-              alt="Blume Health basic information form"
+              src="/images/WorkImages/hsaasImages/hs-form.png"
+              alt="basic information form"
               width={1600}
               height={900}
               className="w-full h-auto object-cover"
@@ -349,15 +330,15 @@ export default function BlumeHealth() {
             >
               <div className="flex">
                 <Image
-                  src="/images/WorkImages/blumeHealthImages/BH-create-prof-1.png"
-                  alt="Blume Health onboarding profile creation"
+                  src="/images/WorkImages/hsaasImages/hs-profile-1.png"
+                  alt="onboarding profile creation"
                   width={1200}
                   height={800}
                   className="h-auto block w-full flex-shrink-0"
                 />
                 <Image
-                  src="/images/WorkImages/blumeHealthImages/BH-create-prof-2.png"
-                  alt="Blume Health service selection"
+                  src="/images/WorkImages/hsaasImages/hs-profile-2.png"
+                  alt="service selection"
                   width={1200}
                   height={800}
                   className="h-auto block w-full flex-shrink-0"
@@ -373,7 +354,7 @@ export default function BlumeHealth() {
           <Plus h="right" v="top" />
           <div className="px-6 md:px-10 py-4 md:py-5">
             <p className="text-xs text-gray-400 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
-              Once all sections are done, the doctor reviews everything in one place before submitting. After submission, the Blume team verifies the profile within 48 hours.
+              Once all sections are done, the doctor reviews everything in one place before submitting. After submission, the operations team verifies the profile within 48 hours.
             </p>
           </div>
           <div className="relative border-t border-gray-200">
@@ -417,15 +398,15 @@ export default function BlumeHealth() {
             </button>
             <div ref={reviewScrollRef} className="overflow-x-hidden" style={{ scrollbarWidth: 'none' }}>
               <div className="flex">
-                <Image src="/images/WorkImages/blumeHealthImages/BH-create-prof-3.png" alt="Blume Health profile review" width={1200} height={800} className="h-auto block w-full flex-shrink-0" />
-                <Image src="/images/WorkImages/blumeHealthImages/BH-create-prof-4.png" alt="Blume Health profile submitted" width={1200} height={800} className="h-auto block w-full flex-shrink-0" />
+                <Image src="/images/WorkImages/hsaasImages/hs-profile-3.png" alt="profile review" width={1200} height={800} className="h-auto block w-full flex-shrink-0" />
+                <Image src="/images/WorkImages/hsaasImages/hs-profile-4.png" alt="profile submitted" width={1200} height={800} className="h-auto block w-full flex-shrink-0" />
               </div>
             </div>
           </div>
         </div>
 
         {/* ── Channel Store ────────────────────────────────────────────── */}
-        <div id="bh-05" className="relative overflow-visible border-b border-gray-200">
+        <div id="hs-05" className="relative overflow-visible border-b border-gray-200">
           <Plus h="left"  v="top" />
           <Plus h="right" v="top" />
           <div className="px-6 md:px-10 py-4 md:py-6">
@@ -434,7 +415,7 @@ export default function BlumeHealth() {
           </div>
           <div className="border-t border-gray-200">
             <Image
-              src="/images/WorkImages/blumeHealthImages/BH-3B.png"
+              src="/images/WorkImages/hsaasImages/hs-channel-store.png"
               alt="Channel Store — Standard, Premium, Upcoming tiers"
               width={2000}
               height={1200}
@@ -444,20 +425,20 @@ export default function BlumeHealth() {
         </div>
 
         {/* ── Subscriptions ───────────────────────────────────────────── */}
-        <div id="bh-06" className="relative overflow-visible border-b border-gray-200">
+        <div id="hs-06" className="relative overflow-visible border-b border-gray-200">
           <Plus h="left"  v="top" />
           <Plus h="right" v="top" />
           <div className="px-6 md:px-10 py-4 md:py-6">
             <SectionLabel>Channel Dashboard</SectionLabel>
             <SectionHeading>Pick your channels. We handle the rest.</SectionHeading>
             <p className="text-xs text-gray-400 leading-relaxed max-w-2xl" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
-              Choose a plan, select the channels you want to appear on, and Blume creates your profiles across each one automatically, sending you a live link for each as it goes live.
+              Choose a plan, select the channels you want to appear on, and the platform creates your profiles across each one automatically, sending you a live link for each as it goes live.
             </p>
           </div>
           <div className="border-t border-gray-200">
             <Image
-              src="/images/WorkImages/blumeHealthImages/BH-4.png"
-              alt="Blume Health subscription and pricing plans"
+              src="/images/WorkImages/hsaasImages/hs-pricing.png"
+              alt="subscription and pricing plans"
               width={2000}
               height={1200}
               className="w-full h-auto object-cover"
@@ -466,7 +447,7 @@ export default function BlumeHealth() {
         </div>
 
         {/* ── Dashboard ───────────────────────────────────────────────── */}
-        <div id="bh-07" className="relative overflow-visible border-b border-gray-200">
+        <div id="hs-07" className="relative overflow-visible border-b border-gray-200">
           <Plus h="left"  v="top" />
           <Plus h="right" v="top" />
           <div className="px-6 md:px-10 flex items-center" style={{ minHeight: '80px' }}>
@@ -474,8 +455,8 @@ export default function BlumeHealth() {
           </div>
           <div className="border-t border-gray-200">
             <Image
-              src="/images/WorkImages/blumeHealthImages/bh-05.png"
-              alt="Blume Health post-signup dashboard"
+              src="/images/WorkImages/hsaasImages/hs-dashboard.png"
+              alt="post-signup dashboard"
               width={2000}
               height={1200}
               className="w-full h-auto object-cover"
@@ -484,36 +465,17 @@ export default function BlumeHealth() {
         </div>
 
         {/* ── Marketing Site ──────────────────────────────────────────── */}
-        <div id="bh-08" className="relative overflow-visible border-b border-gray-200">
+        <div id="hs-08" className="relative overflow-visible border-b border-gray-200">
           <Plus h="left"  v="top" />
           <Plus h="right" v="top" />
           <div className="px-6 md:px-10 py-4 md:py-6">
             <SectionLabel>Landing Page</SectionLabel>
             <SectionHeading>A landing page that explains the product and gets doctors to sign up.</SectionHeading>
-            <a
-              href="http://blumehealthco.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              onMouseEnter={() => setHoveredLink('landing')}
-              onMouseLeave={() => setHoveredLink(null)}
-              className="inline-flex items-center gap-2 mt-3 text-[11px] px-3 py-1.5 border"
-              style={{
-                fontFamily: 'FunnelDisplay, sans-serif',
-                background: hoveredLink === 'landing' ? ACCENT : 'transparent',
-                borderColor: hoveredLink === 'landing' ? ACCENT : '#e5e7eb',
-                color: hoveredLink === 'landing' ? 'white' : '#6b7280',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Image src="/images/WorkImages/blumeHealthImages/BH-logo-vector.svg" alt="Blume Health" width={16} height={16} className="w-4 h-4 object-contain" style={{ filter: hoveredLink === 'landing' ? 'brightness(0) invert(1)' : 'none', transition: 'filter 0.2s ease' }} />
-              blumehealthco.com
-              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            </a>
           </div>
           <div className="border-t border-gray-200">
             <Image
-              src="/images/WorkImages/blumeHealthImages/BH-6A.png"
-              alt="Blume Health marketing site"
+              src="/images/WorkImages/hsaasImages/hs-landing.png"
+              alt="marketing site"
               width={2000}
               height={1200}
               className="w-full h-auto object-cover"
@@ -522,7 +484,7 @@ export default function BlumeHealth() {
         </div>
 
         {/* ── Design System ───────────────────────────────────────────── */}
-        <div id="bh-ds" className="relative overflow-visible border-b border-gray-200">
+        <div id="hs-ds" className="relative overflow-visible border-b border-gray-200">
           <Plus h="left"  v="top" />
           <Plus h="right" v="top" />
           <div className="px-6 md:px-10 py-4 md:py-6">
@@ -535,7 +497,7 @@ export default function BlumeHealth() {
             <p className="text-[9px] uppercase tracking-widest text-gray-400 mb-5" style={{ fontFamily: 'CarmenSans, sans-serif' }}>Colour Palette</p>
             <div className="flex flex-wrap gap-3">
               {[
-                { hex: '#1F9E6F', name: 'Blume Green' },
+                { hex: '#1F9E6F', name: 'Primary Green' },
                 { hex: '#145C42', name: 'Deep Green'  },
                 { hex: '#F0FAF5', name: 'Mint Tint'   },
                 { hex: '#111111', name: 'Near Black'  },
@@ -605,18 +567,6 @@ export default function BlumeHealth() {
             </div>
           </div>
         </div>
-
-        {/* ── BH-MX ───────────────────────────────────────────────────── */}
-        <div id="bh-logo" className="relative overflow-visible border-b border-gray-200">
-          <Image
-            src="/images/WorkImages/blumeHealthImages/BH-MX.png"
-            alt="Blume Health"
-            width={2000}
-            height={1200}
-            className="w-full h-auto object-cover"
-          />
-        </div>
-
 
         <Plus h="left"  v="bottom" />
         <Plus h="right" v="bottom" />

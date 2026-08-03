@@ -20,10 +20,10 @@ const works = [
   },
   {
     num: '02',
-    title: 'Blume Health',
+    title: 'Healthcare SaaS',
     description: 'Designed V1 of a SaaS that puts solo physicians on 40+ patient platforms from one profile. $350+ MRR within weeks of launch. Shipped in 3 weeks.',
-    image: '/images/WorkImages/blumeHealthImages/BM-thumnail.png',
-    href: '/works/blumeHealth',
+    image: '/images/WorkImages/hsaasImages/hs-thumbnail.png',
+    href: '/works/healthcare-saas',
     year: '2025',
     available: true,
   },

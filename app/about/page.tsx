@@ -11,7 +11,7 @@ const companies: {
   tags: { label: string; rotate: number; x: number }[];
 }[] = [
   { src: "/images/inAbout/Abhi.svg",       name: "Abhiyantrik",  year: "2025",           shadow: "rgba(99, 102, 241, 0.22)",  tags: [{ label: "IoT", rotate: -9, x: -26 }, { label: "Smart Home", rotate: 6, x: 28 }] },
-  { src: "/images/inAbout/blumeH.svg",     name: "BlumeHealth", year: "2025",           shadow: "rgba(52, 211, 153, 0.28)",  tags: [{ label: "SaaS", rotate: -7, x: -26 }, { label: "Health", rotate: 5, x: 30 }] },
+  { src: "/images/inAbout/hsaas.svg",      name: "Healthcare SaaS", year: "2025",       shadow: "rgba(52, 211, 153, 0.28)",  tags: [{ label: "SaaS", rotate: -7, x: -26 }, { label: "Health", rotate: 5, x: 30 }] },
   { src: "/images/inAbout/SR.svg",         name: "SkillRadius",  year: "2026",           shadow: "rgba(109, 84, 224, 0.25)",  tags: [{ label: "LMS", rotate: -8, x: -24 }, { label: "EdTech", rotate: 6, x: 30 }] },
   { src: "/images/inAbout/SS.svg",         name: "SkinSage",     year: "2026",           shadow: "rgba(34, 197, 94, 0.28)",   tags: [{ label: "AI", rotate: -6, x: -24 }, { label: "MedTech", rotate: 8, x: 30 }] },
   { src: "/images/inAbout/fuellstack.svg", name: "Fuellstack",   year: "2025",           shadow: "rgba(220, 88, 20, 0.25)",   tags: [{ label: "IT Agency", rotate: -7, x: 0 }] },

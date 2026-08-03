@@ -11,9 +11,9 @@ const allWorks = [
     tags: ['IoT', 'App UI', 'Brand Identity'],
   },
   {
-    title: 'Blume Health',
-    href: '/works/blumeHealth',
-    image: '/images/WorkImages/blumeHealthImages/BM-thumnail.png',
+    title: 'Healthcare SaaS',
+    href: '/works/healthcare-saas',
+    image: '/images/WorkImages/hsaasImages/hs-thumbnail.png',
     tags: ['SaaS'],
   },
   {
