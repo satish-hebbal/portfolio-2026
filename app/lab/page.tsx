@@ -21,14 +21,13 @@ const ArrowBtn = ({ light = false, external = false }: { light?: boolean; extern
 )
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-center gap-3 mb-4 mt-2">
+  <div className="mb-4 mt-2">
     <span style={{
       fontFamily: 'SatishSans, sans-serif', fontSize: '0.8rem', fontWeight: 500,
-      letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.45)', flexShrink: 0,
+      letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.45)',
     }}>
       {children}
     </span>
-    <span style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
   </div>
 )
 
@@ -49,6 +48,20 @@ export default function Lab() {
         }
         .color-wheel-card:hover .color-wheel-spin {
           animation-play-state: running;
+        }
+
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%      { opacity: 0.3; transform: scale(0.75); }
+        }
+        .wip-dot {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: #f59e0b;
+          display: block;
+          flex-shrink: 0;
+          animation: pulse-dot 1.9s ease-in-out infinite;
         }
 
         /* Thumbnail positioning — CSS classes so media queries can override */
@@ -85,6 +98,16 @@ export default function Lab() {
           width: 280px;
           height: 280px;
           pointer-events: none;
+        }
+        .ribbit-thumb-wrap {
+          position: absolute;
+          bottom: -26px;
+          right: -34px;
+          width: 300px;
+          pointer-events: none;
+          /* fade the top-left edges into the card so the artwork has no hard seam */
+          -webkit-mask-image: linear-gradient(118deg, transparent 0%, #000 34%);
+          mask-image: linear-gradient(118deg, transparent 0%, #000 34%);
         }
 
         @media (max-width: 767px) {
@@ -124,12 +147,17 @@ export default function Lab() {
             width: 220px;
             height: 220px;
           }
+          .ribbit-thumb-wrap {
+            right: -30px;
+            bottom: -20px;
+            width: 240px;
+          }
         }
       `}</style>
 
       <LabHeader />
 
-      <SectionLabel>Playground</SectionLabel>
+      <SectionLabel>Just to keep my pen sharp</SectionLabel>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Color Memo */}
@@ -232,7 +260,7 @@ export default function Lab() {
       </div>
 
       <div className="mt-14">
-        <SectionLabel>Toolbox</SectionLabel>
+        <SectionLabel>Tools I got tired of not having</SectionLabel>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           {/* Studio-Kapi */}
@@ -269,10 +297,14 @@ export default function Lab() {
                   Ribbit
                 </CardItem>
                 <CardItem translateZ={60} as="p" className="block mt-3"
-                  style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '70%' }}>
-                  A fast, no-fuss mockup tool for sketching UI ideas
+                  style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '52%' }}>
+                  A fast, no-fuss mockup tool<br />for sketching UI ideas
                 </CardItem>
-                <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
+                <CardItem translateZ={110} className="ribbit-thumb-wrap">
+                  <img src="/images/lab/ribbit.webp" alt="Ribbit Preview"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.95 }} />
+                </CardItem>
+                <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 10 }}>
                   <ArrowBtn external />
                 </CardItem>
               </CardBody>
@@ -291,6 +323,18 @@ export default function Lab() {
                 <CardItem translateZ={60} as="p" className="block mt-3"
                   style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '70%' }}>
                   A tool for turning raw data into something useful
+                </CardItem>
+                <CardItem translateZ={40} className="absolute" style={{ top: 20, right: 20, zIndex: 2 }}>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                    fontFamily: 'SatishSans, sans-serif', fontSize: '0.6rem', fontWeight: 500,
+                    letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.45)',
+                    background: 'rgba(255,255,255,0.75)', border: '1px solid rgba(0,0,0,0.07)',
+                    borderRadius: '999px', padding: '4px 10px', whiteSpace: 'nowrap',
+                  }}>
+                    <span className="wip-dot" />
+                    In progress
+                  </span>
                 </CardItem>
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
                   <ArrowBtn external />
