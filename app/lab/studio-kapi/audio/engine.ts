@@ -1,7 +1,7 @@
 // Studio-Kapi — Tone.js audio engine (singleton)
 import * as Tone from 'tone'
 import type { Track, FxState, FxType, ProjectState, Pattern, SynthParams } from './types'
-import { DRUM_SAMPLES, PIANO_SAMPLES, SYNTH_SPECS } from './presets'
+import { DRUM_SAMPLES, PIANO_SAMPLES, SYNTH_SPECS, SAMPLED, sampledUrls, knobToAttack, knobToRelease } from './presets'
 import { audioBufferToWav } from './wav'
 
 const SIXTEENTH_TICKS = () => Tone.getTransport().PPQ / 4
@@ -30,6 +30,7 @@ function laneAudibility(project: ProjectState) {
 function makeInstrument(presetId: string, audioBuffer?: AudioBuffer): Tone.ToneAudioNode {
   if (DRUM_SAMPLES[presetId]) return new Tone.Player({ url: DRUM_SAMPLES[presetId], fadeOut: 0.01 })
   if (presetId === 'piano') return new Tone.Sampler({ urls: PIANO_SAMPLES, release: 0.8 })
+  if (SAMPLED[presetId]) return new Tone.Sampler({ urls: sampledUrls(presetId), attack: SAMPLED[presetId].attack, release: SAMPLED[presetId].release })
   if (presetId === 'audio') return new Tone.Player({ url: audioBuffer, loop: false })
   const spec = SYNTH_SPECS[presetId]
   if (!spec) return new Tone.PolySynth(Tone.Synth)
@@ -57,12 +58,14 @@ function applySynthParams(inst: Tone.ToneAudioNode, filter: Tone.Filter, presetI
   }
   if (inst instanceof Tone.Sampler) {
     inst.volume.value = Tone.gainToDb(p.gain)
+    // recorded instruments expose attack/release (fade-in, tail after note-off)
+    if (SAMPLED[presetId]) { inst.attack = knobToAttack(p.attack); inst.release = knobToRelease(p.release) }
     return
   }
-  const attack = 0.001 + p.attack * p.attack * 2
+  const attack = knobToAttack(p.attack)
   const decay = 0.01 + p.decay * p.decay * 2
   const sustain = clamp01(p.sustain)
-  const release = 0.01 + p.release * p.release * 3
+  const release = knobToRelease(p.release)
   const detuneCents = p.detune * 100 + p.pitch * 1200
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const anyInst = inst as any
@@ -109,6 +112,7 @@ interface LiveTrack {
   instrument: Tone.ToneAudioNode
   filter: Tone.Filter
   channel: Tone.Channel
+  meter: Tone.Meter
   fxNodes: { type: FxType; node: Tone.ToneAudioNode }[]
   presetId: string
 }
@@ -190,7 +194,9 @@ class KapiEngine {
       const instrument = makeInstrument(track.presetId, this.audioBuffers.get(track.id))
       const filter = new Tone.Filter({ type: 'lowpass', frequency: 18000 })
       const channel = new Tone.Channel().connect(this.master)
-      lt = { instrument, filter, channel, fxNodes: [], presetId: track.presetId }
+      const meter = new Tone.Meter({ smoothing: 0.75 })
+      channel.connect(meter)   // post-fader tap for the mixer's channel meter
+      lt = { instrument, filter, channel, meter, fxNodes: [], presetId: track.presetId }
       this.live.set(track.id, lt)
       this.rebuildChain(lt, track.fx)
     }
@@ -202,7 +208,7 @@ class KapiEngine {
     const lt = this.live.get(id)
     if (!lt) return
     lt.fxNodes.forEach((f) => f.node.dispose())
-    lt.instrument.dispose(); lt.filter.dispose(); lt.channel.dispose()
+    lt.instrument.dispose(); lt.filter.dispose(); lt.channel.dispose(); lt.meter.dispose()
     this.live.delete(id)
   }
 
@@ -432,6 +438,15 @@ class KapiEngine {
       const inst = lt.instrument as Tone.Sampler | Tone.PolySynth
       if (!(inst instanceof Tone.Sampler) || inst.loaded) inst.triggerAttackRelease(note, '8n', this.safeNow(), velocity)
     }
+  }
+
+  // per-channel post-fader level, 0..1 (60 dB range)
+  getTrackLevel(id: string): number {
+    const m = this.live.get(id)?.meter
+    if (!m) return 0
+    const v = m.getValue()
+    const db = typeof v === 'number' ? v : v[0]
+    return Math.max(0, Math.min(1, (db + 60) / 60))
   }
 
   getLevel(): number {

@@ -41,12 +41,14 @@ export default function Select({ value, options, onChange, className, title }: P
       setOpen(false)
     }
     const close = () => setOpen(false)
+    // scrolling inside the list itself (long option lists) must not close it
+    const onScroll = (e: Event) => { if (!popRef.current?.contains(e.target as Node)) close() }
     window.addEventListener('pointerdown', onDown)
-    window.addEventListener('scroll', close, true)
+    window.addEventListener('scroll', onScroll, true)
     window.addEventListener('resize', close)
     return () => {
       window.removeEventListener('pointerdown', onDown)
-      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('resize', close)
     }
   }, [open])

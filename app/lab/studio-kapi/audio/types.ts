@@ -108,6 +108,14 @@ export interface Arrangement {
 
 export type DawMode = 'pattern' | 'song'
 
+// Piano-roll scale / raga helper: rows outside the scale are dimmed and, with
+// lock on, clicks snap to the nearest in-scale note.
+export interface ScaleState {
+  id: string      // key into SCALES
+  root: number    // 0..11, pitch class of the tonic (Sa)
+  lock: boolean
+}
+
 export interface ProjectState {
   bpm: number
   swing: number          // 0..1
@@ -119,6 +127,7 @@ export interface ProjectState {
   activePatternId: string
   selectedTrackId: string | null
   arrangement: Arrangement
+  scale?: ScaleState
 }
 
 export interface PresetDef {
@@ -126,5 +135,10 @@ export interface PresetDef {
   label: string
   kind: TrackKind
   color: string
-  group: 'Drums' | '808 & Perc' | 'Bass' | 'Synth' | 'Electronic' | 'Keys'
+  group: PresetGroup
+  hint?: string   // one-line description shown in the instrument picker
 }
+
+export type PresetGroup =
+  | 'Indian' | 'Tabla' | 'Indian Perc' | 'Band' | 'Orchestra'
+  | 'Drums' | '808 & Perc' | 'Bass' | 'Synth' | 'Electronic' | 'Keys'

@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import s from '../studioKapi.module.css'
-import type { Track, RollNote } from '../audio/types'
+import { Lock, LockOpen } from 'lucide-react'
+import type { Track, RollNote, ScaleState } from '../audio/types'
+import { SCALES, SARGAM } from '../audio/presets'
+import Select from './Select'
 
 interface Props {
   track: Track | null
@@ -11,19 +14,24 @@ interface Props {
   currentStep: number
   onChange: (notes: RollNote[]) => void
   onPreview: (note: string) => void
+  scale?: ScaleState
+  onScale: (scale: ScaleState | undefined) => void
 }
 
 const SEMITONES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 const PITCHES: string[] = []
-for (const oct of [6, 5, 4, 3, 2]) {
+for (const oct of [7, 6, 5, 4, 3, 2, 1]) {
   for (let i = 11; i >= 0; i--) PITCHES.push(`${SEMITONES[i]}${oct}`)
 }
 const PITCH_INDEX = new Map(PITCHES.map((p, i) => [p, i]))
 const isBlack = (n: string) => n.includes('#')
+const pitchClass = (n: string) => SEMITONES.indexOf(n.replace(/\d+$/, ''))
+const ROOT_OPTIONS = SEMITONES.map((n, i) => ({ value: i, label: n }))
+const SCALE_OPTIONS = [{ value: -1, label: 'No scale' }, ...SCALES.map((sc, i) => ({ value: i, label: sc.label }))]
 
 const ROW_H = 21
 const COL_W = 28
-const KEY_W = 50
+const KEY_W = 58
 const RESIZE_EDGE = 7
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -47,6 +55,20 @@ interface Gesture {
 
 export default function PianoRoll(p: Props) {
   const { notes, steps, onChange, onPreview } = p
+  const scaleIdx = p.scale ? SCALES.findIndex((sc) => sc.id === p.scale!.id) : -1
+  const scaleDef = scaleIdx >= 0 ? SCALES[scaleIdx] : null
+  const root = p.scale?.root ?? 0
+  // semitone degree above the tonic, or -1 when the row is outside the scale
+  const degreeOf = useCallback((pitch: string) => {
+    if (!scaleDef) return 0
+    const deg = (pitchClass(pitch) - root + 12) % 12
+    return scaleDef.steps.includes(deg) ? deg : -1
+  }, [scaleDef, root])
+  const lockOn = !!scaleDef && !!p.scale?.lock
+  const lockRef = useRef(lockOn)
+  lockRef.current = lockOn
+  const degreeRef = useRef(degreeOf)
+  degreeRef.current = degreeOf
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [drag, setDrag] = useState<Gesture | null>(null)
   const dragRef = useRef<Gesture | null>(null)
@@ -121,9 +143,17 @@ export default function PianoRoll(p: Props) {
     setDrag(null)
     if (!g) return
     if (g.mode === 'place' && !g.moved) {
-      // simple click on empty cell -> add a note, audition it
-      const pitch = PITCHES[g.startPitch]
-      const exists = noteAtCell(g.startStep, g.startPitch)
+      // simple click on empty cell -> add a note, audition it. With scale lock
+      // on, an out-of-scale row snaps to the nearest in-scale note.
+      let row = g.startPitch
+      if (lockRef.current && degreeRef.current(PITCHES[row]) < 0) {
+        for (let d = 1; d < 12; d++) {
+          if (row + d < PITCHES.length && degreeRef.current(PITCHES[row + d]) >= 0) { row += d; break }
+          if (row - d >= 0 && degreeRef.current(PITCHES[row - d]) >= 0) { row -= d; break }
+        }
+      }
+      const pitch = PITCHES[row]
+      const exists = noteAtCell(g.startStep, row)
       if (!exists) {
         const nn: RollNote = { id: uid(), step: g.startStep, note: pitch, length: 1, velocity: 0.9 }
         onChange([...notesRef.current, nn])
@@ -276,21 +306,50 @@ export default function PianoRoll(p: Props) {
       <div className={s.rollHint}>
         {p.track!.name} · click to add · drag to select · drag a note to move · drag its right edge to resize · double-click or Delete to remove
       </div>
+      <div className={s.scaleBar}>
+        <span className={s.fieldLabel}>Scale</span>
+        <Select
+          className={s.scaleSelect}
+          title="Highlight the notes of a scale or raga"
+          value={scaleIdx}
+          options={SCALE_OPTIONS}
+          onChange={(v) => p.onScale(v < 0 ? undefined : { id: SCALES[v].id, root, lock: p.scale?.lock ?? true })}
+        />
+        {scaleDef && (
+          <>
+            <span className={s.fieldLabel}>{scaleDef.raga ? 'Sa' : 'Key'}</span>
+            <Select className={s.rootSelect} title="Tonic (Sa)" value={root} options={ROOT_OPTIONS}
+              onChange={(v) => p.onScale({ ...p.scale!, root: v })} />
+            <button
+              className={`${s.lockBtn} ${lockOn ? s.lockOn : ''}`}
+              onClick={() => p.onScale({ ...p.scale!, lock: !p.scale!.lock })}
+              title={lockOn ? 'Scale lock on: new notes snap into the scale' : 'Scale lock off: any note allowed'}
+            >
+              {lockOn ? <Lock size={11} /> : <LockOpen size={11} />}{lockOn ? 'Locked' : 'Free'}
+            </button>
+          </>
+        )}
+      </div>
       <div className={s.rollGridWrap} ref={scrollRef}>
         <div className={s.rollGrid} style={{ width: gridW, height: gridH, position: 'relative' }}>
-          {PITCHES.map((pitch, r) => (
-            <div key={pitch} className={s.rollRow} style={{ position: 'absolute', top: r * ROW_H, left: 0, right: 0, height: ROW_H }}>
-              <div className={`${s.rollKey} ${isBlack(pitch) ? s.black : ''}`} onClick={() => onPreview(pitch)}>
-                {pitch}
+          {PITCHES.map((pitch, r) => {
+            const deg = degreeOf(pitch)
+            const rowCls = !scaleDef ? '' : deg < 0 ? s.outScale : deg === 0 ? s.rootRow : s.inScale
+            return (
+              <div key={pitch} className={`${s.rollRow} ${rowCls}`} style={{ position: 'absolute', top: r * ROW_H, left: 0, right: 0, height: ROW_H }}>
+                <div className={`${s.rollKey} ${isBlack(pitch) ? s.black : ''}`} onClick={() => onPreview(pitch)}>
+                  {pitch}
+                  {scaleDef?.raga && deg >= 0 && <span className={s.sargam}>{SARGAM[deg]}</span>}
+                </div>
+                {Array.from({ length: steps }).map((_, step) => (
+                  <div
+                    key={step}
+                    className={`${s.rollCell} ${isBlack(pitch) ? s.black : ''} ${step % 4 === 0 ? s.cellBeat : ''} ${p.currentStep === step ? s.playhead : ''}`}
+                  />
+                ))}
               </div>
-              {Array.from({ length: steps }).map((_, step) => (
-                <div
-                  key={step}
-                  className={`${s.rollCell} ${isBlack(pitch) ? s.black : ''} ${step % 4 === 0 ? s.cellBeat : ''} ${p.currentStep === step ? s.playhead : ''}`}
-                />
-              ))}
-            </div>
-          ))}
+            )
+          })}
 
           {renderNotes}
           {marquee && <div className={s.marquee} style={marquee} />}

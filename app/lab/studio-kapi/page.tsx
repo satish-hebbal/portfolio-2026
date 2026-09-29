@@ -1,11 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { PanelRightClose, PanelRightOpen, SlidersHorizontal, AudioWaveform, Wand2, Piano, Mic } from 'lucide-react'
+import { PanelRightClose, PanelRightOpen, SlidersHorizontal, AudioWaveform, Wand2, Piano, Mic, X, Keyboard } from 'lucide-react'
 import s from './studioKapi.module.css'
 import { getEngine } from './audio/engine'
-import { getPreset, defaultFxChain, defaultSynthFor } from './audio/presets'
-import type { ProjectState, Track, FxType, MixerState, SynthParams, Pattern, PatternData, Clip, DawMode, RollNote, LaneMeta } from './audio/types'
+import { makeTrack, seedProject, CLIP_COLORS, DEMOS } from './audio/demos'
+import type { ProjectState, Track, FxType, MixerState, SynthParams, Pattern, PatternData, Clip, DawMode, RollNote, LaneMeta, ScaleState } from './audio/types'
 import { downloadBlob, audioBufferToWav } from './audio/wav'
 import { packProject, unpackProject } from './audio/projectFile'
 import { denoiseBuffer } from './audio/denoise'
@@ -20,6 +20,7 @@ import Arranger from './components/Arranger'
 import MicRecorder, { Take } from './components/MicRecorder'
 import RotateGate from './components/RotateGate'
 import IntroSplash from './components/IntroSplash'
+import DemoCover from './components/DemoCover'
 
 type DockTab = 'mixer' | 'synth' | 'fx' | 'roll' | 'rec'
 type RichTake = Take & {
@@ -27,8 +28,6 @@ type RichTake = Take & {
   buffer?: AudioBuffer; origBuffer?: AudioBuffer
   origUrl?: string; origPeaks?: number[]; origBlob?: Blob
 }
-
-const CLIP_COLORS = ['#5b7cfa', '#e0518a', '#27b8a6', '#e9913a', '#9b6cf0', '#3aa6e9']
 
 function computePeaks(buffer: AudioBuffer, n = 600): number[] {
   const ch = buffer.getChannelData(0)
@@ -43,7 +42,6 @@ function computePeaks(buffer: AudioBuffer, n = 600): number[] {
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10)
-const defaultMixer = (): MixerState => ({ volume: 0.8, pan: 0, mute: false, solo: false })
 const defaultLaneMeta = (): LaneMeta => ({ name: '', mute: false, solo: false, volume: 0.9 })
 const emptyData = (): PatternData => ({ steps: [], notes: [] })
 
@@ -63,62 +61,7 @@ function uniqueCopyName(patterns: Pattern[], base: string): string {
   return name
 }
 
-function makeTrack(presetId: string, index: number): Track {
-  const isAudio = presetId === 'audio'
-  const preset = getPreset(presetId)
-  return {
-    id: uid(),
-    name: isAudio ? `Voice ${index}` : preset?.label ?? presetId,
-    kind: isAudio ? 'audio' : preset?.kind ?? 'instrument',
-    presetId,
-    color: isAudio ? '#8d9bb5' : preset?.color ?? '#888',
-    group: isAudio ? 'Audio' : preset?.group ?? null,
-    mixer: defaultMixer(),
-    fx: defaultFxChain(),
-    synth: isAudio ? defaultSynthFor('bass') : defaultSynthFor(presetId),
-  }
-}
-
-const note = (step: number, n: string, length = 1): { id: string; step: number; note: string; length: number; velocity: number } =>
-  ({ id: uid(), step, note: n, length, velocity: 0.9 })
-
-// The initial project must be identical on server and client (it's the useState
-// initializer, so it runs during SSR too). Random uids would mismatch on
-// hydration, so the seed uses fixed ids — runtime uid() is only for user actions.
-function seedProject(): ProjectState {
-  const kick = makeTrack('kick', 0); kick.id = 'seed-kick'
-  const snare = makeTrack('snare', 0); snare.id = 'seed-snare'
-  const hat = makeTrack('hat-closed', 0); hat.id = 'seed-hat'
-  const bass = makeTrack('bass', 0); bass.id = 'seed-bass'
-  const tomLow = makeTrack('tom-low', 0); tomLow.id = 'seed-tom-low'
-  const bassNotes = [
-    { id: 'seed-n0', step: 0, note: 'F2', length: 1, velocity: 0.9 },
-    { id: 'seed-n1', step: 3, note: 'F#2', length: 1, velocity: 0.9 },
-    { id: 'seed-n2', step: 6, note: 'A#2', length: 1, velocity: 0.9 },
-    { id: 'seed-n3', step: 8, note: 'C3', length: 1, velocity: 0.9 },
-    { id: 'seed-n4', step: 11, note: 'D#3', length: 1, velocity: 0.9 },
-    { id: 'seed-n5', step: 12, note: 'F3', length: 1, velocity: 0.9 },
-    { id: 'seed-n6', step: 13, note: 'G3', length: 1, velocity: 0.9 },
-    { id: 'seed-n7', step: 14, note: 'A#2', length: 1, velocity: 0.9 },
-    { id: 'seed-n8', step: 15, note: 'G#3', length: 1, velocity: 0.9 },
-  ]
-  const data: Record<string, PatternData> = {
-    [kick.id]: { steps: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false], notes: [] },
-    [snare.id]: { steps: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false], notes: [] },
-    [hat.id]: { steps: Array.from({ length: 16 }, (_, i) => i % 2 === 0), notes: [] },
-    [bass.id]: { steps: [], notes: bassNotes },
-    [tomLow.id]: { steps: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false], notes: [] },
-  }
-  const pattern: Pattern = { id: 'seed-pat-1', name: 'Pat 1', length: 16, data }
-  return {
-    bpm: 120, swing: 0, masterVolume: 0.85, metronome: false, mode: 'pattern',
-    tracks: [kick, snare, hat, bass, tomLow], patterns: [pattern], activePatternId: pattern.id,
-    selectedTrackId: bass.id,
-    arrangement: { lanes: 4, clips: [
-      { id: 'seed-clip-1', lane: 0, type: 'pattern', refId: pattern.id, start: 0, length: 32, offset: 0, name: 'Pat 1', color: CLIP_COLORS[0] },
-    ] },
-  }
-}
+const note = (step: number, n: string, length = 1): RollNote => ({ id: uid(), step, note: n, length, velocity: 0.9 })
 
 export default function StudioKapiPage() {
   const [project, setProject] = useState<ProjectState>(seedProject)
@@ -144,6 +87,9 @@ export default function StudioKapiPage() {
   // Launch splash — starts hidden (avoids an SSR/hydration flash) then shows on
   // every load.
   const [showIntro, setShowIntro] = useState(false)
+  const [showDemos, setShowDemos] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const dockDrag = useRef(false)
   const takeCount = useRef(0)
   const octaveRef = useRef(4)
@@ -613,6 +559,23 @@ export default function StudioKapiPage() {
   }, [engine])
 
   const toggleMetro = useCallback(() => setProject((pr) => ({ ...pr, metronome: !pr.metronome })), [])
+  const setScale = useCallback((scale: ScaleState | undefined) => setProject((pr) => ({ ...pr, scale })), [])
+
+  // ─── demo songs (loading one is a normal, undoable edit) ─────────────────────
+  const loadDemo = useCallback((id: string) => {
+    const demo = DEMOS.find((d) => d.id === id)
+    if (!demo) return
+    engine.stop(); setIsPlaying(false); setCurrentStep(-1); setPlayhead(0)
+    const next = demo.build()
+    setProject(next)
+    savedProjectRef.current = next; dirtyRef.current = false
+    setShowDemos(false); setDock('roll')
+    setTimeout(() => engine.rebuildAllFx(next), 0)
+    // no confirm dialog: loading is undoable, so offer Undo in a toast instead
+    clearTimeout(toastTimer.current)
+    setToast(demo.name)
+    toastTimer.current = setTimeout(() => setToast(null), 6000)
+  }, [engine])
 
   // resizable dock divider
   const onDividerDown = useCallback((e: React.PointerEvent) => {
@@ -674,6 +637,7 @@ export default function StudioKapiPage() {
         onSteps={setSteps} onSwing={(v) => setProject((pr) => ({ ...pr, swing: v }))}
         onToggleMetro={toggleMetro} onExport={exportWav}
         onSave={saveProject} onOpen={() => projectFileRef.current?.click()} busyProject={busyProject} dirty={dirty}
+        onDemos={() => setShowDemos(true)}
       />
       <input ref={projectFileRef} type="file" accept=".kapi,application/octet-stream" style={{ display: 'none' }}
         onChange={(e) => { const f = e.target.files?.[0]; if (f) openProjectFile(f); e.target.value = '' }} />
@@ -726,13 +690,20 @@ export default function StudioKapiPage() {
           <div className={s.panelHead}>
             <div className={s.tabs}>
               {dockTabs.map((tab) => (
-                <button key={tab.id} className={`${s.tab} ${dock === tab.id ? s.active : ''}`} onClick={() => setDock(tab.id)}>
-                  {tab.icon}{tab.label}
+                <button key={tab.id} className={`${s.tab} ${dock === tab.id ? s.active : ''}`} onClick={() => setDock(tab.id)} aria-label={tab.label} title={tab.label}>
+                  {tab.icon}<span className={s.tabLabel}>{tab.label}</span>
                 </button>
               ))}
             </div>
             <div className={s.panelHeadRight}>
-              <span className={s.panelHint}>oct {octave} · z/x</span>
+              {dock === 'roll' && (
+                <span className={s.octChip} title="Play notes from your computer keyboard (A to K). Z / X change octave.">
+                  <Keyboard size={12} />
+                  <button onClick={() => setOctave((o) => Math.max(1, o - 1))} aria-label="Octave down">−</button>
+                  <b>Oct {octave}</b>
+                  <button onClick={() => setOctave((o) => Math.min(7, o + 1))} aria-label="Octave up">+</button>
+                </span>
+              )}
               <button className={s.dockCollapse} onClick={() => setDockOpen(false)} title="Collapse panels"><PanelRightClose size={15} /></button>
             </div>
           </div>
@@ -740,16 +711,19 @@ export default function StudioKapiPage() {
             {dock === 'mixer' && (
               <Mixer
                 tracks={project.tracks} selectedTrackId={project.selectedTrackId}
-                masterVolume={project.masterVolume} level={level}
+                masterVolume={project.masterVolume}
+                getTrackLevel={(id) => engine.getTrackLevel(id)}
+                getMasterLevel={() => Math.max(0, Math.min(1, (engine.getLevel() + 60) / 60))}
                 onSelect={selectTrack} onVolume={(id, v) => setMixerField(id, 'volume', v)} onPan={(id, v) => setMixerField(id, 'pan', v)}
                 onMute={toggleMute} onSolo={toggleSolo} onMaster={(v) => setProject((pr) => ({ ...pr, masterVolume: v }))}
               />
             )}
-            {dock === 'synth' && <SynthEditor track={selected} onChange={changeSynth} />}
-            {dock === 'fx' && <FXRack track={selected} onToggle={toggleFx} onChange={changeFx} />}
+            {dock === 'synth' && <SynthEditor track={selected} onChange={changeSynth} onPreview={() => selected && preview(selected)} />}
+            {dock === 'fx' && <FXRack track={selected} onToggle={toggleFx} onChange={changeFx} onPreview={() => selected && preview(selected)} />}
             {dock === 'roll' && (
               <PianoRoll track={selected} notes={selected ? activeData[selected.id]?.notes ?? [] : []}
-                steps={activePattern?.length ?? 16} currentStep={currentStep} onChange={setNotes} onPreview={previewNote} />
+                steps={activePattern?.length ?? 16} currentStep={currentStep} onChange={setNotes} onPreview={previewNote}
+                scale={project.scale} onScale={setScale} />
             )}
             {dock === 'rec' && (
               <MicRecorder isRecording={isRecording} permissionError={permissionError} takes={takes}
@@ -763,6 +737,35 @@ export default function StudioKapiPage() {
 
       <RotateGate />
       {showIntro && <IntroSplash onClose={dismissIntro} />}
+      {toast && (
+        <div className={s.toast} role="status">
+          Loaded {toast}
+          <button onClick={() => { undo(); setToast(null) }}>Undo</button>
+        </div>
+      )}
+      {showDemos && (
+        <div className={s.pickerOverlay} onClick={() => setShowDemos(false)}>
+          <div className={s.picker} onClick={(e) => e.stopPropagation()}>
+            <div className={s.pickerHead}>
+              <span className={s.panelTitle}>Demo songs</span>
+              <button className={s.miniBtn} onClick={() => setShowDemos(false)} title="Close"><X size={13} /></button>
+            </div>
+            <p className={s.demoIntro}>Load a song, press play, then change anything: swap instruments, move notes, mute parts. Every note is yours to break.</p>
+            <div className={s.demoList}>
+              {DEMOS.map((d) => (
+                <button key={d.id} className={s.demoCard} onClick={() => loadDemo(d.id)}>
+                  <DemoCover cover={d.cover} />
+                  <span className={s.demoText}>
+                    <span className={s.demoName}>{d.name}</span>
+                    <span className={s.demoTags}>{d.cover.tags.map((t) => <span key={t} className={s.demoTag}>{t}</span>)}</span>
+                    <small className={s.chipHint}>{d.blurb}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

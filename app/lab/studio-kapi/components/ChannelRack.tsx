@@ -1,34 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import {
-  Plus, Trash2, Piano, SlidersHorizontal, X, Volume2, VolumeX, Headphones,
-  Drum, Disc3, Bell, Waves, Zap, Sparkles, Music, Layers, Wind, AudioWaveform, Hand, Mic,
-  type LucideIcon,
-} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Plus, Trash2, Piano, SlidersHorizontal, X, Volume2, VolumeX, Headphones, ChevronLeft, ChevronRight } from 'lucide-react'
 import s from '../studioKapi.module.css'
-import type { Track, PatternData, PresetDef } from '../audio/types'
-import { PRESETS } from '../audio/presets'
+import type { Track, PatternData } from '../audio/types'
+import { PRESETS, PRESET_GROUPS, REAL_GROUPS, SAMPLE_CREDITS } from '../audio/presets'
 import Menu from './Menu'
-
-// icon per instrument (falls back to a per-group icon, then a generic note)
-const PRESET_ICON: Record<string, LucideIcon> = {
-  'hat-closed': Disc3, 'hat-open': Disc3, ride: Disc3, crash: Disc3, disco: Disc3,
-  clap: Hand, cowbell: Bell, bell: Bell, digibell: Bell,
-  bass: Waves, sub: Waves, reese: Waves, acid: Waves, funkbass: Waves,
-  supersaw: AudioWaveform, lead: Zap, stab: Zap, pad: Layers, hoover: Wind,
-  pluck: Music, arp: Sparkles, prophet: Sparkles,
-}
-const GROUP_ICON: Record<string, LucideIcon> = {
-  Drums: Drum, '808 & Perc': Drum, Bass: Waves, Synth: Zap, Electronic: Sparkles, Keys: Piano,
-}
-function pickIcon(id: string, group?: string | null): LucideIcon {
-  return PRESET_ICON[id] ?? GROUP_ICON[group ?? ''] ?? Music
-}
-function IconFor({ preset }: { preset: PresetDef }) {
-  const Icon = pickIcon(preset.id, preset.group)
-  return <Icon size={15} />
-}
+import { InstrumentIcon } from './InstrumentIcons'
 
 interface Props {
   tracks: Track[]
@@ -47,27 +25,70 @@ interface Props {
   onPreview: (track: Track) => void
 }
 
-const GROUPS = ['Drums', '808 & Perc', 'Bass', 'Synth', 'Electronic', 'Keys'] as const
-
 function stepIsOn(track: Track, d: PatternData | undefined, i: number) {
   if (!d) return false
   return track.kind === 'drum' ? !!d.steps[i] : d.notes.some((n) => n.step === i)
 }
 
+// narrowest a pad may get before the rack switches to one bar (16 steps) at a time
+const MIN_PAD = 15
+const BAR = 16
+
 export default function ChannelRack(p: Props) {
   const [picking, setPicking] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [stepsW, setStepsW] = useState(0)
+  const [page, setPage] = useState(0)
+
+  // measure the pad lane (all rows share one width) to decide fit vs. paging
+  useEffect(() => {
+    const wrap = scrollRef.current
+    if (!wrap) return
+    const measure = () => {
+      const lane = wrap.querySelector<HTMLElement>('[data-steps]')
+      if (lane) setStepsW(lane.clientWidth)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(wrap)
+    return () => ro.disconnect()
+  }, [p.tracks.length])
+
+  const paged = p.steps > BAR && stepsW > 0 && stepsW / p.steps < MIN_PAD
+  const pages = paged ? Math.ceil(p.steps / BAR) : 1
+  const curPage = Math.min(page, pages - 1)
+  // follow the playhead across bars while playing
+  useEffect(() => {
+    if (paged && p.currentStep >= 0) setPage(Math.floor(p.currentStep / BAR))
+  }, [paged, p.currentStep])
+  const first = paged ? curPage * BAR : 0
+  const count = paged ? Math.min(BAR, p.steps - first) : p.steps
+  const dense = !paged && p.steps > BAR
 
   return (
     <div className={s.rack}>
       <div className={s.panelHead}>
         <span className={s.panelTitle}>Channel Rack</span>
+        {paged && (
+          <div className={s.barPager}>
+            <button className={s.barArrow} disabled={curPage === 0} onClick={() => setPage(curPage - 1)} title="Previous bar"><ChevronLeft size={13} /></button>
+            {Array.from({ length: pages }).map((_, i) => {
+              const live = p.currentStep >= 0 && Math.floor(p.currentStep / BAR) === i
+              return (
+                <button key={i} className={`${s.barTab} ${i === curPage ? s.barTabActive : ''}`} onClick={() => setPage(i)}>
+                  Bar {i + 1}{live && <span className={s.barLive} />}
+                </button>
+              )
+            })}
+            <button className={s.barArrow} disabled={curPage === pages - 1} onClick={() => setPage(curPage + 1)} title="Next bar"><ChevronRight size={13} /></button>
+          </div>
+        )}
         <span className={s.panelHint}>{p.tracks.length} channels</span>
       </div>
 
-      <div className={s.rackScroll}>
+      <div className={s.rackScroll} ref={scrollRef}>
         {p.tracks.map((track) => {
           const d = p.data[track.id]
-          const RowIcon = track.kind === 'audio' ? Mic : pickIcon(track.presetId, track.group)
           const selectPreview = () => { p.onSelect(track.id); p.onPreview(track) }
           return (
             <div key={track.id} className={`${s.trackRow} ${p.selectedTrackId === track.id ? s.selected : ''}`}>
@@ -76,7 +97,7 @@ export default function ChannelRack(p: Props) {
                 style={{ color: track.color, background: `${track.color}1f`, boxShadow: `inset 0 0 0 1px ${track.color}44` }}
                 onClick={selectPreview}
               >
-                <RowIcon size={14} />
+                <InstrumentIcon presetId={track.kind === 'audio' ? 'audio' : track.presetId} group={track.group} size={17} />
               </span>
               <div className={s.trackInfo} onClick={selectPreview}>
                 <span className={s.trackName}>{track.name}</span>
@@ -110,15 +131,18 @@ export default function ChannelRack(p: Props) {
                   Loops with the pattern
                 </div>
               ) : (
-                <div className={s.steps}>
-                  {Array.from({ length: p.steps }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={`${s.step} ${i % 4 === 0 ? s.stepBeat : ''} ${stepIsOn(track, d, i) ? s.on : ''} ${p.currentStep === i ? s.playhead : ''}`}
-                      style={{ ['--trackColor' as string]: track.color }}
-                      onClick={() => p.onToggleStep(track.id, i)}
-                    />
-                  ))}
+                <div className={`${s.steps} ${dense ? s.stepsDense : ''}`} data-steps>
+                  {Array.from({ length: count }).map((_, k) => {
+                    const i = first + k
+                    return (
+                      <div
+                        key={i}
+                        className={`${s.step} ${i % 4 === 0 ? s.stepBeat : ''} ${i % BAR === 0 && k > 0 ? s.stepBar : ''} ${stepIsOn(track, d, i) ? s.on : ''} ${p.currentStep === i ? s.playhead : ''}`}
+                        style={{ ['--trackColor' as string]: track.color }}
+                        onClick={() => p.onToggleStep(track.id, i)}
+                      />
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -137,21 +161,36 @@ export default function ChannelRack(p: Props) {
               <span className={s.panelTitle}>Choose an instrument</span>
               <button className={s.miniBtn} onClick={() => setPicking(false)}><X size={13} /></button>
             </div>
-            {GROUPS.map((g) => (
+            {PRESET_GROUPS.map((g) => (
               <div key={g} className={s.pickerGroup}>
-                <div className={s.pickerGroupLabel}>{g}</div>
+                <div className={s.pickerGroupLabel}>
+                  {g}{REAL_GROUPS.has(g) && <span className={s.realTag}>real recordings</span>}
+                </div>
                 <div className={s.pickerGrid}>
                   {PRESETS.filter((pr) => pr.group === g).map((pr) => (
-                    <button key={pr.id} className={s.presetChip} onClick={() => { p.onAdd(pr.id); setPicking(false) }}>
+                    <button key={pr.id} className={s.presetChip} title={pr.hint} onClick={() => { p.onAdd(pr.id); setPicking(false) }}>
                       <span className={s.presetIcon} style={{ color: pr.color, background: `${pr.color}1f`, boxShadow: `inset 0 0 0 1px ${pr.color}44` }}>
-                        <IconFor preset={pr} />
+                        <InstrumentIcon presetId={pr.id} group={pr.group} size={26} />
                       </span>
-                      {pr.label}
+                      <span className={s.chipText}>
+                        {pr.label}
+                        {pr.hint && <small className={s.chipHint}>{pr.hint}</small>}
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
             ))}
+            <details className={s.credits}>
+              <summary>Sample credits</summary>
+              <ul>
+                {SAMPLE_CREDITS.map((c) => (
+                  <li key={c.what}>
+                    {c.what}: <a href={c.url} target="_blank" rel="noreferrer">{c.who}</a> ({c.license})
+                  </li>
+                ))}
+              </ul>
+            </details>
           </div>
         </div>
       )}

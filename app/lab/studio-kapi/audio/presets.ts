@@ -1,5 +1,5 @@
 // Studio-Kapi — instrument & FX preset catalog
-import type { PresetDef, FxState, FxType, SynthParams } from './types'
+import type { PresetDef, PresetGroup, FxState, FxType, SynthParams } from './types'
 
 export const SAMPLE_BASE = '/lab/studio-kapi/samples'
 
@@ -19,6 +19,11 @@ export const DRUM_SAMPLES: Record<string, string> = {
   cowbell: `${SAMPLE_BASE}/cowbell.wav`,
   shaker: `${SAMPLE_BASE}/shaker.wav`,
   conga: `${SAMPLE_BASE}/conga.wav`,
+  // real recorded percussion (see samples/fetch-real.mjs + SAMPLE_CREDITS)
+  ...Object.fromEntries([
+    'tabla-dha', 'tabla-dhin', 'tabla-na', 'tabla-tin', 'tabla-tun', 'tabla-ge', 'tabla-ke', 'tabla-te',
+    'dholak-bass', 'dholak-treble', 'mridangam-thom', 'mridangam-nam', 'mridangam-dheem', 'morsing',
+  ].map((id) => [id, `${SAMPLE_BASE}/real/perc/${id}.wav`])),
 }
 
 // Piano sampler note->file map (Tone.Sampler interpolates the gaps)
@@ -28,6 +33,39 @@ export const PIANO_SAMPLES: Record<string, string> = {
   C4: `${SAMPLE_BASE}/piano-C4.wav`,
   C5: `${SAMPLE_BASE}/piano-C5.wav`,
   C6: `${SAMPLE_BASE}/piano-C6.wav`,
+}
+
+// Real recorded melodic instruments -> Tone.Sampler (it repitches between the
+// sampled notes). attack/release are the defaults the envelope knobs start at.
+export interface SampledSpec { dir: string; notes: string[]; attack: number; release: number }
+const sampled = (dir: string, notes: string, attack = 0.005, release = 0.6): SampledSpec =>
+  ({ dir, notes: notes.split(' '), attack, release })
+
+export const SAMPLED: Record<string, SampledSpec> = {
+  sitar: sampled('sitar', 'C#3 E3', 0.002, 1.2),
+  santoor: sampled('santoor', 'C4 D#4 F4 G4', 0.002, 1.4),
+  sarangi: sampled('sarangi', 'C4 G#4', 0.12, 0.6),
+  bansuri: sampled('bansuri', 'E4 E5', 0.08, 0.5),
+  tanpura: sampled('tanpura', 'A#2 E3', 0.2, 2.5),
+  harmonium: sampled('harmonium', 'C2 E2 G#2 C3 E3 G#3 C4 E4 G#4 C5', 0.04, 0.3),
+  violin: sampled('violin', 'G3 C4 E4 A4 C5 E5 A5 C6', 0.06, 0.5),
+  cello: sampled('cello', 'C2 E2 A2 C3 E3 A3 C4 E4', 0.06, 0.6),
+  flute: sampled('flute', 'C4 E4 A4 C5 E5 A5 C6', 0.05, 0.4),
+  'guitar-acoustic': sampled('guitar-acoustic', 'E2 A2 D3 G3 B3 E4 A4', 0.002, 1.0),
+  'guitar-nylon': sampled('guitar-nylon', 'E2 A2 D3 G3 B3 E4 A4 E5', 0.002, 1.0),
+  'guitar-electric': sampled('guitar-electric', 'E2 A2 C3 D#3 F#3 A3 C4 D#4 F#4 A4 C5', 0.002, 0.7),
+  'bass-electric': sampled('bass-electric', 'E1 G1 A#1 C#2 E2 G2 A#2 C#3 E3 G3', 0.002, 0.25),
+  harp: sampled('harp', 'D2 F2 A2 C3 E3 G3 B3 D4 F4 A4 C5 E5', 0.002, 1.5),
+  sax: sampled('sax', 'C#3 E3 G3 A#3 C#4 E4 G4 A#4 C#5 E5', 0.03, 0.3),
+  trumpet: sampled('trumpet', 'F3 A3 C4 D#4 F4 G4 A#4 D5 F5', 0.02, 0.3),
+  xylophone: sampled('xylophone', 'G4 C5 G5 C6 G6 C7', 0.001, 1.0),
+}
+
+// note -> url map for a sampled instrument (file names use 's' for sharps)
+export function sampledUrls(id: string): Record<string, string> {
+  const spec = SAMPLED[id]
+  if (!spec) return {}
+  return Object.fromEntries(spec.notes.map((n) => [n, `${SAMPLE_BASE}/real/${spec.dir}/${n.replace('#', 's')}.mp3`]))
 }
 
 // Synth voice configs consumed by the engine factory
@@ -95,6 +133,42 @@ export const SYNTH_DEFAULT_OVERRIDES: Record<string, Partial<SynthParams>> = {
 }
 
 export const PRESETS: PresetDef[] = [
+  // Indian classical: melodic (real recordings)
+  { id: 'sitar', label: 'Sitar', kind: 'instrument', color: '#f0a33a', group: 'Indian', hint: 'Plucked, buzzy strings with a ringing halo' },
+  { id: 'santoor', label: 'Santoor', kind: 'instrument', color: '#f6c85f', group: 'Indian', hint: 'Hammered strings, sparkly like rain' },
+  { id: 'sarangi', label: 'Sarangi', kind: 'instrument', color: '#e2725b', group: 'Indian', hint: 'Bowed and singing, very close to a voice' },
+  { id: 'bansuri', label: 'Bansuri', kind: 'instrument', color: '#8bc34a', group: 'Indian', hint: 'Breathy bamboo flute' },
+  { id: 'harmonium', label: 'Harmonium', kind: 'instrument', color: '#d4a373', group: 'Indian', hint: 'Reed organ, great for chords and bhajans' },
+  { id: 'tanpura', label: 'Tanpura', kind: 'instrument', color: '#c9a86a', group: 'Indian', hint: 'Drone. Hold one long note on Sa' },
+  // Tabla bols (one channel per stroke)
+  { id: 'tabla-dha', label: 'Tabla Dha', kind: 'drum', color: '#e8833a', group: 'Tabla', hint: 'Both drums together, the big accent' },
+  { id: 'tabla-dhin', label: 'Tabla Dhin', kind: 'drum', color: '#ef9a52', group: 'Tabla', hint: 'Both drums, ringing' },
+  { id: 'tabla-na', label: 'Tabla Na', kind: 'drum', color: '#f4b860', group: 'Tabla', hint: 'Sharp ring on the small drum' },
+  { id: 'tabla-tin', label: 'Tabla Tin', kind: 'drum', color: '#f7cd78', group: 'Tabla', hint: 'Soft ring on the small drum' },
+  { id: 'tabla-tun', label: 'Tabla Tun', kind: 'drum', color: '#e6b450', group: 'Tabla', hint: 'Open, sustained small-drum tone' },
+  { id: 'tabla-ge', label: 'Tabla Ge', kind: 'drum', color: '#c7652e', group: 'Tabla', hint: 'Deep bass from the big drum' },
+  { id: 'tabla-ke', label: 'Tabla Ke', kind: 'drum', color: '#a8582f', group: 'Tabla', hint: 'Flat slap on the big drum' },
+  { id: 'tabla-te', label: 'Tabla Te', kind: 'drum', color: '#d99a6c', group: 'Tabla', hint: 'Quick dry tap, for fast rolls' },
+  // Other Indian percussion
+  { id: 'dholak-bass', label: 'Dholak Bass', kind: 'drum', color: '#d9534f', group: 'Indian Perc', hint: 'Folk and wedding groove, low side' },
+  { id: 'dholak-treble', label: 'Dholak Treble', kind: 'drum', color: '#e57373', group: 'Indian Perc', hint: 'Folk and wedding groove, high side' },
+  { id: 'mridangam-thom', label: 'Mridangam Thom', kind: 'drum', color: '#b5651d', group: 'Indian Perc', hint: 'Carnatic drum, bass stroke' },
+  { id: 'mridangam-nam', label: 'Mridangam Nam', kind: 'drum', color: '#d2883a', group: 'Indian Perc', hint: 'Carnatic drum, sharp ringing stroke' },
+  { id: 'mridangam-dheem', label: 'Mridangam Dheem', kind: 'drum', color: '#c47a35', group: 'Indian Perc', hint: 'Carnatic drum, both heads' },
+  { id: 'morsing', label: 'Morsing', kind: 'drum', color: '#9e9d24', group: 'Indian Perc', hint: 'Jaw harp twang from Carnatic music' },
+  // Band (real recordings)
+  { id: 'guitar-acoustic', label: 'Acoustic Guitar', kind: 'instrument', color: '#c49a6c', group: 'Band' },
+  { id: 'guitar-nylon', label: 'Nylon Guitar', kind: 'instrument', color: '#d7b48a', group: 'Band' },
+  { id: 'guitar-electric', label: 'Electric Guitar', kind: 'instrument', color: '#e05d5d', group: 'Band' },
+  { id: 'bass-electric', label: 'Bass Guitar', kind: 'instrument', color: '#6d5bd0', group: 'Band' },
+  { id: 'sax', label: 'Saxophone', kind: 'instrument', color: '#e0b04a', group: 'Band' },
+  { id: 'trumpet', label: 'Trumpet', kind: 'instrument', color: '#f2c14e', group: 'Band' },
+  // Orchestra (real recordings)
+  { id: 'violin', label: 'Violin', kind: 'instrument', color: '#b5734a', group: 'Orchestra' },
+  { id: 'cello', label: 'Cello', kind: 'instrument', color: '#8d5a3b', group: 'Orchestra' },
+  { id: 'flute', label: 'Flute', kind: 'instrument', color: '#9ad0c2', group: 'Orchestra' },
+  { id: 'harp', label: 'Harp', kind: 'instrument', color: '#d8c38a', group: 'Orchestra' },
+  { id: 'xylophone', label: 'Xylophone', kind: 'instrument', color: '#f08bb0', group: 'Orchestra' },
   // Drums
   { id: 'kick', label: 'Kick', kind: 'drum', color: '#ef5350', group: 'Drums' },
   { id: 'snare', label: 'Snare', kind: 'drum', color: '#4db6e8', group: 'Drums' },
@@ -141,11 +215,60 @@ export const PRESETS: PresetDef[] = [
 
 export const getPreset = (id: string) => PRESETS.find((p) => p.id === id)
 
+// picker order: real instruments first, then the synth/electronic kit
+export const PRESET_GROUPS: PresetGroup[] = [
+  'Indian', 'Tabla', 'Indian Perc', 'Band', 'Orchestra',
+  'Drums', '808 & Perc', 'Bass', 'Synth', 'Electronic', 'Keys',
+]
+export const REAL_GROUPS = new Set<PresetGroup>(['Indian', 'Tabla', 'Indian Perc', 'Band', 'Orchestra'])
+
+// Attribution for the recorded samples (CC BY requires it; CC0 credited as thanks)
+export const SAMPLE_CREDITS: { what: string; who: string; license: string; url: string }[] = [
+  { what: 'Tabla bols', who: 'ajaysm', license: 'CC BY 4.0', url: 'https://freesound.org/people/ajaysm/packs/10737/' },
+  { what: 'Bansuri', who: 'sankalp', license: 'CC BY 4.0', url: 'https://freesound.org/people/sankalp/sounds/179695/' },
+  { what: 'Harmonium, violin, cello, flute, guitars, bass, harp, sax, trumpet, xylophone', who: 'Nicholaus Brosowsky (tonejs-instruments)', license: 'CC BY 3.0', url: 'https://github.com/nbrosowsky/tonejs-instruments' },
+  { what: 'Mridangam and morsing', who: 'ajaysm', license: 'CC0', url: 'https://freesound.org/people/ajaysm/sounds/194579/' },
+  { what: 'Sitar', who: 'zgump', license: 'CC0', url: 'https://freesound.org/people/zgump/sounds/87435/' },
+  { what: 'Santoor', who: 'nsmusic', license: 'CC0', url: 'https://freesound.org/s/258090/' },
+  { what: 'Sarangi', who: 'Freesound (deleted user)', license: 'CC0', url: 'https://freesound.org/s/167023/' },
+  { what: 'Tanpura', who: 'luckylittleraven, iluppai', license: 'CC0', url: 'https://freesound.org/s/416606/' },
+  { what: 'Dholak', who: 'curesforbrokenhearts', license: 'CC0', url: 'https://freesound.org/people/curesforbrokenhearts/sounds/536872/' },
+]
+
+// ─── scales & ragas (piano-roll helper) ──────────────────────────────────────
+// Ragas are simplified to their note sets (aaroh/avaroh differences ignored).
+export const SCALES: { id: string; label: string; steps: number[]; raga?: boolean }[] = [
+  { id: 'major', label: 'Major (bright)', steps: [0, 2, 4, 5, 7, 9, 11] },
+  { id: 'minor', label: 'Minor (moody)', steps: [0, 2, 3, 5, 7, 8, 10] },
+  { id: 'penta', label: 'Pentatonic (never wrong)', steps: [0, 2, 4, 7, 9] },
+  { id: 'minpenta', label: 'Minor pentatonic', steps: [0, 3, 5, 7, 10] },
+  { id: 'blues', label: 'Blues', steps: [0, 3, 5, 6, 7, 10] },
+  { id: 'dorian', label: 'Dorian (dreamy)', steps: [0, 2, 3, 5, 7, 9, 10] },
+  { id: 'yaman', label: 'Raga Yaman (evening)', steps: [0, 2, 4, 6, 7, 9, 11], raga: true },
+  { id: 'bhupali', label: 'Raga Bhupali / Mohanam', steps: [0, 2, 4, 7, 9], raga: true },
+  { id: 'bhairav', label: 'Raga Bhairav (dawn)', steps: [0, 1, 4, 5, 7, 8, 11], raga: true },
+  { id: 'kafi', label: 'Raga Kafi (folk, Holi)', steps: [0, 2, 3, 5, 7, 9, 10], raga: true },
+  { id: 'hamsadhwani', label: 'Raga Hamsadhwani', steps: [0, 2, 4, 7, 11], raga: true },
+  { id: 'bhairavi', label: 'Raga Bhairavi', steps: [0, 1, 3, 5, 7, 8, 10], raga: true },
+  { id: 'malkauns', label: 'Raga Malkauns (night)', steps: [0, 3, 5, 8, 10], raga: true },
+]
+// sargam syllable for each semitone above Sa (lowercase = komal, 'Ma' = tivra)
+export const SARGAM = ['Sa', 're', 'Re', 'ga', 'Ga', 'ma', 'Ma', 'Pa', 'dha', 'Dha', 'ni', 'Ni']
+
 export function defaultSynthFor(presetId: string): SynthParams {
   const spec = SYNTH_SPECS[presetId]
   const base: SynthParams = { ...DEFAULT_SYNTH, wave: spec?.defaultWave ?? 'sawtooth' }
+  const smp = SAMPLED[presetId]
+  // sampled instruments: open filter, envelope knobs start at the instrument's natural attack/release
+  if (smp) return { ...base, cutoff: 1, reso: 0, attack: attackToKnob(smp.attack), release: releaseToKnob(smp.release) }
   return { ...base, ...(SYNTH_DEFAULT_OVERRIDES[presetId] ?? {}) }
 }
+
+// knob <-> seconds mapping shared with the engine (attack = 0.001 + k²·2, release = 0.01 + k²·3)
+export const knobToAttack = (k: number) => 0.001 + k * k * 2
+export const knobToRelease = (k: number) => 0.01 + k * k * 3
+const attackToKnob = (sec: number) => Math.sqrt(Math.max(0, sec - 0.001) / 2)
+const releaseToKnob = (sec: number) => Math.sqrt(Math.max(0, sec - 0.01) / 3)
 
 // ─── FX metadata ───────────────────────────────────────────────────────────
 export const FX_ORDER: FxType[] = ['eq', 'filter', 'distortion', 'bitcrush', 'chorus', 'phaser', 'delay', 'reverb', 'compressor']

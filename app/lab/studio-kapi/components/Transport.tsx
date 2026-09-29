@@ -1,6 +1,6 @@
 'use client'
 
-import { Play, Square, Circle, Download, Loader2, Bell, BellOff, Undo2, Redo2, ArrowLeft, Save, FolderOpen } from 'lucide-react'
+import { Play, Square, Circle, Download, Loader2, Bell, BellOff, Undo2, Redo2, ArrowLeft, Save, FolderOpen, ListMusic } from 'lucide-react'
 import s from '../studioKapi.module.css'
 import Knob from './Knob'
 import Select from './Select'
@@ -31,6 +31,7 @@ interface Props {
   onOpen: () => void
   busyProject: boolean
   dirty: boolean
+  onDemos: () => void
 }
 
 export default function Transport(p: Props) {
@@ -93,6 +94,10 @@ export default function Transport(p: Props) {
         <span className={s.fieldLabel}>Master</span>
         <div className={s.meterBar}><div className={s.meterFill} style={{ width: `${Math.round(p.level * 100)}%` }} /></div>
       </div>
+
+      <button className={s.demoBtn} onClick={p.onDemos} title="Load a ready-made song to remix">
+        <ListMusic size={15} /> <span className={s.deskOnly}>Demo songs</span>
+      </button>
 
       <div className={s.projectBtns}>
         {p.dirty && <span className={s.unsavedTag} title="You have unsaved changes">Unsaved changes · save to keep them</span>}
