@@ -50,18 +50,46 @@ export default function Lab() {
           animation-play-state: running;
         }
 
-        @keyframes pulse-dot {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50%      { opacity: 0.3; transform: scale(0.75); }
-        }
-        .wip-dot {
+        .discontinued-dot {
           width: 5px;
           height: 5px;
           border-radius: 50%;
-          background: #f59e0b;
+          background: #a8a29e;
           display: block;
           flex-shrink: 0;
-          animation: pulse-dot 1.9s ease-in-out infinite;
+        }
+
+        /* Datagini: pixel dot grid in the brand green, fading in from the top-right */
+        .datagini-grid {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background-image: radial-gradient(rgba(22,163,74,0.28) 1px, transparent 1.2px);
+          background-size: 7px 7px;
+          -webkit-mask-image: radial-gradient(120% 90% at 100% 0%, #000 0%, transparent 62%);
+          mask-image: radial-gradient(120% 90% at 100% 0%, #000 0%, transparent 62%);
+        }
+        .datagini-thumb-wrap {
+          position: absolute;
+          bottom: -6px;
+          right: 72px;
+          width: 112px;
+          pointer-events: none;
+        }
+        .datagini-thumb-wrap img {
+          display: block;
+          width: 100%;
+          image-rendering: pixelated;
+        }
+        /* two-frame blink: closed-eye frame flashes briefly each loop */
+        @keyframes gini-blink {
+          0%, 92%, 100% { opacity: 0; }
+          94%, 97%      { opacity: 1; }
+        }
+        .datagini-blink {
+          position: absolute;
+          inset: 0;
+          animation: gini-blink 3.6s steps(1, end) infinite;
         }
 
         /* Thumbnail positioning — CSS classes so media queries can override */
@@ -152,114 +180,16 @@ export default function Lab() {
             bottom: -20px;
             width: 240px;
           }
+          .datagini-thumb-wrap {
+            right: 68px;
+            width: 96px;
+          }
         }
       `}</style>
 
       <LabHeader />
 
-      <SectionLabel>Just to keep my pen sharp</SectionLabel>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {/* Color Memo */}
-        <Link href="/lab/color" className="color-wheel-card" style={{ textDecoration: 'none', display: 'block' }}>
-          <CardContainer containerClassName="w-full p-0" className="w-full">
-            <CardBody className="w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
-              style={{ background: 'linear-gradient(135deg, #fff8ee 0%, #ffffff 60%)', borderRadius: 0 }}>
-              <CardItem translateZ={50} className="block"
-                style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
-                Color Memo
-              </CardItem>
-              <CardItem translateZ={60} as="p" className="block mt-3"
-                style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5 }}>
-                A game that tests how sharp<br />your color memory really is
-              </CardItem>
-              <CardItem translateZ={100} className="absolute" style={{ bottom: -45, right: -45 }}>
-                <img src="/images/HomeImages/color-wheel.webp" alt=""
-                  className="color-wheel-spin"
-                  style={{ width: 160, height: 160, objectFit: 'contain', pointerEvents: 'none', opacity: 0.92 }} />
-              </CardItem>
-              <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
-                <ArrowBtn />
-              </CardItem>
-            </CardBody>
-          </CardContainer>
-        </Link>
-
-        {/* QR Device */}
-        <Link href="/lab/qr-device" style={{ textDecoration: 'none', display: 'block' }}>
-          <CardContainer containerClassName="w-full p-0" className="w-full">
-            <CardBody className="qr-card-body w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
-              style={{ background: 'linear-gradient(135deg, #f3f3f3 0%, #ffffff 60%)', borderRadius: 0 }}>
-              <CardItem translateZ={50} className="block"
-                style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#1a1a1a' }}>
-                QR Device
-              </CardItem>
-              <CardItem translateZ={60} as="p" className="qr-card-desc block mt-3"
-                style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5 }}>
-                A hardware-style QR generator with gradients, textures &amp; sound
-              </CardItem>
-              <CardItem translateZ={110} className="qr-thumb-wrap">
-                <img src="/images/lab/qr-device-thumnail.png" alt=""
-                  style={{ width: '100%', opacity: 0.92, transform: 'rotate(4deg)' }} />
-              </CardItem>
-              <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
-                <ArrowBtn />
-              </CardItem>
-            </CardBody>
-          </CardContainer>
-        </Link>
-
-        {/* Speedoo */}
-        <Link href="/lab/speedo" style={{ textDecoration: 'none', display: 'block' }}>
-          <CardContainer containerClassName="w-full p-0" className="w-full">
-            <CardBody className="w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
-              style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #ffffff 60%)', borderRadius: 0 }}>
-              <CardItem translateZ={50} className="block"
-                style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
-                Speedoo
-              </CardItem>
-              <CardItem translateZ={60} as="p" className="block mt-3"
-                style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '58%' }}>
-                A hyper-real instrument cluster with a fully synthesised engine you can rev
-              </CardItem>
-              <CardItem translateZ={110} className="speedo-thumb-wrap">
-                <img src="/images/lab/tumbnail-speedoo.png" alt="Speedoo Preview"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.92 }} />
-              </CardItem>
-              <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
-                <ArrowBtn />
-              </CardItem>
-            </CardBody>
-          </CardContainer>
-        </Link>
-
-        {/* YT Walkman */}
-        <Link href="/lab/walkman" style={{ textDecoration: 'none', display: 'block' }}>
-          <CardContainer containerClassName="w-full p-0" className="w-full">
-            <CardBody className="walkman-card-body w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
-              style={{ background: 'linear-gradient(135deg, #eef4ff 0%, #ffffff 60%)', borderRadius: 0 }}>
-              <CardItem translateZ={50} className="block"
-                style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
-                YT Walkman
-              </CardItem>
-              <CardItem translateZ={60} as="p" className="block mt-3"
-                style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5 }}>
-                What if you could listen to any<br />YouTube track on a vintage Walkman?
-              </CardItem>
-              <CardItem translateZ={110} className="walkman-thumb-wrap">
-                <img src="/images/lab/walkman-thumnail.png" alt=""
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', transform: 'rotate(-45deg)', opacity: 0.92 }} />
-              </CardItem>
-              <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
-                <ArrowBtn />
-              </CardItem>
-            </CardBody>
-          </CardContainer>
-        </Link>
-
-      </div>
-
-      <div className="mt-14">
+      <div>
         <SectionLabel>Tools I got tired of not having</SectionLabel>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
@@ -315,26 +245,31 @@ export default function Lab() {
           <a href="https://datagini.satishhebbal.design/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
             <CardContainer containerClassName="w-full p-0" className="w-full">
               <CardBody className="w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
-                style={{ background: 'linear-gradient(135deg, #e8f7fa 0%, #ffffff 60%)', borderRadius: 0 }}>
+                style={{ background: 'linear-gradient(135deg, #f5f5f4 0%, #fafaf9 55%, #ecfdf3 100%)', borderRadius: 0 }}>
+                <div className="datagini-grid" />
                 <CardItem translateZ={50} className="block"
-                  style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
+                  style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#1c1917' }}>
                   Datagini
                 </CardItem>
                 <CardItem translateZ={60} as="p" className="block mt-3"
-                  style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '70%' }}>
+                  style={{ fontSize: '0.75rem', color: 'rgba(28,25,23,0.45)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '52%' }}>
                   A tool for turning raw data into something useful
                 </CardItem>
                 <CardItem translateZ={40} className="absolute" style={{ top: 20, right: 20, zIndex: 2 }}>
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: '6px',
-                    fontFamily: 'SatishSans, sans-serif', fontSize: '0.6rem', fontWeight: 500,
-                    letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.45)',
-                    background: 'rgba(255,255,255,0.75)', border: '1px solid rgba(0,0,0,0.07)',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.6rem', fontWeight: 500,
+                    letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(28,25,23,0.5)',
+                    background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(28,25,23,0.08)',
                     borderRadius: '999px', padding: '4px 10px', whiteSpace: 'nowrap',
                   }}>
-                    <span className="wip-dot" />
-                    In progress
+                    <span className="discontinued-dot" />
+                    Discontinued
                   </span>
+                </CardItem>
+                <CardItem translateZ={110} className="datagini-thumb-wrap">
+                  <img src="/images/lab/datagini-gini-f1.png" alt="Gini, the Datagini mascot, perched on a database" />
+                  <img src="/images/lab/datagini-gini-f2.png" alt="" className="datagini-blink" />
                 </CardItem>
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
                   <ArrowBtn external />
@@ -343,6 +278,110 @@ export default function Lab() {
             </CardContainer>
           </a>
 
+        </div>
+      </div>
+
+      <div className="mt-14">
+        <SectionLabel>Just to keep my pen sharp</SectionLabel>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  
+          {/* Color Memo */}
+          <Link href="/lab/color" className="color-wheel-card" style={{ textDecoration: 'none', display: 'block' }}>
+            <CardContainer containerClassName="w-full p-0" className="w-full">
+              <CardBody className="w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+                style={{ background: 'linear-gradient(135deg, #fff8ee 0%, #ffffff 60%)', borderRadius: 0 }}>
+                <CardItem translateZ={50} className="block"
+                  style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
+                  Color Memo
+                </CardItem>
+                <CardItem translateZ={60} as="p" className="block mt-3"
+                  style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5 }}>
+                  A game that tests how sharp<br />your color memory really is
+                </CardItem>
+                <CardItem translateZ={100} className="absolute" style={{ bottom: -45, right: -45 }}>
+                  <img src="/images/HomeImages/color-wheel.webp" alt=""
+                    className="color-wheel-spin"
+                    style={{ width: 160, height: 160, objectFit: 'contain', pointerEvents: 'none', opacity: 0.92 }} />
+                </CardItem>
+                <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
+                  <ArrowBtn />
+                </CardItem>
+              </CardBody>
+            </CardContainer>
+          </Link>
+  
+          {/* QR Device */}
+          <Link href="/lab/qr-device" style={{ textDecoration: 'none', display: 'block' }}>
+            <CardContainer containerClassName="w-full p-0" className="w-full">
+              <CardBody className="qr-card-body w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+                style={{ background: 'linear-gradient(135deg, #f3f3f3 0%, #ffffff 60%)', borderRadius: 0 }}>
+                <CardItem translateZ={50} className="block"
+                  style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#1a1a1a' }}>
+                  QR Device
+                </CardItem>
+                <CardItem translateZ={60} as="p" className="qr-card-desc block mt-3"
+                  style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5 }}>
+                  A hardware-style QR generator with gradients, textures &amp; sound
+                </CardItem>
+                <CardItem translateZ={110} className="qr-thumb-wrap">
+                  <img src="/images/lab/qr-device-thumnail.png" alt=""
+                    style={{ width: '100%', opacity: 0.92, transform: 'rotate(4deg)' }} />
+                </CardItem>
+                <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
+                  <ArrowBtn />
+                </CardItem>
+              </CardBody>
+            </CardContainer>
+          </Link>
+  
+          {/* Speedoo */}
+          <Link href="/lab/speedo" style={{ textDecoration: 'none', display: 'block' }}>
+            <CardContainer containerClassName="w-full p-0" className="w-full">
+              <CardBody className="w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+                style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #ffffff 60%)', borderRadius: 0 }}>
+                <CardItem translateZ={50} className="block"
+                  style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
+                  Speedoo
+                </CardItem>
+                <CardItem translateZ={60} as="p" className="block mt-3"
+                  style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5, maxWidth: '58%' }}>
+                  A hyper-real instrument cluster with a fully synthesised engine you can rev
+                </CardItem>
+                <CardItem translateZ={110} className="speedo-thumb-wrap">
+                  <img src="/images/lab/tumbnail-speedoo.png" alt="Speedoo Preview"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.92 }} />
+                </CardItem>
+                <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
+                  <ArrowBtn />
+                </CardItem>
+              </CardBody>
+            </CardContainer>
+          </Link>
+  
+          {/* YT Walkman */}
+          <Link href="/lab/walkman" style={{ textDecoration: 'none', display: 'block' }}>
+            <CardContainer containerClassName="w-full p-0" className="w-full">
+              <CardBody className="walkman-card-body w-full h-[220px] relative border border-gray-200 overflow-hidden px-6 py-8"
+                style={{ background: 'linear-gradient(135deg, #eef4ff 0%, #ffffff 60%)', borderRadius: 0 }}>
+                <CardItem translateZ={50} className="block"
+                  style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '1.5rem', fontWeight: 300, letterSpacing: '-0.01em', color: '#111' }}>
+                  YT Walkman
+                </CardItem>
+                <CardItem translateZ={60} as="p" className="block mt-3"
+                  style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.02em', lineHeight: 1.5 }}>
+                  What if you could listen to any<br />YouTube track on a vintage Walkman?
+                </CardItem>
+                <CardItem translateZ={110} className="walkman-thumb-wrap">
+                  <img src="/images/lab/walkman-thumnail.png" alt=""
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', transform: 'rotate(-45deg)', opacity: 0.92 }} />
+                </CardItem>
+                <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
+                  <ArrowBtn />
+                </CardItem>
+              </CardBody>
+            </CardContainer>
+          </Link>
+  
         </div>
       </div>
     </div>
