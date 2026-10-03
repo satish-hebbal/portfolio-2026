@@ -6,6 +6,7 @@ import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { prefersReducedMotion } from '@/lib/motion'
 import DitherFigure from './DitherFigure'
+import DitherPanel from './dither/DitherPanel'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -87,20 +88,22 @@ export default function ParallaxImages() {
 
   return (
     <>
+      {/* temporary: dev or ?dither only */}
+      <DitherPanel />
       {/* ── Desktop ──────────────────────────────────────────── */}
       <div
         ref={abhayDesktop}
         className="absolute h-auto hidden md:block pointer-events-none"
         style={{ width: ABHAY.width, left: ABHAY.left, top: ABHAY.top, transform: `rotate(${ABHAY.rotate}deg)`, zIndex: 10, willChange: 'transform' }}
       >
-        <DitherFigure src={ABHAY.src} natW={ABHAY.natW} natH={ABHAY.natH} sizes="590px" className="w-full h-auto object-contain block" />
+        <DitherFigure name="abhay" src={ABHAY.src} natW={ABHAY.natW} natH={ABHAY.natH} sizes="590px" className="w-full h-auto object-contain block" />
       </div>
       <div
         ref={tejasDesktop}
         className="absolute h-auto hidden md:block pointer-events-none"
         style={{ width: TEJAS.width, right: TEJAS.right, top: TEJAS.top, transform: `rotate(${TEJAS.rotate}deg)`, zIndex: 10, willChange: 'transform' }}
       >
-        <DitherFigure src={TEJAS.src} natW={TEJAS.natW} natH={TEJAS.natH} sizes="510px" className="w-full h-auto object-contain block" />
+        <DitherFigure name="tejas" src={TEJAS.src} natW={TEJAS.natW} natH={TEJAS.natH} sizes="510px" className="w-full h-auto object-contain block" />
       </div>
 
       {/* ── Mobile — fixed to viewport, no container clipping ───────────────── */}
