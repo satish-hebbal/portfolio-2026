@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
+import { Fragment, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { gsap } from "gsap"
 import SectionLink from "./SectionLink"
@@ -73,12 +73,47 @@ export default function Navbar() {
     return "text-zinc-700"
   }
 
+  const dot = (
+    <span aria-hidden="true" className={`${showWhiteNav ? 'text-white/25' : 'text-zinc-300'} text-[7px] md:text-[10px]`}>•</span>
+  )
+
+  const link = (item: typeof navItems[0]) => (
+    <SectionLink
+      href={item.href}
+      section={item.section}
+      onClick={(e) => { press(); if (item.name === "Home") handleHome(e) }}
+      aria-label={item.name === "Home" ? "Home" : undefined}
+      aria-current={pathname === item.href ? "page" : undefined}
+      className={`cursor-pointer font-light transition-colors duration-300 relative hover:text-orange-500 text-xs md:text-sm ${colorFor(item)} ${item.name === "Home" ? 'flex items-center justify-center' : ''}`}
+      style={{ fontFamily: 'FunnelDisplay, sans-serif', fontWeight: '400' }}
+    >
+      {item.name === "Home" ? (
+        <Image
+          src="/images/common/sa26-filled.svg"
+          alt=""
+          // the mark is 645x614, so the box matches it instead of padding it
+          width={22}
+          height={21}
+          className={`block transition-opacity duration-300 ${pathname === '/' ? 'opacity-100' : 'opacity-40 hover:opacity-70'}`}
+          style={{
+            ...((pathname.startsWith('/unplugged/') || showWhiteNav) ? { filter: 'invert(1)' } : {}),
+            // Optical correction, measured from rendered pixels: the mark's
+            // visual weight sits ~0.3px right of its box and its centre reads
+            // ~0.7px below the bar centre and the cap band of the words beside
+            // it. Nudging it back makes it look centred, not just measure so.
+            transform: 'translate(-0.2px, -0.7px)',
+          }}
+        />
+      ) : item.name}
+    </SectionLink>
+  )
+
   return (
     <div className="fixed top-0 left-0 right-0 flex justify-center px-3 py-4 pointer-events-none" style={{ zIndex: 10005 }}>
       <nav
         ref={navRef}
         aria-label="Main"
-        className="nav-enter flex items-center rounded-none py-1 relative transition-shadow duration-300 hover:shadow-lg pointer-events-auto w-full max-w-full md:w-auto justify-between md:justify-start gap-1 md:gap-6 px-3 md:px-6"
+        className="nav-enter grid grid-cols-[1fr_auto_1fr] items-center rounded-none py-1 relative transition-shadow duration-300 hover:shadow-lg pointer-events-auto w-full max-w-full md:w-auto gap-x-0 px-3 md:px-6"
         style={{
           background: showWhiteNav ? 'rgba(255,255,255,0.06)' : 'rgba(255, 255, 255, 0.08)',
           // A plain blur keeps the frosted look. The old SVG displacement lens
@@ -98,33 +133,24 @@ export default function Navbar() {
         <div className={`absolute -top-1 -right-1 w-2 h-2 ${showWhiteNav ? 'bg-white/10' : 'bg-zinc-300/50'}`} />
         <div className={`absolute -bottom-1 -left-1 w-2 h-2 ${showWhiteNav ? 'bg-white/10' : 'bg-zinc-300/50'}`} />
         <div className={`absolute -bottom-1 -right-1 w-2 h-2 ${showWhiteNav ? 'bg-white/10' : 'bg-zinc-300/50'}`} />
-        {navItems.map((item, index) => (
-          <div key={item.name} className="flex items-center gap-1 md:gap-6">
-            <SectionLink
-              href={item.href}
-              section={item.section}
-              onClick={(e) => { press(); if (item.name === "Home") handleHome(e) }}
-              aria-label={item.name === "Home" ? "Home" : undefined}
-              aria-current={pathname === item.href ? "page" : undefined}
-              className={`cursor-pointer font-light transition-colors duration-300 relative hover:text-orange-500 text-xs md:text-sm ${colorFor(item)}`}
-              style={{ fontFamily: 'FunnelDisplay, sans-serif', fontWeight: '400' }}
-            >
-              {item.name === "Home" ? (
-                <Image
-                  src="/images/common/sa26-filled.svg"
-                  alt=""
-                  width={22}
-                  height={22}
-                  className={`transition-opacity duration-300 ${pathname === '/' ? 'opacity-100' : 'opacity-40 hover:opacity-70'}`}
-                  style={(pathname.startsWith('/unplugged/') || showWhiteNav) ? { filter: 'invert(1)' } : {}}
-                />
-              ) : item.name}
-            </SectionLink>
-            {index < navItems.length - 1 && (
-              <span aria-hidden="true" className={`${showWhiteNav ? 'text-white/25' : 'text-zinc-300'} text-[7px] md:text-[10px]`}>•</span>
-            )}
-          </div>
-        ))}
+        {/* Logo in its own centre column, with the links split into two
+            equal-width columns either side. The logo is then the true centre
+            of the bar whatever the word widths, and the dots flank it
+            symmetrically. */}
+        <div className="flex items-center justify-between gap-1 md:gap-6">
+          {navItems.slice(0, 2).map((item) => (
+            <Fragment key={item.name}>{link(item)}{dot}</Fragment>
+          ))}
+          {/* zero-width end stop, so the dot-to-logo gap is spread like the rest */}
+          <span aria-hidden="true" className="w-0" />
+        </div>
+        {link(navItems[2])}
+        <div className="flex items-center justify-between gap-1 md:gap-6">
+          <span aria-hidden="true" className="w-0" />
+          {navItems.slice(3).map((item) => (
+            <Fragment key={item.name}>{dot}{link(item)}</Fragment>
+          ))}
+        </div>
       </nav>
     </div>
   )
