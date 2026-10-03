@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react'
 import { onScrollFrame, prefersReducedMotion } from '@/lib/motion'
 import { buildGrid, type Grid } from './dither/engine'
 import { getSettings, subscribe, GRID_KEYS, type DitherSettings } from './dither/settings'
+import { attachShaderReveal } from './dither/shaderReveal'
 
 /*
  * An engraved hero figure that turns into print dots under the pointer.
@@ -33,15 +34,27 @@ type Source = { x: number; y: number; a: number }
 type Props = {
   name: 'abhay' | 'tejas'
   src: string
+  /** the painted version of the same figure, revealed by the shader effect */
+  paintedSrc?: string
   natW: number
   natH: number
   sizes: string
   className?: string
 }
 
-export default function DitherFigure({ name, src, natW, natH, sizes, className }: Props) {
+export default function DitherFigure({ name, src, paintedSrc, natW, natH, sizes, className }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const glRef = useRef<HTMLCanvasElement>(null)
+
+  // the shader reveal runs on its own WebGL canvas; it stays idle unless the
+  // "shader" effect is selected
+  useEffect(() => {
+    const wrap = wrapRef.current, canvas = glRef.current
+    if (!wrap || !canvas || !paintedSrc) return
+    if (prefersReducedMotion() || !window.matchMedia('(pointer: fine)').matches) return
+    return attachShaderReveal(wrap, canvas, name, paintedSrc) ?? undefined
+  }, [name, paintedSrc])
 
   useEffect(() => {
     const wrap = wrapRef.current, canvas = canvasRef.current
@@ -68,7 +81,7 @@ export default function DitherFigure({ name, src, natW, natH, sizes, className }
     let theta = 0
     let showing = false
 
-    const isActive = (s: DitherSettings) => s.enabled && (s.target === 'both' || s.target === name)
+    const isActive = (s: DitherSettings) => s.enabled && s.effect === 'dither' && (s.target === 'both' || s.target === name)
 
     const setup = () => {
       img = wrap.querySelector('img')
@@ -343,6 +356,12 @@ export default function DitherFigure({ name, src, natW, natH, sizes, className }
   return (
     <div ref={wrapRef} className="relative">
       <Image src={src} alt="" width={natW} height={natH} loading="lazy" fetchPriority="high" sizes={sizes} className={className} />
+      <canvas
+        ref={glRef}
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        style={{ visibility: 'hidden' }}
+      />
       <canvas
         ref={canvasRef}
         aria-hidden="true"

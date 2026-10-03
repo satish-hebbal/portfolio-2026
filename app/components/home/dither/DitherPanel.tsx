@@ -27,8 +27,25 @@ const SECTIONS: { title: string; controls: Ctl[] }[] = [
     title: 'Effect',
     controls: [
       { key: 'enabled', label: 'Enabled', type: 'toggle' },
+      { key: 'effect', label: 'Effect', type: 'select', options: ['dither', 'shader'], hint: 'dither: engraving breaks into dots · shader: the painting is revealed under the engraving' },
       { key: 'mode', label: 'Mode', type: 'select', options: ['lens', 'always', 'reveal'], hint: 'lens: dots under the pointer · always: figure fully dithered · reveal: dithered, pointer shows the engraving' },
       { key: 'target', label: 'Figures', type: 'select', options: ['both', 'abhay', 'tejas'] },
+    ],
+  },
+  {
+    title: 'Shader reveal',
+    controls: [
+      { key: 'shNoise', label: 'Edge noise', type: 'range', min: 0, max: 1.5, step: 0.01, hint: 'How ragged the burnt edge is' },
+      { key: 'shNoiseScale', label: 'Noise scale', type: 'range', min: 0.2, max: 8, step: 0.1 },
+      { key: 'shSoftness', label: 'Edge softness', type: 'range', min: 0.002, max: 0.4, step: 0.002 },
+      { key: 'shGlow', label: 'Rim glow', type: 'range', min: 0, max: 3, step: 0.05 },
+      { key: 'shGlowWidth', label: 'Rim width', type: 'range', min: 0.005, max: 0.4, step: 0.005 },
+      { key: 'shEdgeColor', label: 'Rim colour', type: 'color' },
+      { key: 'shDistort', label: 'Wet distortion', type: 'range', min: 0, max: 5, step: 0.05 },
+      { key: 'shDitherEdge', label: 'Dithered edge', type: 'toggle' },
+      { key: 'shAnimate', label: 'Animate edge', type: 'toggle', hint: 'Noise flows while hovered' },
+      { key: 'shSpeed', label: 'Flow speed', type: 'range', min: 0, max: 4, step: 0.05 },
+      { key: 'shSwap', label: 'Swap layers', type: 'toggle', hint: 'Painting on top, engraving underneath' },
     ],
   },
   {
@@ -63,7 +80,7 @@ const SECTIONS: { title: string; controls: Ctl[] }[] = [
     ],
   },
   {
-    title: 'Pointer',
+    title: 'Pointer (both effects)',
     controls: [
       { key: 'radius', label: 'Radius', type: 'range', min: 20, max: 420, step: 5 },
       { key: 'falloff', label: 'Edge falloff', type: 'range', min: 0.5, max: 6, step: 0.1, hint: 'Higher is a tighter core' },
@@ -80,7 +97,7 @@ const SECTIONS: { title: string; controls: Ctl[] }[] = [
     ],
   },
   {
-    title: 'Trail',
+    title: 'Trail (both effects)',
     controls: [
       { key: 'trail', label: 'Trail', type: 'toggle' },
       { key: 'healMs', label: 'Heal time (ms)', type: 'range', min: 0, max: 4000, step: 50 },

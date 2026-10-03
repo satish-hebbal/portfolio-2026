@@ -17,8 +17,23 @@ export type DotShape = 'square' | 'circle' | 'diamond' | 'hline' | 'vline' | 'cr
 export type ScatterMode = 'random' | 'push' | 'pull' | 'swirl' | 'fall' | 'none'
 export type EffectMode = 'lens' | 'always' | 'reveal'
 export type Target = 'both' | 'abhay' | 'tejas'
+export type HeroEffect = 'dither' | 'shader'
 
 export interface DitherSettings {
+  // which effect the hero figures use
+  effect: HeroEffect
+  // shader reveal (painting under the engraving)
+  shNoise: number
+  shNoiseScale: number
+  shSoftness: number
+  shGlow: number
+  shGlowWidth: number
+  shEdgeColor: string
+  shDistort: number
+  shDitherEdge: boolean
+  shAnimate: boolean
+  shSpeed: number
+  shSwap: boolean
   // effect
   enabled: boolean
   mode: EffectMode
@@ -62,6 +77,18 @@ export interface DitherSettings {
 }
 
 export const DEFAULTS: DitherSettings = {
+  effect: 'dither',
+  shNoise: 0.35,
+  shNoiseScale: 1.6,
+  shSoftness: 0.04,
+  shGlow: 0.9,
+  shGlowWidth: 0.05,
+  shEdgeColor: '#d4a24c',
+  shDistort: 0.6,
+  shDitherEdge: false,
+  shAnimate: true,
+  shSpeed: 0.5,
+  shSwap: false,
   enabled: true,
   mode: 'lens',
   target: 'both',
@@ -161,6 +188,9 @@ export const BUILT_IN_PRESETS: Record<string, Partial<DitherSettings>> = {
   'Pixel storm': { algo: 'floyd-steinberg', cell: 5, scatter: 'random', throw: 1.2, jitter: 2, healMs: 1800, radius: 160 },
   'Gravity': { algo: 'atkinson', cell: 4, scatter: 'fall', throw: 0.9, healMs: 1400, radius: 130 },
   'Full dither': { mode: 'always', algo: 'blue-noise', cell: 3, dotScale: 0.9, scatter: 'push', throw: 0.4 },
+  'Gold leaf reveal': { effect: 'shader', radius: 150, falloff: 1.6, healMs: 1400, shNoise: 0.4, shGlow: 1, shEdgeColor: '#d4a24c' },
+  'Ink bleed reveal': { effect: 'shader', radius: 170, falloff: 1.2, healMs: 2200, shNoise: 0.7, shNoiseScale: 2.6, shGlow: 0.3, shEdgeColor: '#1a1a1a', shDistort: 1.4 },
+  'Dither reveal': { effect: 'shader', radius: 140, shDitherEdge: true, shSoftness: 0.12, shGlow: 0, shNoise: 0.25 },
   'Bronze seal': { algo: 'crosshatch', cell: 4, inkColor: '#8a5a2b', scatter: 'pull', throw: 0.3, radius: 140 },
 }
 
