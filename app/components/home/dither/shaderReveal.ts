@@ -142,33 +142,18 @@ export function attachShaderReveal(
   const gl = canvas.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: false })
   if (!gl) return null
 
-  let prog: WebGLProgram
-  try {
-    prog = gl.createProgram()!
-    gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT))
-    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FRAG))
-    gl.linkProgram(prog)
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog) ?? 'link failed')
-  } catch (e) {
-    console.warn('[shader reveal]', e)
-    return null
+  // GL resources live in `res` so they can be rebuilt after a context loss.
+  // Browsers drop WebGL contexts on GPU resets or when too many are open
+  // (the Lab's 3D pieces, other tabs); without this the canvas went blank and
+  // the figure vanished until a refresh.
+  type Res = {
+    prog: WebGLProgram
+    buf: WebGLBuffer
+    engravingTex: WebGLTexture
+    paintingTex: WebGLTexture
+    U: Record<string, WebGLUniformLocation | null>
   }
-  gl.useProgram(prog)
-
-  const buf = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf)
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
-  const aPos = gl.getAttribLocation(prog, 'aPos')
-  gl.enableVertexAttribArray(aPos)
-  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
-
-  const u = (n: string) => gl.getUniformLocation(prog, n)
-  const U = {
-    top: u('uTop'), bottom: u('uBottom'), size: u('uSize'), pts: u('uPts'), count: u('uCount'),
-    radius: u('uRadius'), falloff: u('uFalloff'), noise: u('uNoise'), noiseScale: u('uNoiseScale'),
-    soft: u('uSoft'), glow: u('uGlow'), glowWidth: u('uGlowWidth'), edgeColor: u('uEdgeColor'),
-    distort: u('uDistort'), ditherEdge: u('uDitherEdge'), time: u('uTime'),
-  }
+  let res: Res | null = null
 
   const makeTex = (unit: number) => {
     const t = gl.createTexture()!
@@ -180,6 +165,41 @@ export function attachShaderReveal(
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
     return t
   }
+
+  const init = (): boolean => {
+    if (gl.isContextLost()) return false
+    try {
+      const prog = gl.createProgram()!
+      gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT))
+      gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FRAG))
+      gl.linkProgram(prog)
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog) ?? 'link failed')
+      gl.useProgram(prog)
+      const buf = gl.createBuffer()!
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf)
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
+      const aPos = gl.getAttribLocation(prog, 'aPos')
+      gl.enableVertexAttribArray(aPos)
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
+      const u = (n: string) => gl.getUniformLocation(prog, n)
+      res = {
+        prog, buf, engravingTex: makeTex(0), paintingTex: makeTex(1),
+        U: {
+          top: u('uTop'), bottom: u('uBottom'), size: u('uSize'), pts: u('uPts'), count: u('uCount'),
+          radius: u('uRadius'), falloff: u('uFalloff'), noise: u('uNoise'), noiseScale: u('uNoiseScale'),
+          soft: u('uSoft'), glow: u('uGlow'), glowWidth: u('uGlowWidth'), edgeColor: u('uEdgeColor'),
+          distort: u('uDistort'), ditherEdge: u('uDitherEdge'), time: u('uTime'),
+        },
+      }
+      return true
+    } catch (e) {
+      console.warn('[shader reveal]', e)
+      res = null
+      return false
+    }
+  }
+  if (!init()) return null
+
   const upload = (unit: number, tex: WebGLTexture, img: HTMLImageElement) => {
     gl.activeTexture(gl.TEXTURE0 + unit)
     gl.bindTexture(gl.TEXTURE_2D, tex)
@@ -187,8 +207,6 @@ export function attachShaderReveal(
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img)
   }
-  const engravingTex = makeTex(0)
-  const paintingTex = makeTex(1)
 
   let img: HTMLImageElement | null = null
   let painted: HTMLImageElement | null = null
@@ -216,12 +234,14 @@ export function attachShaderReveal(
     if (!img || !painted) return
     const s = getSettings()
     // swap puts the painting on top and the engraving underneath
-    upload(0, engravingTex, s.shSwap ? painted : img)
-    upload(1, paintingTex, s.shSwap ? img : painted)
+    if (!res) return
+    upload(0, res.engravingTex, s.shSwap ? painted : img)
+    upload(1, res.paintingTex, s.shSwap ? img : painted)
   }
 
   const setup = () => {
     img = wrap.querySelector('img')
+    if (!res || gl.isContextLost()) return
     if (!img || !img.complete || !img.naturalWidth || !painted?.complete || !painted.naturalWidth) return
     const w = wrap.clientWidth, h = wrap.clientHeight
     if (!w || !h) return
@@ -231,6 +251,9 @@ export function attachShaderReveal(
     gl.viewport(0, 0, canvas.width, canvas.height)
     bindTextures()
     ready = true
+    // the painting usually arrives after the first mouse move; draw now
+    // rather than waiting for the pointer to move again
+    if (pointer) kick()
   }
 
   // The painting (~170 KB a figure) is only fetched once someone moves a
@@ -240,6 +263,8 @@ export function attachShaderReveal(
     painted = new Image()
     painted.decoding = 'async'
     painted.onload = setup
+    // a failed fetch shouldn't disable the effect for the whole visit
+    painted.onerror = () => { painted = null }
     painted.src = paintedSrc
   }
 
@@ -276,10 +301,11 @@ export function attachShaderReveal(
   const draw = (now: number) => {
     frame = 0
     const s = getSettings()
-    if (!ready) return
+    if (!ready || !res || gl.isContextLost()) { show(false); return }
     if (!active(s)) { stamps = []; head = null; show(false); return }
     track(now, s)
     stamps = s.trail ? stamps.filter((p) => now - p.t <= s.healMs) : []
+    const U = res.U
 
     let n = 0
     for (const p of stamps) {
@@ -337,6 +363,20 @@ export function attachShaderReveal(
     kick()
   })
 
+  // Context loss: fall back to the plain engraving straight away, then
+  // rebuild everything when the browser hands the context back
+  const onLost = (e: Event) => {
+    e.preventDefault() // signals we will handle restoration
+    ready = false
+    res = null
+    if (frame) cancelAnimationFrame(frame)
+    frame = 0
+    show(false)
+  }
+  const onRestored = () => { if (init()) setup() }
+  canvas.addEventListener('webglcontextlost', onLost)
+  canvas.addEventListener('webglcontextrestored', onRestored)
+
   window.addEventListener('mousemove', onMove, { passive: true })
   document.documentElement.addEventListener('mouseleave', onLeave)
   window.addEventListener('resize', onResize)
@@ -351,7 +391,19 @@ export function attachShaderReveal(
     unScroll()
     clearTimeout(resizeTimer)
     if (frame) cancelAnimationFrame(frame)
-    if (painted) painted.onload = null
-    gl.getExtension('WEBGL_lose_context')?.loseContext()
+    if (painted) { painted.onload = null; painted.onerror = null }
+    canvas.removeEventListener('webglcontextlost', onLost)
+    canvas.removeEventListener('webglcontextrestored', onRestored)
+    show(false)
+    // Free what we made, but leave the context alive: React remounts reuse
+    // this same canvas (dev Strict Mode, Fast Refresh), and a context killed
+    // with loseContext() would hand them a dead one.
+    if (res && !gl.isContextLost()) {
+      gl.deleteTexture(res.engravingTex)
+      gl.deleteTexture(res.paintingTex)
+      gl.deleteBuffer(res.buf)
+      gl.deleteProgram(res.prog)
+    }
+    res = null
   }
 }
