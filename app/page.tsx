@@ -10,6 +10,7 @@ import ProposalsGallery from "./components/home/proposalsGallery"
 import PageBranches from "./components/home/PageBranches"
 import ParallaxMobile from "./components/home/ParallaxMobile"
 import Pillars from "./components/home/Pillars"
+import LabTeaser from "./components/home/labTeaser"
 
 
 export default function Home() {
@@ -46,7 +47,7 @@ export default function Home() {
               <span style={{ fontFamily: 'SatishCapsSans, sans-serif', fontSize: '1.5em' }}>H</span><span style={{ fontFamily: 'SatishSans, sans-serif', marginLeft: '4px' }}>ebbal</span>
             </h1>
             <p
-              className="text-sm md:text-base text-gray-400 leading-relaxed max-w-md"
+              className="text-sm md:text-base text-gray-500 leading-relaxed max-w-md"
               style={{ fontFamily: 'FunnelDisplay, sans-serif', fontWeight: '300' }}
             >
               I design what early-stage startups need to exist. Brand, product, and system. From first brief to live product.
@@ -77,6 +78,11 @@ export default function Home() {
         {/* Unplugged section */}
         <div id="unplugged" data-section="unplugged">
           <UnpluggedGallery />
+        </div>
+
+        {/* Lab section */}
+        <div id="lab" data-section="lab">
+          <LabTeaser />
         </div>
 
       </div>

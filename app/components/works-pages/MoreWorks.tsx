@@ -13,7 +13,7 @@ const allWorks = [
   {
     title: 'Healthcare SaaS',
     href: '/works/healthcare-saas',
-    image: '/images/WorkImages/hsaasImages/hs-thumbnail.png',
+    image: '/images/WorkImages/hsaasImages/hs-thumbnail-public.webp',
     tags: ['SaaS'],
   },
   {

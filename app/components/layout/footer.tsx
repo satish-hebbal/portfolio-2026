@@ -13,6 +13,7 @@ const links = [
 const navLinks = [
   { label: 'Work',      href: '/#work',      section: 'work' },
   { label: 'Unplugged', href: '/#unplugged', section: 'unplugged' },
+  { label: 'Lab',       href: '/lab' },
   { label: 'About',     href: '/about' },
 ]
 
@@ -49,19 +50,26 @@ export default function Footer() {
           />
 
           <div className="flex flex-col items-center">
-          <h2
+          <p
             className="text-[clamp(3rem,12vw,9rem)] leading-none tracking-tight text-black select-none"
             aria-hidden="true"
           >
             <span style={{ fontFamily: 'SatishCapsSans, sans-serif', fontSize: '1.4em' }}>S</span>
             <span style={{ fontFamily: 'SatishSans, sans-serif', marginLeft: '6px' }}>atish</span>
-          </h2>
+          </p>
           <p
             className="mt-4 text-sm text-gray-400"
             style={{ fontFamily: 'FunnelDisplay, sans-serif', fontWeight: 300 }}
           >
             Product Designer &amp; Developer
           </p>
+          <a
+            href="mailto:satishdezn@gmail.com"
+            className="mt-2 text-sm text-gray-700 underline decoration-gray-300 underline-offset-4 hover:decoration-black transition-colors duration-200"
+            style={{ fontFamily: 'FunnelDisplay, sans-serif' }}
+          >
+            satishdezn@gmail.com
+          </a>
           </div>
 
           {/* Right branch — mirrored */}
@@ -109,7 +117,7 @@ export default function Footer() {
                 key={l.label}
                 href={l.href}
                 section={l.section}
-                className="text-xs text-gray-400 hover:text-black transition-colors duration-200"
+                className="text-xs text-gray-500 hover:text-black transition-colors duration-200"
                 style={{ fontFamily: 'FunnelDisplay, sans-serif' }}
               >
                 {l.label}
@@ -125,7 +133,7 @@ export default function Footer() {
                 href={l.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-gray-400 hover:text-black transition-colors duration-200"
+                className="text-xs text-gray-500 hover:text-black transition-colors duration-200"
                 style={{ fontFamily: 'FunnelDisplay, sans-serif' }}
               >
                 {l.label}

@@ -160,24 +160,18 @@ const CornerTable = () => {
           backgroundSize: '20px 20px, 20px 20px, 100px 100px, 100px 100px'
         }}
       />
-      {/* Fixed header */}
-      <div className="fixed hidden top-0 left-0 right-0 bg-gradient-to-r from-emerald-800/95 to-emerald-900/95 backdrop-blur-sm z-50 p-4">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-light text-white" style={{ fontFamily: 'SatishSans, sans-serif' }}>
-            The Corner table
-          </h1>
-          <Image 
-            src="/images/common/sa26-white.svg" 
-            alt="SA Logo" 
-            width={32}
-            height={32}
-            className="w-8 h-8"
-          />
-        </div>
-      </div>
-
       {/* Content with proper spacing from fixed header */}
-      <div className="pt-20 space-y-8 z-10 relative">
+      <div className="pt-24 space-y-8 z-10 relative">
+        {/* Page title: the largest type on the page, ahead of the story */}
+        <header className="space-y-3 pb-4">
+          <p className="text-xs uppercase tracking-widest text-white/60" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>Unplugged · 2025</p>
+          <h1 className="text-5xl font-light text-white leading-tight" style={{ fontFamily: 'SatishSans, sans-serif' }}>
+            The Corner Table
+          </h1>
+          <p className="text-lg text-white/80 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
+            Built from scratch: cut, assembled, painted and finished, with zero woodworking experience.
+          </p>
+        </header>
         
         {/* Section 1: Reason for this project */}
         <section className="space-y-4">
@@ -204,7 +198,7 @@ const CornerTable = () => {
             First of all the Design
           </h2>
           <p className="text-lg text-white/70 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
-            I sketched out a simple corner table design - one that could hide all the wires, give my woofer a proper home, and add some storage shelves for my daily essentials like phone, watch, and earphones.
+            I sketched out a simple corner table design: one that could hide all the wires, give my woofer a proper home, and add some storage shelves for my daily essentials like phone, watch, and earphones.
           </p>
           <div className="w-full">
             <Image 
@@ -223,7 +217,7 @@ const CornerTable = () => {
             Unplanned Arm Day💪
           </h2>
           <p className="text-lg text-white/70 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
-            I had some wood strips lying around for months, so this project cost me nothing but time. Measured twice, cut once - carefully cutting each piece to exact dimensions.
+            I had some wood strips lying around for months, so this project cost me nothing but time. Measured twice, cut once, carefully cutting each piece to exact dimensions.
           </p>
           <div className="w-full">
             <Image 
@@ -242,7 +236,7 @@ const CornerTable = () => {
             Assembly Time
           </h2>
           <p className="text-lg text-white/70 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
-            The satisfying part - watching separate pieces come together into something functional. A bit of wood glue and some strategic nailing did the trick.
+            The satisfying part: watching separate pieces come together into something functional. A bit of wood glue and some strategic nailing did the trick.
           </p>
           <div className="w-full">
             <Image 
@@ -261,7 +255,7 @@ const CornerTable = () => {
             Adding Character
           </h2>
           <p className="text-lg text-white/70 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
-            Cut the shelves from an old plywood sheet I had stored away. Added rounded corners because details matter - it&apos;s these small touches that make something look intentional rather than thrown together.
+            Cut the shelves from an old plywood sheet I had stored away. Added rounded corners because details matter. It&apos;s these small touches that make something look intentional rather than thrown together.
           </p>
           <div className="w-full">
             <Image 
@@ -743,9 +737,9 @@ const CornerTable = () => {
             <>
               {/* Fixed Corner table heading at top left */}
               <div className="fixed top-5 left-16 flex items-center py-4 z-[1000]">
-                <h1 className="text-2xl font-light text-white leading-tight m-0" style={{ fontFamily: 'SatishSans, sans-serif' }}>
-                  The Corner table
-                </h1>
+                <p className="text-2xl font-light text-white leading-tight m-0" style={{ fontFamily: 'SatishSans, sans-serif' }}>
+                  The Corner Table
+                </p>
               </div>
 
               {/* Scroll progress scrubber */}
@@ -774,8 +768,20 @@ const CornerTable = () => {
 
               <div className="flex w-max h-screen items-center px-12 py-12 gap-32">
 
+                {/* Opening panel: the page title leads the horizontal story */}
+                <div className="flex flex-col gap-6 ml-16 w-[520px]">
+                  <p className="text-sm uppercase tracking-widest text-white/60" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>Unplugged · 2025</p>
+                  <h1 className="text-8xl font-light text-white leading-[0.95]" style={{ fontFamily: 'SatishSans, sans-serif' }}>
+                    The Corner Table
+                  </h1>
+                  <p className="text-xl text-white/80 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
+                    Built from scratch: cut, assembled, painted and finished, with zero woodworking experience.
+                  </p>
+                  <span className="scroll-hint">scroll →</span>
+                </div>
+
                 {/* Section 1: Reason for this project */}
-                <div className="flex flex-col gap-3 ml-16 w-[525px]">
+                <div className="flex flex-col gap-3 w-[525px]">
                   <h2 className="text-4xl font-light text-white leading-tight text-left" style={{ fontFamily: 'SatishSans, sans-serif' }}>
                     Reason for this project
                   </h2>
@@ -801,9 +807,8 @@ const CornerTable = () => {
                     </h2>
                     
                     <p className="text-2xl text-white/70 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
-                      I sketched out a simple corner table design - one that could hide all the wires, give my woofer a proper home, and add some storage shelves for my daily essentials like phone, watch, and earphones.
+                      I sketched out a simple corner table design: one that could hide all the wires, give my woofer a proper home, and add some storage shelves for my daily essentials like phone, watch, and earphones.
                     </p>
-                    <span className="scroll-hint">scroll →</span>
                   </div>
 
                   <Image 
@@ -823,7 +828,7 @@ const CornerTable = () => {
                     </h2>
                     
                     <p className="text-2xl text-white/70 leading-relaxed m-0" style={{ fontFamily: 'FunnelDisplay, sans-serif'}}>
-                      I had some wood strips lying around for months, so this project cost me nothing but time. Measured twice, cut once - carefully cutting each piece to exact dimensions.
+                      I had some wood strips lying around for months, so this project cost me nothing but time. Measured twice, cut once, carefully cutting each piece to exact dimensions.
                     </p>
                   </div>
 
@@ -844,7 +849,7 @@ const CornerTable = () => {
                     </h2>
 
                     <p className="text-2xl text-white/70 leading-relaxed m-0" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
-                      The satisfying part - watching separate pieces come together into something functional. A bit of wood glue and some strategic nailing did the trick.
+                      The satisfying part: watching separate pieces come together into something functional. A bit of wood glue and some strategic nailing did the trick.
                     </p>
                   </div>
 
@@ -865,7 +870,7 @@ const CornerTable = () => {
                     </h2>
                     
                     <p className="text-2xl text-white/70 leading-relaxed m-0" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
-                      Cut the shelves from an old plywood sheet I had stored away. Added rounded corners because details matter - it&apos;s these small touches that make something look intentional rather than thrown together.
+                      Cut the shelves from an old plywood sheet I had stored away. Added rounded corners because details matter. It&apos;s these small touches that make something look intentional rather than thrown together.
                     </p>
                   </div>
 

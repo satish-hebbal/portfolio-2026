@@ -96,7 +96,7 @@ export default function ProposalsGallery() {
                           {item.title}
                         </h3>
                         <p
-                          className="text-xs text-gray-400 leading-snug line-clamp-2"
+                          className="text-xs text-gray-500 leading-snug line-clamp-2"
                           style={{ fontFamily: 'FunnelDisplay, sans-serif', fontWeight: 300 }}
                         >
                           {item.description}
@@ -138,7 +138,7 @@ export default function ProposalsGallery() {
                         {item.title}
                       </h3>
                       <p
-                        className="text-xs text-gray-400 leading-snug line-clamp-2"
+                        className="text-xs text-gray-500 leading-snug line-clamp-2"
                         style={{ fontFamily: 'FunnelDisplay, sans-serif', fontWeight: 300 }}
                       >
                         {item.description}

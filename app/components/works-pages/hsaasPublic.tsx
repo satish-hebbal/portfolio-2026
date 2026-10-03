@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
+import CaseMeta from './CaseMeta';
 
 const ACCENT = '#1F9E6F';
 
@@ -187,31 +188,19 @@ export default function HsaasPublic() {
 
         {/* ── Project Meta ────────────────────────────────────────────── */}
         <div id="hs-brief" className="relative overflow-visible border-b border-gray-200">
-          <div className="relative flex flex-wrap md:flex-nowrap items-stretch gap-0 border-b border-gray-200">
-            {[
+          <CaseMeta
+            items={[
               { label: 'Company',     value: 'Confidential, US' },
               { label: 'Role',        value: 'Product Designer' },
               { label: 'Deliverable', value: 'Zero to V1' },
-            ].map((item, i) => (
-              <div key={item.label} className={`flex items-center gap-2 px-6 md:px-8 py-3 ${i === 1 ? 'border-l border-gray-200' : ''} ${i === 2 ? 'w-full md:w-auto border-t md:border-t-0 md:border-l border-gray-200' : ''}`}>
-                <span className="text-[9px] uppercase tracking-widest text-gray-400 shrink-0" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>{item.label}</span>
-                <span className="text-[11px] text-gray-700" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>{item.value}</span>
-              </div>
-            ))}
-            <div className="flex items-center gap-2 w-full md:w-auto pl-6 md:pl-8 pr-6 py-3 border-t md:border-t-0 md:border-l border-gray-200">
-              <span className="text-[9px] uppercase tracking-widest text-gray-400 shrink-0" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>Scope</span>
-              <div className="flex gap-2">
-                {['End to End Product UI/UX', 'Logo Design', 'Visual Design'].map((tag) => (
-                  <span key={tag} className="text-[9px] px-2 py-0.5 border border-gray-200 text-gray-500 whitespace-nowrap" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>{tag}</span>
-                ))}
-              </div>
-            </div>
-          </div>
+            ]}
+            scope={['End to End Product UI/UX', 'Logo Design', 'Visual Design']}
+          />
 
           {/* Hero image — edge to edge */}
           <div className="relative overflow-visible border-b border-gray-200">
             <Image
-              src="/images/WorkImages/hsaasImages/hs-hero.png"
+              src="/images/WorkImages/hsaasImages/hs-hero-public.webp"
               alt="Healthcare SaaS product design"
               width={2000}
               height={900}
@@ -452,6 +441,7 @@ export default function HsaasPublic() {
           <Plus h="right" v="top" />
           <div className="px-6 md:px-10 flex items-center" style={{ minHeight: '80px' }}>
             <SectionLabel>Subscription UI</SectionLabel>
+            <SectionHeading>Two plans, compared at a glance.</SectionHeading>
           </div>
           <div className="border-t border-gray-200">
             <Image

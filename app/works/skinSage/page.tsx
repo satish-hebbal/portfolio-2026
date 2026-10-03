@@ -1,5 +1,6 @@
 import SkinSage from '../../components/works-pages/skinSage';
 import MoreWorks from '../../components/works-pages/MoreWorks';
+import CaseOutro from '../../components/works-pages/CaseOutro';
 import ScrollToTop from '../../components/ui/ScrollToTop';
 import type { Metadata } from 'next';
 
@@ -20,6 +21,9 @@ export default function SkinSagePage() {
   return (
     <div className="bg-white min-h-screen">
       <SkinSage />
+      <CaseOutro headline="Live in two weeks, and people kept coming back.">
+        V1 went live two weeks after kickoff, covering the skin assessment, doctor search, booking, checkout and the doctor&apos;s own dashboard. 73% of users returned after day 7.
+      </CaseOutro>
       <MoreWorks current="/works/skinSage" />
       <ScrollToTop />
     </div>

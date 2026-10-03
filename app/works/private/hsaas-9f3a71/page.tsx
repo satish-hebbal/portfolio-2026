@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import HsaasPrivate from '../../../components/works-pages/hsaasPrivate';
 import MoreWorks from '../../../components/works-pages/MoreWorks';
+import CaseOutro from '../../../components/works-pages/CaseOutro';
 import ScrollToTop from '../../../components/ui/ScrollToTop';
 
 // Unlisted, branded version of the healthcare SaaS case study. Kept for portfolio
@@ -29,6 +30,9 @@ export default function HsaasPrivatePage() {
   return (
     <div className="bg-white min-h-screen">
       <HsaasPrivate />
+      <CaseOutro headline="V1 in three weeks, paying customers within weeks.">
+        Onboarding, credential verification, the channel marketplace and the subscription UI shipped as V1 in three weeks. The product reached $350+ MRR within weeks of launch.
+      </CaseOutro>
       <MoreWorks current="/works/healthcare-saas" />
       <ScrollToTop />
     </div>

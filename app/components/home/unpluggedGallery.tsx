@@ -62,7 +62,7 @@ export default function UnpluggedGallery() {
                   {item.title}
                 </h3>
                 <p
-                  className="text-sm text-gray-400 leading-relaxed max-w-sm"
+                  className="text-sm text-gray-500 leading-relaxed max-w-sm"
                   style={{ fontFamily: 'FunnelDisplay, sans-serif' }}
                 >
                   {item.description}

@@ -125,6 +125,14 @@ export default function VisualIdentityGallery() {
         </div>
       </div>
 
+      {/* Caption: names the project so the collage isn't anonymous */}
+      <div className="mt-4 flex flex-col md:flex-row md:items-baseline md:justify-between gap-1">
+        <p className="text-base md:text-lg text-black" style={{ fontFamily: 'SatishSans, sans-serif' }}>Fuellstack</p>
+        <p className="text-xs md:text-sm text-gray-500" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
+          Logo, brand system and web visuals for a design and development agency.
+        </p>
+      </div>
+
     </div>
   )
 }

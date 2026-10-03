@@ -108,12 +108,12 @@ export default function About() {
         {/* ── Section 1: intro + photo ─────────────────────────── */}
         <div className="flex flex-col md:flex-row md:items-end gap-10 md:gap-16 mb-10">
           <div className="flex-1 order-2 md:order-1">
-            <p
-              className="text-2xl md:text-3xl leading-snug text-gray-800 mb-6"
+            <h1
+              className="text-2xl md:text-3xl leading-snug text-gray-900 mb-6"
               style={{ fontFamily: "SatishSans, serif", fontWeight: 400 }}
             >
               I'm a designer who partners with startups and takes full ownership of the work.
-            </p>
+            </h1>
             <p className="text-base text-gray-500 leading-relaxed">
               Not just the screens, but the thinking, the decisions, and the execution. I come in early, when things are undefined, and stay until they ship.
             </p>
@@ -235,12 +235,12 @@ export default function About() {
 
         {/* ── Experience timeline ──────────────────────────────── */}
         <div className="mb-20">
-          <p
+          <h2
             className="text-xl md:text-2xl text-gray-700 leading-snug mb-10"
             style={{ fontFamily: "SatishSans, serif", fontWeight: 400 }}
           >
             I've helped startups take their digital products from idea to launch. These are some of the companies I've partnered with.
-          </p>
+          </h2>
           <div className="grid grid-cols-4 justify-items-center gap-8 md:gap-12 pb-4">
             {companies.map((co, i) => {
               const isHovered = hovered === i;
@@ -305,7 +305,7 @@ export default function About() {
                   </div>
 
                   <span className="text-[11px] text-gray-500" style={{ fontFamily: "FunnelDisplay, sans-serif" }}>{co.name}</span>
-                  <span className="text-[10px] text-gray-300 text-center" style={{ fontFamily: "FunnelDisplay, sans-serif" }}>{co.year}</span>
+                  <span className="text-[10px] text-gray-400 text-center" style={{ fontFamily: "FunnelDisplay, sans-serif" }}>{co.year}</span>
                 </div>
               );
             })}
@@ -339,13 +339,13 @@ export default function About() {
 
         {/* ── Toolkit ──────────────────────────────────────────── */}
         <div className="mb-20">
-          <p
+          <h2
             className="text-xl md:text-2xl text-gray-700 leading-snug mb-2"
             style={{ fontFamily: "SatishSans, serif", fontWeight: 400 }}
           >
             My Toolkit
-          </p>
-          <p className="text-sm text-gray-400 mb-10" style={{ fontFamily: "FunnelDisplay, sans-serif" }}>
+          </h2>
+          <p className="text-sm text-gray-500 mb-10" style={{ fontFamily: "FunnelDisplay, sans-serif" }}>
             Tools I use to design, build, and ship every day.
           </p>
 
@@ -421,16 +421,16 @@ export default function About() {
 
         {/* ── Closing CTA ──────────────────────────────────────── */}
         <div className="text-center">
-          <p
+          <h2
             className="text-2xl md:text-3xl text-gray-700 leading-snug mb-8"
             style={{ fontFamily: "SatishSans, serif", fontWeight: 400 }}
           >
             If you're building something and need a designer who takes ownership end to end, let's talk.
-          </p>
+          </h2>
           <div className="inline-flex items-stretch gap-0">
             <a
               href="mailto:satishdezn@gmail.com"
-              className="inline-flex items-center gap-2 px-6 py-3 border border-gray-200 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-800 transition-all duration-200"
+              className="inline-flex items-center gap-2 px-6 py-3 border border-black bg-black text-sm text-white hover:bg-gray-800 transition-all duration-200"
               style={{ fontFamily: "FunnelDisplay, sans-serif", letterSpacing: "0.05em" }}
             >
               say hello
@@ -439,13 +439,13 @@ export default function About() {
               </svg>
             </a>
             <div
-              className="flex items-center px-5 border border-l-0 border-gray-200 text-sm text-gray-400 select-all cursor-pointer"
+              className="flex items-center px-5 border border-l-0 border-gray-200 text-sm text-gray-600 select-all cursor-pointer"
               style={{ fontFamily: "FunnelDisplay, sans-serif", letterSpacing: "0.03em" }}
             >
               satishdezn@gmail.com
               <button
                 onClick={handleCopy}
-                className="ml-2 text-gray-300 hover:text-gray-600 transition-colors duration-200 flex-shrink-0 cursor-pointer"
+                className="ml-2 text-gray-400 hover:text-gray-700 transition-colors duration-200 flex-shrink-0 cursor-pointer"
                 title="Copy email"
                 aria-label={copied ? "Email copied" : "Copy email address"}
               >

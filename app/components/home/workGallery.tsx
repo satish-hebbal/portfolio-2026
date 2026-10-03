@@ -20,7 +20,7 @@ const works = [
     num: '02',
     title: 'Healthcare SaaS',
     description: 'Designed V1 of a SaaS that puts solo physicians on 40+ patient platforms from one profile. $350+ MRR within weeks of launch. Shipped in 3 weeks.',
-    image: '/images/WorkImages/hsaasImages/hs-thumbnail.png',
+    image: '/images/WorkImages/hsaasImages/hs-thumbnail-public.webp',
     href: '/works/healthcare-saas',
     year: '2025',
     available: true,
@@ -152,7 +152,7 @@ export default function WorkGallery() {
                   {work.title}
                 </h3>
                 <p
-                  className="text-sm text-gray-400 leading-relaxed max-w-sm"
+                  className="text-sm text-gray-500 leading-relaxed max-w-sm"
                   style={{ fontFamily: 'FunnelDisplay, sans-serif' }}
                 >
                   {work.description}

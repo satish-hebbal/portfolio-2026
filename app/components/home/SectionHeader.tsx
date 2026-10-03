@@ -20,9 +20,9 @@ let fontsRefreshQueued = false
 // ScrollTrigger's invalidateOnRefresh re-measure on every resize; the old
 // per-section copies measured once and drifted after a window resize.
 export default function SectionHeader({ left, right }: { left: Word; right?: Word }) {
-  const rowRef   = useRef<HTMLDivElement>(null)
-  const leftRef  = useRef<HTMLHeadingElement>(null)
-  const rightRef = useRef<HTMLHeadingElement>(null)
+  const rowRef   = useRef<HTMLHeadingElement>(null)
+  const leftRef  = useRef<HTMLSpanElement>(null)
+  const rightRef = useRef<HTMLSpanElement>(null)
   const lineRef  = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -77,23 +77,27 @@ export default function SectionHeader({ left, right }: { left: Word; right?: Wor
           style={{ top: '50%' }}
         />
 
-        {/* Words: start naturally centered side-by-side */}
-        <div ref={rowRef} className="relative flex items-baseline justify-center gap-2">
-          <h2
+        {/* Words: start naturally centered side-by-side. One heading for the
+            whole title so it reads as "Selected Works", not two headings */}
+        <h2 ref={rowRef} className="relative flex items-baseline justify-center gap-2 text-2xl md:text-3xl font-light text-black">
+          <span
             ref={leftRef}
-            className="relative bg-white pr-3 text-2xl md:text-3xl font-light text-black shrink-0 whitespace-nowrap"
+            className="relative bg-white pr-3 shrink-0 whitespace-nowrap"
           >
             {word(left)}
-          </h2>
+          </span>
           {right && (
-            <h2
-              ref={rightRef}
-              className="relative bg-white pl-3 text-2xl md:text-3xl font-light text-black shrink-0 whitespace-nowrap"
-            >
-              {word(right)}
-            </h2>
+            <>
+              {' '}
+              <span
+                ref={rightRef}
+                className="relative bg-white pl-3 shrink-0 whitespace-nowrap"
+              >
+                {word(right)}
+              </span>
+            </>
           )}
-        </div>
+        </h2>
       </div>
     </div>
   )

@@ -3,12 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image'
+import CaseMeta from './CaseMeta'
 import SmartTouchSwitchBoard, { SwitchState } from './abhiyantrik/SmartTouchSwitchBoard'
 import SmartMCB, { MCBState } from './abhiyantrik/SmartMCB'
 import PhoneShell from './abhiyantrik/PhoneShell'
 import { SketchyArrow } from '../ui/SketchyArrow'
 import LazyVideo from '../ui/LazyVideo'
-import { copyText } from '@/lib/clipboard'
 
 // Hand-drawn nudge pointing at an interactive element, easy to scroll past otherwise
 const InteractiveNudge = ({ text, flip = false }: { text: string; flip?: boolean }) => (
@@ -153,7 +153,6 @@ const SmartNation = () => {
   const addAppSlideDir  = useRef<1 | -1>(1);
   const [processSlide, setProcessSlide] = useState(0);
   const [mounted, setMounted] = useState(false);
-  const [copied, setCopied] = useState<'email' | 'phone' | null>(null);
   const [hoveredStat, setHoveredStat] = useState<string | null>(null);
 
   // ── Abhiyantrik interactive demo state ─────────────────────────
@@ -192,11 +191,6 @@ const SmartNation = () => {
     light1: switchState.light1, light2: switchState.light2, light3: switchState.light3, light4: switchState.light4,
   };
 
-  const handleCopy = (type: 'email' | 'phone', value: string) => {
-    copyText(value);
-    setCopied(type);
-    setTimeout(() => setCopied(null), 2000);
-  };
   useEffect(() => { setMounted(true); }, []);
   const [activeSection, setActiveSection] = useState('sn-brief');
   const clickSound = useRef<HTMLAudioElement | null>(null);
@@ -364,29 +358,14 @@ const SmartNation = () => {
 
         {/* ── Project Meta ───────────────────────────────────────────── */}
         <div id="sn-brief" className="relative overflow-visible border-b border-gray-200">
-          <div className="relative flex flex-wrap md:flex-nowrap items-stretch gap-0 border-b border-gray-200">
-            {[
+          <CaseMeta
+            items={[
               { label: 'Company',     value: 'Abhiyantrik Solutions' },
-              { label: 'Role',        value: 'Designer' },
+              { label: 'Role',        value: 'Brand & Product Designer' },
               { label: 'Deliverable', value: 'Zero to V1' },
-            ].map((item, i) => (
-              <div key={item.label} className={`flex items-center gap-2 px-6 md:px-8 py-3 ${i === 1 ? 'border-l border-gray-200' : ''} ${i === 2 ? 'w-full md:w-auto border-t md:border-t-0 md:border-l border-gray-200' : ''}`}>
-                <span className="text-[9px] uppercase tracking-widest text-gray-400 shrink-0" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>{item.label}</span>
-                <span className="text-[11px] text-gray-700" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>{item.value}</span>
-              </div>
-            ))}
-            {/* Scope marquee — full row on mobile, inline on desktop */}
-            <div className="flex items-center gap-2 w-full md:w-auto pl-6 md:pl-8 pr-6 py-3 border-t md:border-t-0 md:border-l border-gray-200 overflow-hidden min-w-0 md:flex-1">
-              <span className="text-[9px] uppercase tracking-widest text-gray-400 shrink-0" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>Scope</span>
-              <div className="overflow-hidden flex-1" style={{ maskImage: 'linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)' }}>
-                <div className="flex gap-2 w-max" style={{ animation: 'marquee 12s linear infinite' }}>
-                  {['Brand Identity', 'Motion', 'Web', 'Packaging', 'Brochures', 'User Research', 'Application UI/UX', 'Brand Identity', 'Motion', 'Web', 'Packaging', 'Brochures', 'User Research', 'Application UI/UX'].map((tag, i) => (
-                    <span key={i} className="text-[9px] px-2 py-0.5 border border-gray-200 text-gray-500 whitespace-nowrap" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>{tag}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+            ]}
+            scope={['Brand Identity', 'Application UI/UX', 'Web', 'Motion', 'Packaging', 'Brochures', 'User Research']}
+          />
 
           {/* Hero Image */}
           <div className="relative overflow-visible border-b border-gray-200">
@@ -1444,43 +1423,6 @@ const SmartNation = () => {
 
       </div>
 
-      {/* ── Let's Talk CTA — outside project box ────────────────────── */}
-      <div className="max-w-5xl mx-auto mt-10 mb-16 border border-gray-200 px-6 md:px-10 py-12 md:py-16 flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative overflow-visible">
-        <Plus h="left" v="top" />
-        <Plus h="right" v="top" />
-        <Plus h="left" />
-        <Plus h="right" />
-        <div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-3" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>Let's Work Together</p>
-          <Image src="/images/common/sa26.svg" alt="Satish" width={56} height={56} className="w-12 h-12 mb-4" />
-          <h3 className="text-3xl md:text-4xl font-light text-gray-900 leading-snug" style={{ fontFamily: 'SatishSans, sans-serif' }}>
-            Great products happen<br />when the right people meet.
-          </h3>
-          <p className="text-sm text-gray-400 mt-3 max-w-md" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
-            If you're building something and need a designer who goes all in, let's talk.
-          </p>
-        </div>
-        <div className="flex flex-col gap-3 shrink-0">
-          <button
-            onClick={() => handleCopy('email', 'satishdezn@gmail.com')}
-            className="w-full flex items-center gap-3 px-5 py-3 border border-gray-900 text-gray-900 text-xs tracking-wide hover:bg-gray-900 hover:text-white transition-colors duration-200"
-            style={{ fontFamily: 'FunnelDisplay, sans-serif' }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
-            {copied === 'email' ? 'Copied!' : 'satishdezn@gmail.com'}
-          </button>
-          <a
-            href="https://www.linkedin.com/in/satish-hebbal/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full flex items-center gap-3 px-5 py-3 border border-gray-200 text-gray-500 text-xs tracking-wide hover:border-gray-400 hover:text-gray-700 transition-colors duration-200"
-            style={{ fontFamily: 'FunnelDisplay, sans-serif' }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
-            LinkedIn
-          </a>
-        </div>
-      </div>
     </div>
   );
 };

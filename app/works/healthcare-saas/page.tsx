@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import HsaasPublic from '../../components/works-pages/hsaasPublic';
 import MoreWorks from '../../components/works-pages/MoreWorks';
+import CaseOutro from '../../components/works-pages/CaseOutro';
 import ScrollToTop from '../../components/ui/ScrollToTop';
 
 export const metadata: Metadata = {
@@ -21,6 +22,9 @@ export default function HealthcareSaasPage() {
   return (
     <div className="bg-white min-h-screen">
       <HsaasPublic />
+      <CaseOutro headline="V1 in three weeks, paying customers within weeks.">
+        Onboarding, credential verification, the channel marketplace and the subscription UI shipped as V1 in three weeks. The product reached $350+ MRR within weeks of launch.
+      </CaseOutro>
       <MoreWorks current="/works/healthcare-saas" />
       <ScrollToTop />
     </div>

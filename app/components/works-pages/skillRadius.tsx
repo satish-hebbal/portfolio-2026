@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
+import CaseMeta from './CaseMeta';
 
 const ACCENT = '#4E6CFF';
 
@@ -171,33 +172,15 @@ export default function SkillRadius() {
         {/* ── Brief ───────────────────────────────────────────────────── */}
         <div id="sr-brief" className="relative overflow-visible border-b border-gray-200">
 
-          {/* Meta strip */}
-          <div className="relative flex flex-wrap md:flex-nowrap items-stretch border-b border-gray-200">
-            {[
+          <CaseMeta
+            items={[
               { label: 'Company',     value: 'SkillRadius' },
               { label: 'Role',        value: 'Product Designer' },
               { label: 'Deliverable', value: 'Zero to V1' },
-              { label: 'Scope',       value: 'UI/UX Design · Visual Design · Logo Designing' },
-            ].map((item, i) => (
-              <div
-                key={item.label}
-                className={`flex flex-row md:flex-col items-center md:items-start gap-2 md:gap-1 px-6 md:px-8 py-3 w-full md:w-auto ${i > 0 ? 'border-t border-gray-200 md:border-t-0 md:border-l' : ''}`}
-              >
-                <span className="text-[9px] uppercase tracking-widest text-gray-400 shrink-0" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>{item.label}</span>
-                <span className="text-[11px] text-gray-700" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>{item.value}</span>
-              </div>
-            ))}
-            {/* Ongoing indicator */}
-            <div className="flex items-center justify-center px-6 md:px-8 py-3 w-full md:w-auto border-t border-gray-200 md:border-l">
-<span className="flex items-center gap-2">
-                <span className="relative flex items-center justify-center w-2 h-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: '#22c55e' }} />
-                  <span className="relative inline-flex rounded-full w-2 h-2" style={{ background: '#22c55e' }} />
-                </span>
-                <span className="text-[11px] text-gray-700" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>Ongoing Project</span>
-              </span>
-            </div>
-          </div>
+            ]}
+            scope={['UI/UX Design', 'Visual Design', 'Logo Design']}
+            status="Ongoing Project"
+          />
 
           {/* SR-01 — full-width cover */}
           <div className="w-full border-b border-gray-200">
@@ -227,7 +210,9 @@ export default function SkillRadius() {
         <div id="sr-course" className="relative border-b border-gray-200">
           <Plus h="left" v="top" />
           <Plus h="right" v="top" />
-          <div className="px-6 md:px-10 pt-8 pb-4">
+          <div className="px-6 md:px-10 pt-10 pb-6">
+            <SectionLabel>Course Details</SectionLabel>
+            <SectionHeading>Everything you will learn, before you pay.</SectionHeading>
             <p className="text-sm text-gray-500 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
               The course detail page reflects what you will learn, resources available in the course, certification details, all module and subunit breakdowns, and instructor info. Enrolment is integrated with Razorpay.
             </p>
@@ -247,7 +232,9 @@ export default function SkillRadius() {
         <div id="sr-lessons" className="relative border-b border-gray-200">
           <Plus h="left" v="top" />
           <Plus h="right" v="top" />
-          <div className="px-6 md:px-10 pt-8 pb-4">
+          <div className="px-6 md:px-10 pt-10 pb-6">
+            <SectionLabel>Video Lessons</SectionLabel>
+            <SectionHeading>Master one module, then the next.</SectionHeading>
             <p className="text-sm text-gray-500 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
               Each module is a complete unit combining video lessons, notes, resources, and a quiz. The quiz at the end of every module validates what the learner just covered, so they master one module fully before moving to the next. No skipping ahead, no gaps.
             </p>
@@ -267,7 +254,9 @@ export default function SkillRadius() {
         <div id="sr-notes" className="relative border-b border-gray-200">
           <Plus h="left" v="top" />
           <Plus h="right" v="top" />
-          <div className="px-6 md:px-10 pt-8 pb-4">
+          <div className="px-6 md:px-10 pt-10 pb-6">
+            <SectionLabel>Notes</SectionLabel>
+            <SectionHeading>Read it instead of rewatching it.</SectionHeading>
             <p className="text-sm text-gray-500 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
               Notes lesson view. Written content alongside the video so students can read, reference, and revisit key concepts without rewatching.
             </p>
@@ -287,7 +276,9 @@ export default function SkillRadius() {
         <div id="sr-quiz" className="relative border-b border-gray-200">
           <Plus h="left" v="top" />
           <Plus h="right" v="top" />
-          <div className="px-6 md:px-10 pt-8 pb-4">
+          <div className="px-6 md:px-10 pt-10 pb-6">
+            <SectionLabel>Quiz</SectionLabel>
+            <SectionHeading>Every module ends with proof.</SectionHeading>
             <p className="text-sm text-gray-500 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
               End-of-module quiz to reinforce and validate what was just learned. Immediate feedback keeps students engaged rather than guessing.
             </p>
@@ -307,7 +298,9 @@ export default function SkillRadius() {
         <div id="sr-dashboard" className="relative border-b border-gray-200">
           <Plus h="left" v="top" />
           <Plus h="right" v="top" />
-          <div className="px-6 md:px-10 pt-8 pb-4">
+          <div className="px-6 md:px-10 pt-10 pb-6">
+            <SectionLabel>Dashboard</SectionLabel>
+            <SectionHeading>How far you have come, and what is left.</SectionHeading>
             <p className="text-sm text-gray-500 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
               Student dashboard showing enrolled courses, completion progress, and upcoming modules. A clear view of how far you have come and what is left.
             </p>
@@ -327,7 +320,9 @@ export default function SkillRadius() {
         <div id="sr-auth" className="relative border-b border-gray-200">
           <Plus h="left" v="top" />
           <Plus h="right" v="top" />
-          <div className="px-6 md:px-10 pt-8 pb-4">
+          <div className="px-6 md:px-10 pt-10 pb-6">
+            <SectionLabel>Sign Up and Login</SectionLabel>
+            <SectionHeading>A welcome, not a form.</SectionHeading>
             <p className="text-sm text-gray-500 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
               Auth screens with custom artwork. Sign up and login designed to feel welcoming rather than transactional.
             </p>
@@ -358,7 +353,8 @@ export default function SkillRadius() {
           <Plus h="right" v="top" />
           <div className="px-6 md:px-10 pt-8 pb-4">
             <SectionLabel>Logo Design</SectionLabel>
-            <p className="text-sm text-gray-500 leading-relaxed mt-2" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
+            <SectionHeading>A radius that points up.</SectionHeading>
+            <p className="text-sm text-gray-500 leading-relaxed" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>
               The mark is built on a circle, the geometric form of a radius, anchoring the brand name in shape. Within it, the negative space traces an R, but the stem breaks into an upward arrow, a trajectory rather than a letter. The circle is never closed at the top: a deliberate opening that reads as potential, not completion. Together the form says the same thing the platform does: you are somewhere on the radius of your skill, and the direction is up.
             </p>
           </div>
@@ -380,6 +376,7 @@ export default function SkillRadius() {
 
           <div className="px-6 md:px-10 pt-10 pb-6">
             <SectionLabel>Design System</SectionLabel>
+            <SectionHeading>Color and Type.</SectionHeading>
           </div>
 
           {/* Color */}
@@ -408,7 +405,7 @@ export default function SkillRadius() {
 
           {/* Typography */}
           <div className="px-6 md:px-10 pb-10 border-t border-gray-200 pt-8">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-8" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>Typography &mdash; Instrument Sans</p>
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-8" style={{ fontFamily: 'FunnelDisplay, sans-serif' }}>Typography · Instrument Sans</p>
             <div className="flex flex-col divide-y divide-gray-100">
               {[
                 { size: '2.5rem',   mobileSize: '1.5rem',   weight: 600, sample: 'Learn the skill. Get the job.',      label: 'Display',   usage: 'Landing page hero' },

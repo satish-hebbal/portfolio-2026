@@ -9,7 +9,7 @@ import { prefersReducedMotion } from "@/lib/motion"
 
 const navItems = [
   { name: "Work",   href: "/#work",      section: "work" },
-  { name: "Unplug", href: "/#unplugged", section: "unplugged" },
+  { name: "Unplugged", href: "/#unplugged", section: "unplugged" },
   { name: "Home",   href: "/" },
   { name: "Lab",    href: "/lab" },
   { name: "About",  href: "/about" },
@@ -67,7 +67,7 @@ export default function Navbar() {
       (item.name === "Work" && pathname.startsWith('/works/')) ||
       (item.name === "Lab" && pathname.startsWith('/lab/'))
     ) return "text-orange-500"
-    if (item.name === "Unplug" && pathname.startsWith('/unplugged/')) return "text-orange-400"
+    if (item.name === "Unplugged" && pathname.startsWith('/unplugged/')) return "text-orange-400"
     if (pathname.startsWith('/unplugged/') || showWhiteNav) return "text-white"
     if (modes.qr) return "text-stone-900"
     return "text-zinc-700"
@@ -115,7 +115,12 @@ export default function Navbar() {
         aria-label="Main"
         className="nav-enter grid grid-cols-[1fr_auto_1fr] items-center rounded-none py-1 relative transition-shadow duration-300 hover:shadow-lg pointer-events-auto w-full max-w-full md:w-auto gap-x-0 px-3 md:px-6"
         style={{
-          background: showWhiteNav ? 'rgba(255,255,255,0.06)' : 'rgba(255, 255, 255, 0.08)',
+          // Dark text needs a mostly opaque frost behind it, or it disappears
+          // when the bar passes over dark imagery (the identity gallery)
+          // (white-text pages keep the clear glass: white frost would hide their text)
+          background: showWhiteNav ? 'rgba(255,255,255,0.06)'
+            : pathname.startsWith('/unplugged/') ? 'rgba(255, 255, 255, 0.08)'
+            : 'rgba(255, 255, 255, 0.72)',
           // A plain blur keeps the frosted look. The old SVG displacement lens
           // was re-filtered on every scroll frame and only rendered in Chromium.
           backdropFilter: 'blur(10px) saturate(140%)',

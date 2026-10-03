@@ -70,8 +70,11 @@ export default function LabHeader() {
       <span style={{ flexShrink: 0 }}>
         <span style={{ fontFamily: 'SatishCapsSans, sans-serif', fontSize: '1.5em' }}>T</span><span style={{ marginLeft: '4px' }}>he</span>
       </span>
-      <span ref={lineRef} style={{ flex: 1, height: '1px', background: '#d1d5db', display: 'block' }} />
-      <span ref={labRef} style={{ flexShrink: 0, fontFamily: 'SatishSans, sans-serif' }}>Lab</span>
+      <span ref={lineRef} style={{ flex: 1, height: '1px', background: '#d1d5db', display: 'block' }}>{' '}</span>
+      {/* swash capital on both words, matching the home section titles */}
+      <span ref={labRef} style={{ flexShrink: 0 }}>
+        <span style={{ fontFamily: 'SatishCapsSans, sans-serif', fontSize: '1.5em' }}>L</span><span style={{ marginLeft: '4px' }}>ab</span>
+      </span>
     </h1>
   )
 }
