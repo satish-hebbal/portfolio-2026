@@ -8,23 +8,28 @@ import UnpluggedGallery from "./components/home/unpluggedGallery"
 import VisualIdentityGallery from "./components/home/visualIdentityGallery"
 import ProposalsGallery from "./components/home/proposalsGallery"
 import PageBranches from "./components/home/PageBranches"
+import ParallaxMobile from "./components/home/ParallaxMobile"
 
 
 export default function Home() {
   return (
-    <div className="bg-white relative">
+    <div className="bg-white relative overflow-x-clip">
 
       <Loader />
       <PageBranches />
+      <ParallaxMobile />
 
-      {/* ── Pillar decorations — fixed to viewport edges ─────── */}
+      {/* ── Pillar decorations: frame the first fold and scroll away with it.
+          They were position:fixed, but a transform left on <main> by the old
+          page transition made them scroll with the page, and that is the
+          intended look. absolute keeps it without relying on that side effect. */}
       <Image
         src="/images/HomeImages/piller-v.webp"
         alt=""
         width={2143}
         height={1800}
         sizes="120vh"
-        className="fixed top-0 h-screen w-auto object-contain object-top pointer-events-none select-none hidden md:block"
+        className="absolute top-0 h-screen w-auto object-contain object-top pointer-events-none select-none hidden md:block"
         style={{ zIndex: 0, opacity: 0.18, left: '-70px' }}
       />
       <Image
@@ -33,7 +38,7 @@ export default function Home() {
         width={621}
         height={1800}
         sizes="35vh"
-        className="fixed top-0 h-screen w-auto object-contain object-top pointer-events-none select-none hidden md:block"
+        className="absolute top-0 h-screen w-auto object-contain object-top pointer-events-none select-none hidden md:block"
         style={{ zIndex: 0, opacity: 0.18, right: '-40px' }}
       />
 

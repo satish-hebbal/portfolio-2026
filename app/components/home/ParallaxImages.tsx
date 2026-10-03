@@ -32,11 +32,11 @@ const TEJAS = {
   rotate: -15,
 }
 
+export { ABHAY, TEJAS }
+
 export default function ParallaxImages() {
   const abhayDesktop = useRef<HTMLDivElement>(null)
   const tejasDesktop = useRef<HTMLDivElement>(null)
-  const abhayMobile  = useRef<HTMLDivElement>(null)
-  const tejasMobile  = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (prefersReducedMotion()) return
@@ -60,26 +60,6 @@ export default function ParallaxImages() {
         x: () =>  window.innerWidth  * 0.25,
         ease: 'none',
         scrollTrigger: st,
-      })
-
-      // Mobile: slide off-screen to their respective sides on scroll
-      const mobileScrollST = {
-        trigger: document.body,
-        start:   'top top',
-        end:     '25% top',
-        scrub:   true,
-      }
-      gsap.to(abhayMobile.current, {
-        x:       () => -window.innerWidth * 0.6,
-        opacity:  0,
-        ease:    'none',
-        scrollTrigger: mobileScrollST,
-      })
-      gsap.to(tejasMobile.current, {
-        x:       () => window.innerWidth * 0.6,
-        opacity:  0,
-        ease:    'none',
-        scrollTrigger: mobileScrollST,
       })
     })
 
@@ -106,21 +86,6 @@ export default function ParallaxImages() {
         <DitherFigure name="tejas" src={TEJAS.src} paintedSrc="/images/HomeImages/tejas-painted.webp" natW={TEJAS.natW} natH={TEJAS.natH} sizes="510px" className="w-full h-auto object-contain block" />
       </div>
 
-      {/* ── Mobile — fixed to viewport, no container clipping ───────────────── */}
-      <div
-        ref={abhayMobile}
-        className="fixed block md:hidden pointer-events-none"
-        style={{ width: 300, left: -135, top: '12vh', transform: 'rotate(22deg)', zIndex: 10, willChange: 'transform' }}
-      >
-        <Image src={ABHAY.src} alt="" width={ABHAY.natW} height={ABHAY.natH} loading="lazy" fetchPriority="high" sizes="300px" className="w-full h-auto object-contain block" />
-      </div>
-      <div
-        ref={tejasMobile}
-        className="fixed block md:hidden pointer-events-none"
-        style={{ width: 240, left: 'calc(100vw - 130px)', top: '22vh', transform: 'rotate(-18deg)', zIndex: 10, willChange: 'transform' }}
-      >
-        <Image src={TEJAS.src} alt="" width={TEJAS.natW} height={TEJAS.natH} loading="lazy" fetchPriority="high" sizes="240px" className="w-full h-auto object-contain block" />
-      </div>
     </>
   )
 }
