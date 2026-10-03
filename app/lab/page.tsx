@@ -1,6 +1,20 @@
 import Link from 'next/link'
 import LabHeader from './LabHeader'
 import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card'
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'The Lab - Satish Hebbal',
+  description:
+    'Tools and experiments: a mini music studio, a mockup tool, a colour memory game, a hardware-style QR generator, an instrument cluster, and a YouTube Walkman.',
+  openGraph: {
+    title: 'The Lab - Satish Hebbal',
+    description:
+      'Tools and experiments: a mini music studio, a mockup tool, a colour memory game, a hardware-style QR generator, an instrument cluster, and a YouTube Walkman.',
+    url: '/lab',
+    images: [{ url: '/images/og.png', width: 1200, height: 630 }],
+  },
+};
 
 const ArrowBtn = ({ light = false, external = false }: { light?: boolean; external?: boolean }) => (
   <div style={{
@@ -207,7 +221,7 @@ export default function Lab() {
                   A mini music studio: program beats, play instruments, record &amp; layer your voice
                 </CardItem>
                 <CardItem translateZ={110} className="studio-kapi-thumb-wrap">
-                  <img src="/images/lab/studio-kapi-tumbnail.png" alt="Studio Kapi Preview"
+                  <img loading="lazy" decoding="async" src="/images/lab/studio-kapi-tumbnail.webp" alt="Studio Kapi Preview"
                     style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.92 }} />
                 </CardItem>
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 10 }}>
@@ -231,7 +245,7 @@ export default function Lab() {
                   A fast, no-fuss mockup tool<br />for sketching UI ideas
                 </CardItem>
                 <CardItem translateZ={110} className="ribbit-thumb-wrap">
-                  <img src="/images/lab/ribbit.webp" alt="Ribbit Preview"
+                  <img loading="lazy" decoding="async" src="/images/lab/ribbit.webp" alt="Ribbit Preview"
                     style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.95 }} />
                 </CardItem>
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 10 }}>
@@ -268,8 +282,8 @@ export default function Lab() {
                   </span>
                 </CardItem>
                 <CardItem translateZ={110} className="datagini-thumb-wrap">
-                  <img src="/images/lab/datagini-gini-f1.png" alt="Gini, the Datagini mascot, perched on a database" />
-                  <img src="/images/lab/datagini-gini-f2.png" alt="" className="datagini-blink" />
+                  <img loading="lazy" decoding="async" src="/images/lab/datagini-gini-f1.webp" alt="Gini, the Datagini mascot, perched on a database" />
+                  <img loading="lazy" decoding="async" src="/images/lab/datagini-gini-f2.webp" alt="" className="datagini-blink" />
                 </CardItem>
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
                   <ArrowBtn external />
@@ -299,7 +313,7 @@ export default function Lab() {
                   A game that tests how sharp<br />your color memory really is
                 </CardItem>
                 <CardItem translateZ={100} className="absolute" style={{ bottom: -45, right: -45 }}>
-                  <img src="/images/HomeImages/color-wheel.webp" alt=""
+                  <img loading="lazy" decoding="async" src="/images/HomeImages/color-wheel.webp" alt=""
                     className="color-wheel-spin"
                     style={{ width: 160, height: 160, objectFit: 'contain', pointerEvents: 'none', opacity: 0.92 }} />
                 </CardItem>
@@ -324,7 +338,7 @@ export default function Lab() {
                   A hardware-style QR generator with gradients, textures &amp; sound
                 </CardItem>
                 <CardItem translateZ={110} className="qr-thumb-wrap">
-                  <img src="/images/lab/qr-device-thumnail.png" alt=""
+                  <img loading="lazy" decoding="async" src="/images/lab/qr-device-thumnail.webp" alt=""
                     style={{ width: '100%', opacity: 0.92, transform: 'rotate(4deg)' }} />
                 </CardItem>
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
@@ -348,7 +362,7 @@ export default function Lab() {
                   A hyper-real instrument cluster with a fully synthesised engine you can rev
                 </CardItem>
                 <CardItem translateZ={110} className="speedo-thumb-wrap">
-                  <img src="/images/lab/tumbnail-speedoo.png" alt="Speedoo Preview"
+                  <img loading="lazy" decoding="async" src="/images/lab/tumbnail-speedoo.webp" alt="Speedoo Preview"
                     style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.92 }} />
                 </CardItem>
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
@@ -372,7 +386,7 @@ export default function Lab() {
                   What if you could listen to any<br />YouTube track on a vintage Walkman?
                 </CardItem>
                 <CardItem translateZ={110} className="walkman-thumb-wrap">
-                  <img src="/images/lab/walkman-thumnail.png" alt=""
+                  <img loading="lazy" decoding="async" src="/images/lab/walkman-card.webp" alt=""
                     style={{ width: '100%', height: '100%', objectFit: 'contain', transform: 'rotate(-45deg)', opacity: 0.92 }} />
                 </CardItem>
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>

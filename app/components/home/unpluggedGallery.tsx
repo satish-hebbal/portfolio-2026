@@ -2,11 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRef, useEffect } from 'react'
-import { gsap } from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-
-gsap.registerPlugin(ScrollTrigger)
+import SectionHeader from './SectionHeader'
 
 const items = [
   {
@@ -38,71 +34,11 @@ const Plus = ({ h, v = 'bottom' }: { h: 'left' | 'right'; v?: 'top' | 'bottom' }
 )
 
 export default function UnpluggedGallery() {
-  const headerRef  = useRef<HTMLDivElement>(null)
-  const unpluggedEl = useRef<HTMLHeadingElement>(null)
-  const lineEl     = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const header    = headerRef.current
-    const unplugged = unpluggedEl.current
-    const line      = lineEl.current
-    if (!header || !unplugged || !line) return
-
-    let tl: gsap.core.Timeline
-
-    const setup = () => {
-      const cRect = header.getBoundingClientRect()
-      const uRect = unplugged.getBoundingClientRect()
-
-      const paddingX   = parseFloat(window.getComputedStyle(header).paddingLeft)
-      const contentLeft = cRect.left + paddingX
-
-      const unpluggedFinalX = contentLeft - uRect.left
-
-      gsap.set(line, { scaleX: 0, transformOrigin: 'center center', opacity: 0 })
-
-      tl = gsap.timeline({
-        defaults: { duration: 1.1, ease: 'power3.inOut' },
-        scrollTrigger: {
-          trigger: header,
-          start: 'top 80%',
-          toggleActions: 'play none none reverse',
-        },
-      })
-
-      tl.to(unplugged, { x: unpluggedFinalX }, 0)
-        .to(line,       { scaleX: 1, opacity: 1, ease: 'power2.inOut' }, 0)
-    }
-
-    document.fonts.ready.then(() => requestAnimationFrame(setup))
-
-    return () => { tl?.kill() }
-  }, [])
 
   return (
     <div className="mt-20 md:mt-28">
 
-      {/* ── Section header ──────────────────────────────────────── */}
-      <div
-        ref={headerRef}
-        className="px-6 md:px-10 pb-8 md:pb-12 overflow-hidden"
-      >
-        <div className="relative">
-          <div
-            ref={lineEl}
-            className="absolute inset-x-0 border-t border-gray-300"
-            style={{ top: '50%' }}
-          />
-          <div className="relative flex items-baseline justify-center gap-2">
-            <h2
-              ref={unpluggedEl}
-              className="relative bg-white pr-3 text-2xl md:text-3xl font-light text-black shrink-0 whitespace-nowrap"
-            >
-              <span style={{ fontFamily: 'SatishCapsSans, sans-serif', fontSize: '1.5em' }}>U</span><span style={{ fontFamily: 'SatishSans, sans-serif' }}>nplugged</span>
-            </h2>
-          </div>
-        </div>
-      </div>
+      <SectionHeader left={['U', 'nplugged']} />
 
       {/* ── Items list ─────────────────────────────────────── */}
       <div className="flex flex-col gap-20 md:gap-28">

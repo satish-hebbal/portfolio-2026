@@ -2,10 +2,7 @@
 
 import Image from 'next/image'
 import { useRef, useEffect, useState } from 'react'
-import { gsap } from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-
-gsap.registerPlugin(ScrollTrigger)
+import SectionHeader from './SectionHeader'
 
 const fuellstackImages = [
   '/images/Visuals/fuellstack-V/FS-1.png',
@@ -25,91 +22,31 @@ const items = [
 ]
 
 export default function VisualIdentityGallery() {
-  const headerRef  = useRef<HTMLDivElement>(null)
-  const visualEl   = useRef<HTMLHeadingElement>(null)
-  const identityEl = useRef<HTMLHeadingElement>(null)
-  const lineEl     = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   const [cycleIndex, setCycleIndex] = useState(0)
 
+  // Cycle only while the collage is on screen; it used to re-render twice a
+  // second for the whole visit, wherever the reader was on the page
   useEffect(() => {
-    const id = setInterval(() => {
-      setCycleIndex(i => (i + 1) % fuellstackImages.length)
-    }, 500)
-    return () => clearInterval(id)
-  }, [])
-
-  useEffect(() => {
-    const header   = headerRef.current
-    const visual   = visualEl.current
-    const identity = identityEl.current
-    const line     = lineEl.current
-    if (!header || !visual || !identity || !line) return
-
-    let tl: gsap.core.Timeline
-
-    const setup = () => {
-      const cRect = header.getBoundingClientRect()
-      const vRect = visual.getBoundingClientRect()
-      const iRect = identity.getBoundingClientRect()
-
-      const paddingX     = parseFloat(window.getComputedStyle(header).paddingLeft)
-      const contentLeft  = cRect.left + paddingX
-      const contentRight = cRect.right - paddingX
-
-      const visualFinalX   = contentLeft - vRect.left
-      const identityFinalX = (contentRight - iRect.width) - iRect.left
-
-      gsap.set(line, { scaleX: 0, transformOrigin: 'center center', opacity: 0 })
-
-      tl = gsap.timeline({
-        defaults: { duration: 1.1, ease: 'power3.inOut' },
-        scrollTrigger: {
-          trigger: header,
-          start: 'top 80%',
-          toggleActions: 'play none none reverse',
-        },
-      })
-
-      tl.to(visual,   { x: visualFinalX }, 0)
-        .to(line,     { scaleX: 1, opacity: 1, ease: 'power2.inOut' }, 0)
-        .to(identity, { x: identityFinalX }, 0)
-    }
-
-    document.fonts.ready.then(() => requestAnimationFrame(setup))
-
-    return () => { tl?.kill() }
+    const el = rootRef.current
+    if (!el) return
+    let id: ReturnType<typeof setInterval> | undefined
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !id) {
+        id = setInterval(() => setCycleIndex(i => (i + 1) % fuellstackImages.length), 500)
+      } else if (!entry.isIntersecting && id) {
+        clearInterval(id)
+        id = undefined
+      }
+    })
+    io.observe(el)
+    return () => { io.disconnect(); if (id) clearInterval(id) }
   }, [])
 
   return (
-    <div className="mt-20 md:mt-28">
+    <div ref={rootRef} className="mt-20 md:mt-28">
 
-      {/* ── Section header ──────────────────────────────────────── */}
-      <div
-        ref={headerRef}
-        className="px-6 md:px-10 pb-8 md:pb-12 overflow-hidden"
-      >
-        <div className="relative">
-          <div
-            ref={lineEl}
-            className="absolute inset-x-0 border-t border-gray-300"
-            style={{ top: '50%' }}
-          />
-          <div className="relative flex items-baseline justify-center gap-2">
-            <h2
-              ref={visualEl}
-              className="relative bg-white pr-3 text-2xl md:text-3xl font-light text-black shrink-0 whitespace-nowrap"
-            >
-              <span style={{ fontFamily: 'SatishCapsSans, sans-serif', fontSize: '1.5em' }}>V</span><span style={{ fontFamily: 'SatishSans, sans-serif' }}>isual</span>
-            </h2>
-            <h2
-              ref={identityEl}
-              className="relative bg-white pl-3 text-2xl md:text-3xl font-light text-black shrink-0 whitespace-nowrap"
-            >
-              <span style={{ fontFamily: 'SatishCapsSans, sans-serif', fontSize: '1.5em' }}>I</span><span style={{ fontFamily: 'SatishSans, sans-serif' }}>dentity</span>
-            </h2>
-          </div>
-        </div>
-      </div>
+      <SectionHeader left={['V', 'isual']} right={['I', 'dentity']} />
 
       {/* ── Desktop collage (md+) ─────────────────────────────── */}
       <div className="hidden md:flex gap-2">

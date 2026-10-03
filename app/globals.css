@@ -617,3 +617,24 @@ html {
   scrollbar-color: #9ca3af #f3f4f6;
 }
 
+
+/* Navbar entrance. A CSS animation runs from the first paint of the
+   server-rendered nav, so there is no flash before JS takes over. */
+@keyframes nav-enter {
+  from { transform: translateY(-100px); opacity: 0; }
+  60%  { transform: translateY(6px); opacity: 1; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.nav-enter { animation: nav-enter 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both; }
+
+/* Home page sections are reached from the nav and footer as /#work and
+   /#unplugged; leave room for the fixed navbar when the browser jumps */
+[id="work"], [id="unplugged"] { scroll-margin-top: 100px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

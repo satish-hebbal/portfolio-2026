@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import { scrollToSection } from '@/lib/motion'
 
 export default function ScrollReset() {
   const pathname = usePathname()
@@ -16,6 +17,11 @@ export default function ScrollReset() {
       } else {
         window.scrollTo(0, 0)
       }
+
+      // Arriving on a section link such as /#work: start from the top, then
+      // glide down to the section once the page has had a frame to lay out
+      const hash = window.location.hash.slice(1)
+      if (hash) requestAnimationFrame(() => scrollToSection(hash))
     })
   }, [pathname])
 

@@ -19,18 +19,20 @@ export default function Home() {
 
       {/* ── Pillar decorations — fixed to viewport edges ─────── */}
       <Image
-        src="/images/HomeImages/piller-v.svg"
+        src="/images/HomeImages/piller-v.webp"
         alt=""
-        width={120}
-        height={800}
+        width={2143}
+        height={1800}
+        sizes="120vh"
         className="fixed top-0 h-screen w-auto object-contain object-top pointer-events-none select-none hidden md:block"
         style={{ zIndex: 0, opacity: 0.18, left: '-70px' }}
       />
       <Image
-        src="/images/HomeImages/piller-2-v.svg"
+        src="/images/HomeImages/piller-2-v.webp"
         alt=""
-        width={120}
-        height={800}
+        width={621}
+        height={1800}
+        sizes="35vh"
         className="fixed top-0 h-screen w-auto object-contain object-top pointer-events-none select-none hidden md:block"
         style={{ zIndex: 0, opacity: 0.18, right: '-40px' }}
       />
@@ -72,7 +74,7 @@ export default function Home() {
         </div>
 
         {/* Work section */}
-        <div data-section="work">
+        <div id="work" data-section="work">
           <WorkGallery />
         </div>
 
@@ -87,7 +89,7 @@ export default function Home() {
         </div>
 
         {/* Unplugged section */}
-        <div data-section="unplugged">
+        <div id="unplugged" data-section="unplugged">
           <UnpluggedGallery />
         </div>
 

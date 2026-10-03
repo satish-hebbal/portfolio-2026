@@ -1,7 +1,7 @@
 "use client"
 
 import Image from 'next/image'
-import Link from 'next/link'
+import SectionLink from './SectionLink'
 import { usePathname } from 'next/navigation'
 
 const links = [
@@ -11,8 +11,8 @@ const links = [
 ]
 
 const navLinks = [
-  { label: 'Works',     href: '/#work' },
-  { label: 'Unplugged', href: '/#unplugged' },
+  { label: 'Work',      href: '/#work',      section: 'work' },
+  { label: 'Unplugged', href: '/#unplugged', section: 'unplugged' },
   { label: 'About',     href: '/about' },
 ]
 
@@ -36,13 +36,14 @@ export default function Footer() {
 
           {/* Left branch */}
           <img
-            src="/images/HomeImages/branch.svg"
+            src="/images/HomeImages/branch.webp"
+            alt=""
             aria-hidden="true"
             className="hidden md:block shrink-0 pointer-events-none select-none"
             style={{
               height: '160px', width: 'auto',
               transform: 'rotate(90deg)',
-              filter: 'brightness(0) opacity(0.18)',
+              opacity: 0.18,
               marginRight: '-30px',
             }}
           />
@@ -65,13 +66,14 @@ export default function Footer() {
 
           {/* Right branch — mirrored */}
           <img
-            src="/images/HomeImages/branch.svg"
+            src="/images/HomeImages/branch.webp"
+            alt=""
             aria-hidden="true"
             className="hidden md:block shrink-0 pointer-events-none select-none"
             style={{
               height: '160px', width: 'auto',
               transform: 'rotate(90deg) scaleX(-1)',
-              filter: 'brightness(0) opacity(0.18)',
+              opacity: 0.18,
               marginLeft: '-30px',
             }}
           />
@@ -103,14 +105,15 @@ export default function Footer() {
           {/* Nav links */}
           <nav className="flex items-center gap-6">
             {navLinks.map((l) => (
-              <Link
+              <SectionLink
                 key={l.label}
                 href={l.href}
+                section={l.section}
                 className="text-xs text-gray-400 hover:text-black transition-colors duration-200"
                 style={{ fontFamily: 'FunnelDisplay, sans-serif' }}
               >
                 {l.label}
-              </Link>
+              </SectionLink>
             ))}
           </nav>
 

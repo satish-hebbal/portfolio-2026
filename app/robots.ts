@@ -10,7 +10,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.satishhebbal.de
 // route is kept out of search by the X-Robots-Tag header in next.config.ts plus
 // its own noindex metadata, which is both stronger and quieter.
 //
-// Retired URLs are handled in middleware.ts with a 410, not blocked here, for the
+// Retired URLs are handled in proxy.ts with a 410, not blocked here, for the
 // same reason: a blocked URL can never be crawled, so its removal signal is never
 // seen.
 export default function robots(): MetadataRoute.Robots {

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from 'react'
+import { onScrollFrame, prefersReducedMotion } from '@/lib/motion'
 
 // top = px from page top. edgeOffset = how far behind the screen edge to push it.
 const BRANCHES = [
@@ -15,30 +16,23 @@ export default function PageBranches() {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handleScroll = () => {
-      const y    = window.scrollY
+    if (prefersReducedMotion()) return
+    const els = Array.from(containerRef.current?.querySelectorAll<HTMLImageElement>('[data-branch]') ?? [])
+    // read config once instead of parsing data attributes every frame
+    const items = els.map((el, i) => ({ el, ...BRANCHES[i] }))
+
+    return onScrollFrame((y) => {
       const vh   = window.innerHeight
       const tilt = Math.min(y * 0.012, 6)
-
-      const els = containerRef.current?.querySelectorAll<HTMLImageElement>('[data-branch]')
-      els?.forEach(el => {
-        const speed   = parseFloat(el.dataset.speed   ?? '0.08')
-        const baseRot = parseFloat(el.dataset.rot     ?? '-25')
-        const tiltDir = parseFloat(el.dataset.tiltdir ?? '1')
-        const flip    = el.dataset.flip === 'true'
-        const top     = parseFloat(el.dataset.top     ?? '0')
-
+      for (const b of items) {
         // Parallax relative to each branch: 0 displacement when branch is at viewport centre
-        const dy  = (y - (top - vh)) * speed * -1
-        const rot = baseRot + tiltDir * tilt
-
-        el.style.transform = flip
+        const dy  = (y - (b.top - vh)) * b.speed * -1
+        const rot = b.rot + b.tiltDir * tilt
+        b.el.style.transform = b.flip
           ? `translateY(${dy}px) scaleX(-1) rotate(${rot}deg)`
           : `translateY(${dy}px) rotate(${rot}deg)`
-      })
-    }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
+      }
+    })
   }, [])
 
   return (
@@ -51,13 +45,11 @@ export default function PageBranches() {
         <img
           key={i}
           data-branch
-          data-speed={b.speed}
-          data-rot={b.rot}
-          data-tiltdir={b.tiltDir}
-          data-flip={String(b.flip)}
-          data-top={b.top}
-          src="/images/HomeImages/branch.svg"
+          src="/images/HomeImages/branch.webp"
+          alt=""
           aria-hidden="true"
+          loading="lazy"
+          decoding="async"
           style={{
             position: 'absolute',
             top: b.top,
@@ -67,7 +59,10 @@ export default function PageBranches() {
             transform: b.flip
               ? `translateY(0px) scaleX(-1) rotate(${b.rot}deg)`
               : `translateY(0px) rotate(${b.rot}deg)`,
-            filter: `brightness(0) opacity(${b.opacity})`,
+            // the art is already black, so plain opacity replaces the old
+            // brightness(0) filter that had to be re-applied as it moved
+            opacity: b.opacity,
+            willChange: 'transform',
           }}
         />
       ))}

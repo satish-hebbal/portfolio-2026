@@ -2,11 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRef, useEffect } from 'react'
-import { gsap } from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-
-gsap.registerPlugin(ScrollTrigger)
+import SectionHeader from './SectionHeader'
 
 const proposals = [
   {
@@ -51,83 +47,11 @@ const Plus = ({ h, v = 'bottom' }: { h: 'left' | 'right'; v?: 'top' | 'bottom' }
 )
 
 export default function ProposalsGallery() {
-  const headerRef  = useRef<HTMLDivElement>(null)
-  const designEl   = useRef<HTMLHeadingElement>(null)
-  const proposalEl = useRef<HTMLHeadingElement>(null)
-  const lineEl     = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const header   = headerRef.current
-    const design   = designEl.current
-    const proposal = proposalEl.current
-    const line     = lineEl.current
-    if (!header || !design || !proposal || !line) return
-
-    let tl: gsap.core.Timeline
-
-    const setup = () => {
-      const cRect = header.getBoundingClientRect()
-      const dRect = design.getBoundingClientRect()
-      const pRect = proposal.getBoundingClientRect()
-
-      const paddingX     = parseFloat(window.getComputedStyle(header).paddingLeft)
-      const contentLeft  = cRect.left + paddingX
-      const contentRight = cRect.right - paddingX
-
-      const designFinalX   = contentLeft - dRect.left
-      const proposalFinalX = (contentRight - pRect.width) - pRect.left
-
-      gsap.set(line, { scaleX: 0, transformOrigin: 'center center', opacity: 0 })
-
-      tl = gsap.timeline({
-        defaults: { duration: 1.1, ease: 'power3.inOut' },
-        scrollTrigger: {
-          trigger: header,
-          start: 'top 80%',
-          toggleActions: 'play none none reverse',
-        },
-      })
-
-      tl.to(design,   { x: designFinalX }, 0)
-        .to(line,     { scaleX: 1, opacity: 1, ease: 'power2.inOut' }, 0)
-        .to(proposal, { x: proposalFinalX }, 0)
-    }
-
-    document.fonts.ready.then(() => requestAnimationFrame(setup))
-
-    return () => { tl?.kill() }
-  }, [])
 
   return (
     <div className="mt-20 md:mt-28">
 
-      {/* Section header */}
-      <div
-        ref={headerRef}
-        className="px-6 md:px-10 pb-8 md:pb-12 overflow-hidden"
-      >
-        <div className="relative">
-          <div
-            ref={lineEl}
-            className="absolute inset-x-0 border-t border-gray-300"
-            style={{ top: '50%' }}
-          />
-          <div className="relative flex items-baseline justify-center gap-2">
-            <h2
-              ref={designEl}
-              className="relative bg-white pr-3 text-2xl md:text-3xl font-light text-black shrink-0 whitespace-nowrap"
-            >
-              <span style={{ fontFamily: 'SatishCapsSans, sans-serif', fontSize: '1.5em' }}>D</span><span style={{ fontFamily: 'SatishSans, sans-serif' }}>esign</span>
-            </h2>
-            <h2
-              ref={proposalEl}
-              className="relative bg-white pl-3 text-2xl md:text-3xl font-light text-black shrink-0 whitespace-nowrap"
-            >
-              <span style={{ fontFamily: 'SatishCapsSans, sans-serif', fontSize: '1.5em' }}>P</span><span style={{ fontFamily: 'SatishSans, sans-serif' }}>roposals</span>
-            </h2>
-          </div>
-        </div>
-      </div>
+      <SectionHeader left={['D', 'esign']} right={['P', 'roposals']} />
 
       {/* Cards */}
       <div className="flex flex-col gap-3">

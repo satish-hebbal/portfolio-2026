@@ -4,12 +4,16 @@ import Image from 'next/image'
 import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { prefersReducedMotion } from '@/lib/motion'
 
 gsap.registerPlugin(ScrollTrigger)
 
 // Config mirrors ABHAY / TEJAS in page.tsx
 const ABHAY = {
-  src:    '/images/HomeImages/abhay-v.svg',
+  src:    '/images/HomeImages/abhay-v.webp',
+  // raster export of the traced SVG at 2x; the SVG was a 2.7 MB single path
+  natW:   1312,
+  natH:   1014,
   width:  590,
   left:   '-35%',
   top:    '-2%',
@@ -17,7 +21,9 @@ const ABHAY = {
 }
 
 const TEJAS = {
-  src:    '/images/HomeImages/tejas-v.svg',
+  src:    '/images/HomeImages/tejas-v.webp',
+  natW:   1020,
+  natH:   1240,
   width:  510,
   right:  '-35%',
   top:    '40%',
@@ -31,6 +37,7 @@ export default function ParallaxImages() {
   const tejasMobile  = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (prefersReducedMotion()) return
     const ctx = gsap.context(() => {
       const st = {
         trigger: document.body,
@@ -83,32 +90,32 @@ export default function ParallaxImages() {
       <div
         ref={abhayDesktop}
         className="absolute h-auto hidden md:block pointer-events-none"
-        style={{ width: ABHAY.width, left: ABHAY.left, top: ABHAY.top, transform: `rotate(${ABHAY.rotate}deg)`, zIndex: 10 }}
+        style={{ width: ABHAY.width, left: ABHAY.left, top: ABHAY.top, transform: `rotate(${ABHAY.rotate}deg)`, zIndex: 10, willChange: 'transform' }}
       >
-        <Image src={ABHAY.src} alt="Abhay" width={ABHAY.width} height={500} className="w-full h-auto object-contain block" />
+        <Image src={ABHAY.src} alt="" width={ABHAY.natW} height={ABHAY.natH} loading="lazy" fetchPriority="high" sizes="590px" className="w-full h-auto object-contain block" />
       </div>
       <div
         ref={tejasDesktop}
         className="absolute h-auto hidden md:block pointer-events-none"
-        style={{ width: TEJAS.width, right: TEJAS.right, top: TEJAS.top, transform: `rotate(${TEJAS.rotate}deg)`, zIndex: 10 }}
+        style={{ width: TEJAS.width, right: TEJAS.right, top: TEJAS.top, transform: `rotate(${TEJAS.rotate}deg)`, zIndex: 10, willChange: 'transform' }}
       >
-        <Image src={TEJAS.src} alt="Tejas" width={TEJAS.width} height={500} className="w-full h-auto object-contain block" />
+        <Image src={TEJAS.src} alt="" width={TEJAS.natW} height={TEJAS.natH} loading="lazy" fetchPriority="high" sizes="510px" className="w-full h-auto object-contain block" />
       </div>
 
       {/* ── Mobile — fixed to viewport, no container clipping ───────────────── */}
       <div
         ref={abhayMobile}
         className="fixed block md:hidden pointer-events-none"
-        style={{ width: 300, left: -135, top: '12vh', transform: 'rotate(22deg)', zIndex: 10 }}
+        style={{ width: 300, left: -135, top: '12vh', transform: 'rotate(22deg)', zIndex: 10, willChange: 'transform' }}
       >
-        <Image src={ABHAY.src} alt="Abhay" width={300} height={415} className="w-full h-auto object-contain block" />
+        <Image src={ABHAY.src} alt="" width={ABHAY.natW} height={ABHAY.natH} loading="lazy" fetchPriority="high" sizes="300px" className="w-full h-auto object-contain block" />
       </div>
       <div
         ref={tejasMobile}
         className="fixed block md:hidden pointer-events-none"
-        style={{ width: 240, left: 'calc(100vw - 130px)', top: '22vh', transform: 'rotate(-18deg)', zIndex: 10 }}
+        style={{ width: 240, left: 'calc(100vw - 130px)', top: '22vh', transform: 'rotate(-18deg)', zIndex: 10, willChange: 'transform' }}
       >
-        <Image src={TEJAS.src} alt="Tejas" width={240} height={340} className="w-full h-auto object-contain block" />
+        <Image src={TEJAS.src} alt="" width={TEJAS.natW} height={TEJAS.natH} loading="lazy" fetchPriority="high" sizes="240px" className="w-full h-auto object-contain block" />
       </div>
     </>
   )

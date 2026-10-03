@@ -416,7 +416,7 @@ export default function HsaasPublic() {
           <div className="border-t border-gray-200">
             <Image
               src="/images/WorkImages/hsaasImages/hs-channel-store.png"
-              alt="Channel Store — Standard, Premium, Upcoming tiers"
+              alt="Channel Store: Standard, Premium, Upcoming tiers"
               width={2000}
               height={1200}
               className="w-full h-auto object-cover"

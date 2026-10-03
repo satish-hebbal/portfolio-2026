@@ -436,7 +436,7 @@ function AfterPhone() {
             {/* Header — logo left, secure badge right */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <img
-                src="/images/proposals/Xpay/Xpay-logo.png"
+                src="/images/proposals/Xpay/xpay-logo.webp"
                 alt="xPay"
                 style={{ height: 16, width: 'auto', display: 'block' }}
               />
@@ -611,7 +611,7 @@ export default function XPayProposal() {
               <div style={{ flex: 1 }}>
                 {/* Company name */}
                 <img
-                  src="/images/proposals/Xpay/Xpay-logo.png"
+                  src="/images/proposals/Xpay/xpay-logo.webp"
                   alt="xPay"
                   style={{ height: 40, width: 'auto', marginBottom: 16, display: 'block' }}
                 />
@@ -633,7 +633,7 @@ export default function XPayProposal() {
                 {/* Byline — Medium style */}
                 <div className="xpay-byline">
               <img
-                src="/images/common/Satish0profile.png"
+                src="/images/common/satish-avatar.webp"
                 alt="Satish Hebbal"
                 style={{
                   outline: '0.5px solid rgb(173, 173, 173)',
@@ -669,7 +669,7 @@ export default function XPayProposal() {
 
               {/* Right: coin image */}
               <img
-                src="/images/proposals/Xpay/Coin-xpay.png"
+                src="/images/proposals/Xpay/coin-xpay.webp"
                 alt=""
                 className="xpay-coin"
               />
@@ -723,12 +723,12 @@ export default function XPayProposal() {
                   lineHeight: 1.5,
                 }}
               >
-                What the customer actually sees — two pending charges, no explanation.
+                What the customer actually sees: two pending charges, no explanation.
               </figcaption>
             </figure>
 
             <p style={{ ...bodyText, marginBottom: 0 }}>
-              A successful payment becomes a chargeback. The problem isn't the mechanic — it's the silence around it.
+              A successful payment becomes a chargeback. The problem isn't the mechanic. It's the silence around it.
             </p>
           </FadeIn>
         </section>
@@ -763,7 +763,7 @@ export default function XPayProposal() {
             <div style={{ marginBottom: 48 }}>
               <SectionLabel strong>Why this screen exists</SectionLabel>
               <p style={bodyText}>
-                The authorization hold mechanic is technically necessary — card networks require it to guarantee the full balance is collectable before splitting payments. But it's completely invisible to the customer. That gap between what xPay does and what the customer understands is where support cost lives. One screen, placed at the right moment, closes it.
+                The authorization hold mechanic is technically necessary: card networks require it to guarantee the full balance is collectable before splitting payments. But it's completely invisible to the customer. That gap between what xPay does and what the customer understands is where support cost lives. One screen, placed at the right moment, closes it.
               </p>
             </div>
           </FadeIn>
@@ -773,7 +773,7 @@ export default function XPayProposal() {
             <div style={{ marginBottom: 48 }}>
               <SectionLabel strong>Why plain language over legal copy</SectionLabel>
               <p style={bodyText}>
-                The current notice likely says "authorization hold" — a term most consumers don't know and don't trust. Replacing it with "security check that releases automatically" removes the anxiety without removing the accuracy. The bank still sees the hold. The customer stops panicking. No legal change required.
+                The current notice likely says "authorization hold", a term most consumers don't know and don't trust. Replacing it with "security check that releases automatically" removes the anxiety without removing the accuracy. The bank still sees the hold. The customer stops panicking. No legal change required.
               </p>
             </div>
           </FadeIn>
@@ -783,7 +783,7 @@ export default function XPayProposal() {
             <div>
               <SectionLabel strong>The business case</SectionLabel>
               <p style={bodyText}>
-                Fewer disputes means a lower chargeback rate, which means better standing with card networks. Higher EMI conversion because customers aren't scared off at the final step. This one screen sits at the intersection of revenue and ops cost — it's not a UX fix for its own sake.
+                Fewer disputes means a lower chargeback rate, which means better standing with card networks. Higher EMI conversion because customers aren't scared off at the final step. This one screen sits at the intersection of revenue and ops cost. It's not a UX fix for its own sake.
               </p>
             </div>
           </FadeIn>
@@ -793,9 +793,13 @@ export default function XPayProposal() {
         <FadeIn>
           <figure style={{ margin: '48px 0 0' }}>
             <img
-              src="/images/proposals/Xpay/Xpay-bann-1.png"
+              src="/images/proposals/Xpay/xpay-banner.webp"
+              loading="lazy"
+              decoding="async"
+              width={1600}
+              height={434}
               alt="xPay product detail"
-              style={{ width: '100%', borderRadius: 12 }}
+              style={{ width: '100%', height: 'auto', borderRadius: 12 }}
             />
           </figure>
         </FadeIn>

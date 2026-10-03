@@ -2394,7 +2394,7 @@ export default function QR2() {
               </ManCard>
 
               {/* Module Shape */}
-              <ManCard label="Module Shape" desc="Opens the dot shape picker — square, circle, diamond, star and more.">
+              <ManCard label="Module Shape" desc="Opens the dot shape picker: square, circle, diamond, star and more.">
                 <button style={{ ...hw.btn(false), borderRadius:22, padding:'11px 14px', display:'flex', alignItems:'center', gap:6, fontSize:10, fontWeight:500, color: isNight ? '#aaa' : '#555' }}>
                   <img src="/images/lab/finder-pattern-icon.svg" width="14" height="14" style={{ filter: isNight ? 'brightness(0) invert(1) opacity(0.5)' : 'opacity(0.5)' }}/>
                   Module Shape
@@ -2443,12 +2443,12 @@ export default function QR2() {
               </ManCard>
 
               {/* Distance */}
-              <ManCard label="Distance" desc="Vertical slider — controls how far gradient colors spread across the QR modules.">
+              <ManCard label="Distance" desc="Vertical slider that controls how far gradient colors spread across the QR modules.">
                 <VSlider value={5} onChange={()=>{}} min={0} max={10} label="Distance" labelColor={isNight ? 'rgba(255,255,255,0.4)' : '#888'} isNight={isNight}/>
               </ManCard>
 
               {/* Preset */}
-              <ManCard label="Preset" desc="One-tap gradient themes — Sunset, Ocean, Neon, Gold, Aurora, Fire, Candy and more.">
+              <ManCard label="Preset" desc="One-tap gradient themes: Sunset, Ocean, Neon, Gold, Aurora, Fire, Candy and more.">
                 <button style={{ ...hw.btn(false), borderRadius:22, padding:'11px 14px', display:'flex', alignItems:'center', gap:6, fontSize:10, fontWeight:500, color: isNight ? '#aaa' : '#555' }}>
                   <img src="/images/lab/preset-icon.svg" width="14" height="14" style={{ filter: isNight ? 'brightness(0) invert(1) opacity(0.5)' : 'opacity(0.5)' }}/>
                   Preset
@@ -2456,7 +2456,7 @@ export default function QR2() {
               </ManCard>
 
               {/* Texture */}
-              <ManCard label="Texture" desc="Apply a material skin — Brushed Silver, Carbon, Washi, Neon Glow, Blueprint and more.">
+              <ManCard label="Texture" desc="Apply a material skin: Brushed Silver, Carbon, Washi, Neon Glow, Blueprint and more.">
                 <button style={{ ...hw.btn(false), borderRadius:22, padding:'11px 14px', display:'flex', alignItems:'center', gap:6, fontSize:10, fontWeight:500, color: isNight ? '#aaa' : '#555' }}>
                   <img src="/images/lab/texture-icon.svg" width="14" height="14" style={{ filter: isNight ? 'brightness(0) invert(1) opacity(0.5)' : 'opacity(0.5)' }}/>
                   Texture
@@ -2479,7 +2479,7 @@ export default function QR2() {
               </ManCard>
 
               {/* Download */}
-              <ManCard label="Download" desc="Saves the QR as a lossless SVG — scales perfectly to any print size.">
+              <ManCard label="Download" desc="Saves the QR as a lossless SVG that scales perfectly to any print size.">
                 <button style={{ ...hw.btn(false), width:'100%', borderRadius:22, padding:'10px 0', fontSize:12, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:7, color: isNight ? '#bbb' : '#444', boxSizing:'border-box' }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 4v12M8 13l4 5 4-5"/><path d="M4 20h16"/></svg>
                   Download

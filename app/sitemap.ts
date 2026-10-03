@@ -3,7 +3,7 @@ import type { MetadataRoute } from 'next'
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.satishhebbal.design'
 
 // Public routes only. /works/private/* is intentionally absent, as are the
-// retired URLs served as 410 by middleware.ts. Listing the new
+// retired URLs served as 410 by proxy.ts. Listing the new
 // /works/healthcare-saas URL here is what gets it discovered and indexed quickly
 // in place of the old one.
 const routes = [
@@ -15,6 +15,7 @@ const routes = [
   '/works/skillRadius',
   '/works/abhiyantrikWebsite',
   '/lab',
+  '/unplugged/table',
 ]
 
 export default function sitemap(): MetadataRoute.Sitemap {

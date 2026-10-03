@@ -90,28 +90,37 @@ function VerticalSlider({ value, onChange, background, min = 0, max = 360 }: {
 
 // --- Grainy gradient CSS ---
 const GRAINY_CSS = `
+  /* Same drift as before, expressed as transforms. Animating top/left/right/bottom
+     moved the blobs through layout, which counted as layout shift and re-blurred
+     them every frame; transforms stay on the compositor. Offsets are the old
+     percentage moves converted to viewport units (the stage fills the screen). */
   @keyframes grainy-yellow {
-    0%   { top: 20%; left: 10%; transform: scale(1); }
-    30%  { top: 40%; left: 20%; transform: scale(1.2); }
-    60%  { top: 15%; left: 35%; transform: scale(1.3); }
-    100% { top: 20%; left: 10%; transform: scale(1); }
+    0%   { transform: translate(0, 0) scale(1); }
+    30%  { transform: translate(10vw, 20vh) scale(1.2); }
+    60%  { transform: translate(25vw, -5vh) scale(1.3); }
+    100% { transform: translate(0, 0) scale(1); }
   }
   @keyframes grainy-green {
-    0%   { top: 10%; right: 5%; transform: scale(1.2); }
-    30%  { top: 50%; right: 5%; transform: scale(1); }
-    60%  { top: 35%; right: 20%; transform: scale(1); }
-    100% { top: 10%; right: 5%; transform: scale(1.2); }
+    0%   { transform: translate(0, 0) scale(1.2); }
+    30%  { transform: translate(0, 40vh) scale(1); }
+    60%  { transform: translate(-15vw, 25vh) scale(1); }
+    100% { transform: translate(0, 0) scale(1.2); }
   }
   @keyframes grainy-red {
-    0%   { bottom: 20%; right: 5%; transform: scale(1); }
-    30%  { bottom: 30%; right: 25%; transform: scale(1.4); }
-    60%  { bottom: 20%; right: 15%; transform: scale(1); }
-    100% { bottom: 20%; right: 5%; transform: scale(1); }
+    0%   { transform: translate(0, 0) scale(1); }
+    30%  { transform: translate(-20vw, -10vh) scale(1.4); }
+    60%  { transform: translate(-10vw, 0) scale(1); }
+    100% { transform: translate(0, 0) scale(1); }
   }
-  .grainy-blob { border-radius: 100px; filter: blur(80px); position: absolute; pointer-events: none; }
-  .grainy-yellow { background: rgb(255, 174, 68); width: 280px; height: 280px; animation: grainy-yellow 8s infinite ease; top: 20%; left: 10%; }
-  .grainy-green  { background: rgb(178, 255, 225); width: 350px; height: 300px; animation: grainy-green 8s infinite ease; top: 10%; right: 5%; }
-  .grainy-red    { background: rgb(255, 156, 202); width: 300px; height: 320px; animation: grainy-red 8s infinite linear; bottom: 20%; right: 5%; }
+  /* Soft blobs drawn as radial gradients instead of filter: blur(80px). The
+     blur had to be recomputed for every animation frame; a gradient is painted
+     once and then just moved. Each box is grown by the old blur radius (80px a
+     side, pulled back with negative margins) so the falloff covers the same
+     area the blur used to. */
+  .grainy-blob { position: absolute; pointer-events: none; will-change: transform; margin: -80px; }
+  .grainy-yellow { background: radial-gradient(closest-side, rgb(255, 174, 68) 8%, rgba(255, 174, 68, 0) 100%); width: 440px; height: 440px; animation: grainy-yellow 8s infinite ease; top: 20%; left: 10%; }
+  .grainy-green  { background: radial-gradient(closest-side, rgb(178, 255, 225) 8%, rgba(178, 255, 225, 0) 100%); width: 510px; height: 460px; animation: grainy-green 8s infinite ease; top: 10%; right: 5%; }
+  .grainy-red    { background: radial-gradient(closest-side, rgb(255, 156, 202) 8%, rgba(255, 156, 202, 0) 100%); width: 460px; height: 480px; animation: grainy-red 8s infinite linear; bottom: 20%; right: 5%; }
 `
 
 // --- Shine + arcade CSS ---

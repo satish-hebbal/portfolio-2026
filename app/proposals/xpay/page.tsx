@@ -3,7 +3,7 @@ import XPayProposal from '../../components/proposals/xpay';
 import ScrollToTop from '../../components/ui/ScrollToTop';
 
 export const metadata: Metadata = {
-  title: 'xPay — Satish Hebbal',
+  title: 'xPay - Satish Hebbal',
   description: 'A product problem found in xPay, and what I\'d ship to fix it.',
 };
 

@@ -31,7 +31,9 @@ if (typeof window !== "undefined") {
     disable_session_recording: false,
     enable_heatmaps: true,
     session_recording: {
-      maskAllInputs: false,
+      // Lab tools take free text (QR content, YouTube links); keep what
+      // visitors type out of recordings
+      maskAllInputs: true,
       maskTextSelector: "",
     },
   })

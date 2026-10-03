@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import { copyText } from '@/lib/clipboard'
 
 const EMAIL = 'satishdezn@gmail.com'
 
@@ -31,19 +32,7 @@ export default function EmailCopy() {
   const [copied, setCopied] = useState(false)
 
   const handleClick = async () => {
-    try {
-      await navigator.clipboard.writeText(EMAIL)
-    } catch {
-      // Fallback for mobile / non-HTTPS
-      const el = document.createElement('textarea')
-      el.value = EMAIL
-      el.style.cssText = 'position:fixed;opacity:0;pointer-events:none;'
-      document.body.appendChild(el)
-      el.focus()
-      el.select()
-      document.execCommand('copy')
-      document.body.removeChild(el)
-    }
+    await copyText(EMAIL)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -59,6 +48,10 @@ export default function EmailCopy() {
         WebkitTapHighlightColor: 'transparent',
       }}
       onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      aria-label={`Copy email address ${EMAIL}`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick() } }}
     >
       <Plus h="left"  v="top" />
       <Plus h="right" v="top" />
@@ -67,13 +60,13 @@ export default function EmailCopy() {
 
       <div className={`flex items-center transition-opacity duration-200 ${copied ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <span className="pl-4 pr-2 py-2 text-xs text-gray-500 select-none">{EMAIL}</span>
-        <button aria-label="Copy email" className="pl-2 pr-4 py-2 shrink-0 flex items-center justify-center outline-none">
+        <span aria-hidden="true" className="pl-2 pr-4 py-2 shrink-0 flex items-center justify-center">
           <CopyIcon />
-        </button>
+        </span>
       </div>
 
-      <div className={`absolute inset-0 flex items-center justify-center gap-2 text-white text-xs transition-opacity duration-200 ${copied ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <TickIcon /> copieeeeeeed!!!
+      <div aria-live="polite" className={`absolute inset-0 flex items-center justify-center gap-2 text-white text-xs transition-opacity duration-200 ${copied ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <TickIcon /> Copied
       </div>
     </div>
   )

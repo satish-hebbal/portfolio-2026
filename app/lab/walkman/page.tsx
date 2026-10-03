@@ -896,7 +896,9 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   )
 }
 
-useGLTF.preload('/models/walkman/walkman01.glb')
+// No module-level useGLTF.preload here: it ran whenever this module was
+// evaluated, which pulled the 25 MB model in on other pages too. The model
+// still starts loading as soon as <WalkmanModel> mounts on this page.
 
 // ─── retro status display ─────────────────────────────────────────────────────
 
@@ -1355,7 +1357,7 @@ export default function Walkman() {
   const processUrl = useCallback((trimmed: string) => {
     if (!trimmed) {
       updateDisplayRef.current?.('NO INPUT', true)
-      showToast('No tape loaded', 'Bring a YouTube URL — the Walkman does the rest.')
+      showToast('No tape loaded', 'Bring a YouTube URL. The Walkman does the rest.')
       setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 1500)
       return
     }
@@ -1699,17 +1701,17 @@ export default function Walkman() {
         }}>
           {((isMobile
             ? [
-                { id: 'play',   icon: '►❚', label: 'play/pause', tip: 'Play or pause — press the bottom-right button on the Walkman' },
-                { id: 'rewind', icon: '◀◀', label: 'rewind', tip: 'Rewind 10s — press the second button from the right' },
-                { id: 'skip',   icon: '▶▶', label: 'skip',   tip: 'Skip 10s — press the second button from the left' },
-                { id: 'mute',   icon: '⊘',  label: isMuted ? 'muted' : 'mute', tip: 'Mute or unmute — click the orange button on the side of the Walkman' },
+                { id: 'play',   icon: '►❚', label: 'play/pause', tip: 'Play or pause: press the bottom-right button on the Walkman' },
+                { id: 'rewind', icon: '◀◀', label: 'rewind', tip: 'Rewind 10s: press the second button from the right' },
+                { id: 'skip',   icon: '▶▶', label: 'skip',   tip: 'Skip 10s: press the second button from the left' },
+                { id: 'mute',   icon: '⊘',  label: isMuted ? 'muted' : 'mute', tip: 'Mute or unmute: click the orange button on the side of the Walkman' },
               ]
             : [
-                { id: 'play',   icon: '►',  label: 'play',   tip: 'Play the song — press the bottom-right button on the Walkman' },
-                { id: 'pause',  icon: '❚❚', label: 'pause',  tip: 'Pause the song — press the bottom-right button on the Walkman' },
-                { id: 'rewind', icon: '◀◀', label: 'rewind', tip: 'Rewind 10s — press the second button from the right' },
-                { id: 'skip',   icon: '▶▶', label: 'skip',   tip: 'Skip 10s — press the second button from the left' },
-                { id: 'mute',   icon: '⊘',  label: isMuted ? 'muted' : 'mute', tip: 'Mute or unmute — click the orange button on the side of the Walkman' },
+                { id: 'play',   icon: '►',  label: 'play',   tip: 'Play the song: press the bottom-right button on the Walkman' },
+                { id: 'pause',  icon: '❚❚', label: 'pause',  tip: 'Pause the song: press the bottom-right button on the Walkman' },
+                { id: 'rewind', icon: '◀◀', label: 'rewind', tip: 'Rewind 10s: press the second button from the right' },
+                { id: 'skip',   icon: '▶▶', label: 'skip',   tip: 'Skip 10s: press the second button from the left' },
+                { id: 'mute',   icon: '⊘',  label: isMuted ? 'muted' : 'mute', tip: 'Mute or unmute: click the orange button on the side of the Walkman' },
               ]
           ) as { id: string; icon: string; label: string; tip: string }[]).map((ctrl, i, arr) => (
             <span key={ctrl.id} style={{ display: 'inline-flex', alignItems: 'center' }}>

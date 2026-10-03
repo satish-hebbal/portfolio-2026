@@ -3,10 +3,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRef, useEffect } from 'react'
-import { gsap } from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-
-gsap.registerPlugin(ScrollTrigger)
+import SectionHeader from './SectionHeader'
+import { onScrollFrame, prefersReducedMotion } from '@/lib/motion'
 
 const works = [
   {
@@ -65,153 +63,71 @@ const Plus = ({ h, v = 'bottom' }: { h: 'left' | 'right'; v?: 'top' | 'bottom' }
 )
 
 export default function WorkGallery() {
-  const headerRef  = useRef<HTMLDivElement>(null)
-  const selectedEl = useRef<HTMLHeadingElement>(null)
-  const worksEl    = useRef<HTMLHeadingElement>(null)
-  const lineEl     = useRef<HTMLDivElement>(null)
   const branchContainerRef = useRef<HTMLDivElement>(null)
 
   // Parallax + tilt for all branches via data attributes
   useEffect(() => {
-    const handleScroll = () => {
-      const y = window.scrollY
+    if (prefersReducedMotion()) return
+    // parse the data attributes once, not on every frame
+    const items = Array.from(branchContainerRef.current?.querySelectorAll<HTMLImageElement>('[data-branch]') ?? []).map(el => ({
+      el,
+      speed:   parseFloat(el.dataset.speed   ?? '0.1'),
+      baseRot: parseFloat(el.dataset.rot     ?? '-25'),
+      tiltDir: parseFloat(el.dataset.tiltdir ?? '1'),
+      flip:    el.dataset.flip === 'true',
+    }))
+    return onScrollFrame((y) => {
       const tilt = Math.min(y * 0.015, 8)
-      const els = branchContainerRef.current?.querySelectorAll<HTMLImageElement>('[data-branch]')
-      els?.forEach(el => {
-        const speed   = parseFloat(el.dataset.speed  ?? '0.1')
-        const baseRot = parseFloat(el.dataset.rot    ?? '-25')
-        const tiltDir = parseFloat(el.dataset.tiltdir ?? '1')
-        const flip    = el.dataset.flip === 'true'
-        const dy = -(y * speed)
-        const rot = baseRot + tiltDir * tilt
-        el.style.transform = flip
+      for (const b of items) {
+        const dy = -(y * b.speed)
+        const rot = b.baseRot + b.tiltDir * tilt
+        b.el.style.transform = b.flip
           ? `translateY(${dy}px) scaleX(-1) rotate(${rot}deg)`
           : `translateY(${dy}px) rotate(${rot}deg)`
-      })
-    }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  useEffect(() => {
-    const header   = headerRef.current
-    const selected = selectedEl.current
-    const worksH   = worksEl.current
-    const line     = lineEl.current
-    if (!header || !selected || !worksH || !line) return
-
-    let tl: gsap.core.Timeline
-
-    const setup = () => {
-      // Words are centered via CSS (justify-center) — this IS the initial state.
-      // We calculate where they need to animate TO (left edge / right edge of content area).
-      const cRect = header.getBoundingClientRect()
-      const sRect = selected.getBoundingClientRect()
-      const wRect = worksH.getBoundingClientRect()
-
-      // line uses inset-x-0 on the inner wrapper (header minus its padding)
-      const paddingX    = parseFloat(window.getComputedStyle(header).paddingLeft)
-      const contentLeft  = cRect.left  + paddingX
-      const contentRight = cRect.right - paddingX
-
-      // How far each word moves from its centered position to the edge
-      const selectedFinalX = contentLeft - sRect.left               // negative → moves left
-      const worksFinalX    = (contentRight - wRect.width) - wRect.left  // positive → moves right
-
-      // Hide line at start
-      gsap.set(line, { scaleX: 0, transformOrigin: 'center center', opacity: 0 })
-
-      // One-shot animation triggered when section enters view.
-      // toggleActions: play forward on enter, reverse on leave-back.
-      tl = gsap.timeline({
-        defaults: { duration: 1.1, ease: 'power3.inOut' },
-        scrollTrigger: {
-          trigger: header,
-          start: 'top 80%',
-          toggleActions: 'play none none reverse',
-        },
-      })
-
-      tl.to(selected, { x: selectedFinalX }, 0)
-        .to(line,     { scaleX: 1, opacity: 1, ease: 'power2.inOut' }, 0)
-        .to(worksH,   { x: worksFinalX }, 0)
-    }
-
-    document.fonts.ready.then(() => requestAnimationFrame(setup))
-
-    return () => { tl?.kill() }
+      }
+    })
   }, [])
 
   return (
     <div>
 
-      {/* ── Section header ──────────────────────────────────────── */}
-      <div
-        ref={headerRef}
-        className="px-6 md:px-10 pb-8 md:pb-12 overflow-hidden"
-      >
-        {/* Inner wrapper: height = text height only, so top:50% = text midline */}
-        <div className="relative">
-          {/* Line: spans full content width, vertically centred with the text */}
-          <div
-            ref={lineEl}
-            className="absolute inset-x-0 border-t border-gray-300"
-            style={{ top: '50%' }}
-          />
-
-          {/* Words: start naturally centered side-by-side */}
-          <div className="relative flex items-baseline justify-center gap-2">
-            <h2
-              ref={selectedEl}
-              className="relative bg-white pr-3 text-2xl md:text-3xl font-light text-black shrink-0 whitespace-nowrap"
-            >
-              <span style={{ fontFamily: 'SatishCapsSans, sans-serif', fontSize: '1.5em' }}>S</span><span style={{ fontFamily: 'SatishSans, sans-serif' }}>elected</span>
-            </h2>
-            <h2
-              ref={worksEl}
-              className="relative bg-white pl-3 text-2xl md:text-3xl font-light text-black shrink-0 whitespace-nowrap"
-            >
-              <span style={{ fontFamily: 'SatishCapsSans, sans-serif', fontSize: '1.5em' }}>W</span><span style={{ fontFamily: 'SatishSans, sans-serif' }}>orks</span>
-            </h2>
-          </div>
-        </div>
-      </div>
+      <SectionHeader left={['S', 'elected']} right={['W', 'orks']} />
 
       {/* ── Works list ─────────────────────────────────────── */}
       <div className="relative" ref={branchContainerRef}>
 
         {/* Left branches */}
         <img data-branch data-speed="0.18" data-rot="-25" data-tiltdir="-1" data-flip="true"
-          src="/images/HomeImages/branch.svg" aria-hidden="true"
+          src="/images/HomeImages/branch.webp" alt="" aria-hidden="true" loading="lazy" decoding="async"
           className="hidden md:block absolute pointer-events-none select-none"
-          style={{ width: 'auto', height: '460px', top: '5%',  left: 'calc(50% - 50vw - 35px)', transform: 'translateY(0px) scaleX(-1) rotate(-25deg)', filter: 'brightness(0) opacity(0.13)' }}
+          style={{ width: 'auto', height: '460px', top: '5%',  left: 'calc(50% - 50vw - 35px)', transform: 'translateY(0px) scaleX(-1) rotate(-25deg)', opacity: 0.13, willChange: 'transform' }}
         />
         <img data-branch data-speed="0.13" data-rot="-20" data-tiltdir="-1" data-flip="true"
-          src="/images/HomeImages/branch.svg" aria-hidden="true"
+          src="/images/HomeImages/branch.webp" alt="" aria-hidden="true" loading="lazy" decoding="async"
           className="hidden md:block absolute pointer-events-none select-none"
-          style={{ width: 'auto', height: '420px', top: '38%', left: 'calc(50% - 50vw - 45px)', transform: 'translateY(0px) scaleX(-1) rotate(-20deg)', filter: 'brightness(0) opacity(0.11)' }}
+          style={{ width: 'auto', height: '420px', top: '38%', left: 'calc(50% - 50vw - 45px)', transform: 'translateY(0px) scaleX(-1) rotate(-20deg)', opacity: 0.11, willChange: 'transform' }}
         />
         <img data-branch data-speed="0.20" data-rot="-28" data-tiltdir="-1" data-flip="true"
-          src="/images/HomeImages/branch.svg" aria-hidden="true"
+          src="/images/HomeImages/branch.webp" alt="" aria-hidden="true" loading="lazy" decoding="async"
           className="hidden md:block absolute pointer-events-none select-none"
-          style={{ width: 'auto', height: '400px', top: '72%', left: 'calc(50% - 50vw - 30px)', transform: 'translateY(0px) scaleX(-1) rotate(-28deg)', filter: 'brightness(0) opacity(0.10)' }}
+          style={{ width: 'auto', height: '400px', top: '72%', left: 'calc(50% - 50vw - 30px)', transform: 'translateY(0px) scaleX(-1) rotate(-28deg)', opacity: 0.10, willChange: 'transform' }}
         />
 
         {/* Right branches */}
         <img data-branch data-speed="0.09" data-rot="-25" data-tiltdir="1" data-flip="false"
-          src="/images/HomeImages/branch.svg" aria-hidden="true"
+          src="/images/HomeImages/branch.webp" alt="" aria-hidden="true" loading="lazy" decoding="async"
           className="hidden md:block absolute pointer-events-none select-none"
-          style={{ width: 'auto', height: '430px', top: '20%', right: 'calc(50% - 50vw - 30px)', transform: 'translateY(0px) rotate(-25deg)', filter: 'brightness(0) opacity(0.11)' }}
+          style={{ width: 'auto', height: '430px', top: '20%', right: 'calc(50% - 50vw - 30px)', transform: 'translateY(0px) rotate(-25deg)', opacity: 0.11, willChange: 'transform' }}
         />
         <img data-branch data-speed="0.15" data-rot="-22" data-tiltdir="1" data-flip="false"
-          src="/images/HomeImages/branch.svg" aria-hidden="true"
+          src="/images/HomeImages/branch.webp" alt="" aria-hidden="true" loading="lazy" decoding="async"
           className="hidden md:block absolute pointer-events-none select-none"
-          style={{ width: 'auto', height: '450px', top: '55%', right: 'calc(50% - 50vw - 40px)', transform: 'translateY(0px) rotate(-22deg)', filter: 'brightness(0) opacity(0.12)' }}
+          style={{ width: 'auto', height: '450px', top: '55%', right: 'calc(50% - 50vw - 40px)', transform: 'translateY(0px) rotate(-22deg)', opacity: 0.12, willChange: 'transform' }}
         />
         <img data-branch data-speed="0.11" data-rot="-18" data-tiltdir="1" data-flip="false"
-          src="/images/HomeImages/branch.svg" aria-hidden="true"
+          src="/images/HomeImages/branch.webp" alt="" aria-hidden="true" loading="lazy" decoding="async"
           className="hidden md:block absolute pointer-events-none select-none"
-          style={{ width: 'auto', height: '390px', top: '85%', right: 'calc(50% - 50vw - 25px)', transform: 'translateY(0px) rotate(-18deg)', filter: 'brightness(0) opacity(0.10)' }}
+          style={{ width: 'auto', height: '390px', top: '85%', right: 'calc(50% - 50vw - 25px)', transform: 'translateY(0px) rotate(-18deg)', opacity: 0.10, willChange: 'transform' }}
         />
 
       <div className="flex flex-col gap-10 md:gap-16">
@@ -227,7 +143,7 @@ export default function WorkGallery() {
             <Plus h="right" v="bottom" />
 
             {/* Info — left on desktop, below image on mobile */}
-            <div className="p-6 md:p-10 flex flex-col justify-between order-2 md:order-1 bg-white/10 backdrop-blur-md">
+            <div className="p-6 md:p-10 flex flex-col justify-between order-2 md:order-1 bg-white/80">
               <div>
                 <h3
                   className="text-2xl md:text-3xl font-light text-black mb-4"

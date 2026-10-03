@@ -7,6 +7,8 @@ import SmartTouchSwitchBoard, { SwitchState } from './abhiyantrik/SmartTouchSwit
 import SmartMCB, { MCBState } from './abhiyantrik/SmartMCB'
 import PhoneShell from './abhiyantrik/PhoneShell'
 import { SketchyArrow } from '../ui/SketchyArrow'
+import LazyVideo from '../ui/LazyVideo'
+import { copyText } from '@/lib/clipboard'
 
 // Hand-drawn nudge pointing at an interactive element, easy to scroll past otherwise
 const InteractiveNudge = ({ text, flip = false }: { text: string; flip?: boolean }) => (
@@ -191,7 +193,7 @@ const SmartNation = () => {
   };
 
   const handleCopy = (type: 'email' | 'phone', value: string) => {
-    navigator.clipboard.writeText(value);
+    copyText(value);
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
   };
@@ -416,9 +418,11 @@ const SmartNation = () => {
             </div>
             {/* Right panel — animation */}
             <div className="relative overflow-hidden flex items-start justify-center px-6 md:px-10 pt-4 pb-8 md:pt-6 md:pb-12">
-              <video className="w-full h-auto max-w-xs md:max-w-sm rounded-lg" autoPlay loop muted playsInline>
-                <source src="/images/WorkImages/smartNationImages/smart-nation-animation.mp4" type="video/mp4" />
-              </video>
+              <LazyVideo
+                className="w-full h-auto max-w-xs md:max-w-sm rounded-lg aspect-video"
+                src="/images/WorkImages/smartNationImages/smart-nation-animation-768.mp4"
+                poster="/images/WorkImages/smartNationImages/smart-nation-animation-poster.jpg"
+              />
             </div>
           </div>
           <PlusAt x="50%" />
@@ -496,7 +500,7 @@ const SmartNation = () => {
           </div>
 
           <div className="w-full">
-            <Image src="/images/HomeImages/SN-tumb-2.png" alt="Smart Nation App — 3-screen mockup" width={1200} height={800} className="w-full h-auto" />
+            <Image src="/images/HomeImages/SN-tumb-2.png" alt="Smart Nation App, 3-screen mockup" width={1200} height={800} className="w-full h-auto" />
           </div>
 
           {/* Switch states — interactive */}
@@ -895,9 +899,11 @@ const SmartNation = () => {
             </div>
 
             {/* Video — full bleed, no padding */}
-            <video className="w-full h-auto block" autoPlay loop muted playsInline>
-              <source src="/images/WorkImages/smartNationImages/icon.mov" type="video/mp4" />
-            </video>
+            <LazyVideo
+              className="w-full h-auto block aspect-video"
+              src="/images/WorkImages/smartNationImages/icon.mp4"
+              poster="/images/WorkImages/smartNationImages/icon-poster.jpg"
+            />
 
             <Plus h="left" />
             <Plus h="right" />

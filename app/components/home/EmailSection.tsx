@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import EmailCopy from './EmailCopy'
+import { onScrollFrame } from '@/lib/motion'
 
 export default function EmailSection() {
   const [hovered, setHovered] = useState(false)
@@ -12,18 +13,14 @@ export default function EmailSection() {
   // Keep ref in sync with state so scroll handler sees latest hover
   useEffect(() => { hoveredRef.current = hovered }, [hovered])
 
-  useEffect(() => {
-    const update = () => {
-      const deg = Math.min(window.scrollY / 60, 8)
-      const isHovered = hoveredRef.current
-      if (leftRef.current)
-        leftRef.current.style.transform = `translateX(${isHovered ? -10 : 0}px) rotate(-${deg}deg)`
-      if (rightRef.current)
-        rightRef.current.style.transform = `translateX(${isHovered ? 10 : 0}px) rotate(-${deg}deg)`
-    }
-    window.addEventListener('scroll', update, { passive: true })
-    return () => window.removeEventListener('scroll', update)
-  }, [])
+  useEffect(() => onScrollFrame((y) => {
+    const deg = Math.min(y / 60, 8)
+    const isHovered = hoveredRef.current
+    if (leftRef.current)
+      leftRef.current.style.transform = `translateX(${isHovered ? -10 : 0}px) rotate(-${deg}deg)`
+    if (rightRef.current)
+      rightRef.current.style.transform = `translateX(${isHovered ? 10 : 0}px) rotate(-${deg}deg)`
+  }), [])
 
   // Re-apply transform when hover changes (scroll handler won't re-fire)
   useEffect(() => {
@@ -50,13 +47,14 @@ export default function EmailSection() {
         }}
       >
         <img
-          src="/images/HomeImages/branch.svg"
+          src="/images/HomeImages/branch.webp"
+          alt=""
           aria-hidden="true"
           style={{
             position: 'absolute', top: '50%', left: '50%',
             height: '120px', width: 'auto',
             transform: 'translate(-50%, -50%) rotate(90deg)',
-            filter: 'brightness(0) opacity(0.75)',
+            opacity: 0.75,
           }}
         />
       </div>
@@ -80,13 +78,14 @@ export default function EmailSection() {
         }}
       >
         <img
-          src="/images/HomeImages/branch.svg"
+          src="/images/HomeImages/branch.webp"
+          alt=""
           aria-hidden="true"
           style={{
             position: 'absolute', top: '50%', left: '50%',
             height: '120px', width: 'auto',
             transform: 'translate(-50%, -50%) rotate(90deg) scaleX(-1)',
-            filter: 'brightness(0) opacity(0.75)',
+            opacity: 0.75,
           }}
         />
       </div>

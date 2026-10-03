@@ -12,6 +12,7 @@ export const metadata: Metadata = {
     description:
       'End to end product design for a subscription SaaS built for independent US physicians. Onboarding, channel marketplace, and subscription UI shipped in three weeks.',
     url: '/works/healthcare-saas',
+    images: [{ url: '/images/og.png', width: 1200, height: 630 }],
     type: 'article',
   },
 };

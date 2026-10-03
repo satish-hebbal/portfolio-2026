@@ -18,21 +18,45 @@ export const CardContainer = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isMouseEntered, setIsMouseEntered] = useState(false);
+  // The card's box is read once on enter instead of on every mousemove, and
+  // writes are batched to one per frame
+  const rectRef = useRef<DOMRect | null>(null);
+  const frameRef = useRef(0);
+  const pointRef = useRef({ x: 0, y: 0 });
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-    const { left, top, width, height } = containerRef.current.getBoundingClientRect();
-    const x = (e.clientX - left - width / 2) / 25;
-    const y = (e.clientY - top - height / 2) / 25;
-    containerRef.current.style.transform = `rotateY(${x}deg) rotateX(${-y}deg)`;
+  const paint = () => {
+    frameRef.current = 0;
+    const el = containerRef.current, rect = rectRef.current;
+    if (!el || !rect) return;
+    const x = (pointRef.current.x - rect.left - rect.width / 2) / 25;
+    const y = (pointRef.current.y - rect.top - rect.height / 2) / 25;
+    el.style.transform = `rotateY(${x}deg) rotateX(${-y}deg)`;
   };
 
-  const handleMouseEnter = () => setIsMouseEntered(true);
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    pointRef.current = { x: e.clientX, y: e.clientY };
+    if (!rectRef.current && containerRef.current) rectRef.current = containerRef.current.getBoundingClientRect();
+    if (!frameRef.current) frameRef.current = requestAnimationFrame(paint);
+  };
+
+  const handleMouseEnter = () => {
+    if (containerRef.current) {
+      rectRef.current = containerRef.current.getBoundingClientRect();
+      // a short ease while tracking; the old 200ms linear made the tilt trail the cursor
+      containerRef.current.style.transition = 'transform 80ms linear';
+    }
+    setIsMouseEntered(true);
+  };
 
   const handleMouseLeave = () => {
     setIsMouseEntered(false);
-    if (containerRef.current)
+    rectRef.current = null;
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    frameRef.current = 0;
+    if (containerRef.current) {
+      containerRef.current.style.transition = 'transform 300ms ease-out';
       containerRef.current.style.transform = `rotateY(0deg) rotateX(0deg)`;
+    }
   };
 
   return (
@@ -43,7 +67,7 @@ export const CardContainer = ({
           onMouseEnter={handleMouseEnter}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
-          className={cn("flex items-center justify-center relative transition-all duration-200 ease-linear", className)}
+          className={cn("flex items-center justify-center relative", className)}
           style={{ transformStyle: "preserve-3d" }}
         >
           {children}
@@ -104,7 +128,7 @@ export const CardItem = ({
 
   const Comp = Tag as any;
   return (
-    <Comp ref={ref} className={cn("w-fit transition duration-200 ease-linear", className)} {...rest}>
+    <Comp ref={ref} className={cn("w-fit transition-transform duration-200 ease-out", className)} {...rest}>
       {children}
     </Comp>
   );

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { copyText } from "@/lib/clipboard";
 
 const companies: {
   src: string;
@@ -26,7 +27,7 @@ export default function About() {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText('satishdezn@gmail.com');
+    copyText('satishdezn@gmail.com');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -446,6 +447,7 @@ export default function About() {
                 onClick={handleCopy}
                 className="ml-2 text-gray-300 hover:text-gray-600 transition-colors duration-200 flex-shrink-0 cursor-pointer"
                 title="Copy email"
+                aria-label={copied ? "Email copied" : "Copy email address"}
               >
                 {copied ? (
                   <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>

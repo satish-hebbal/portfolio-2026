@@ -25,6 +25,36 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // The public healthcare case study is de-branded in text, but its
+      // screenshots still show the client's wordmark, and image search reads
+      // text inside images. Keep these files out of image indexes while the
+      // page itself stays indexed. Both the raw files and the optimizer URLs
+      // that next/image actually serves need the header.
+      {
+        source: '/images/WorkImages/hsaasImages/:path*',
+        headers: [
+          {
+            key: 'X-Robots-Tag',
+            value: 'noimageindex, noarchive',
+          },
+        ],
+      },
+      {
+        source: '/_next/image',
+        has: [
+          {
+            type: 'query',
+            key: 'url',
+            value: '.*hsaasImages.*',
+          },
+        ],
+        headers: [
+          {
+            key: 'X-Robots-Tag',
+            value: 'noimageindex, noarchive',
+          },
+        ],
+      },
     ]
   },
 };
