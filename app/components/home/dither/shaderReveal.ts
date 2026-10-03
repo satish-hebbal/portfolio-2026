@@ -233,10 +233,15 @@ export function attachShaderReveal(
     ready = true
   }
 
-  painted = new Image()
-  painted.decoding = 'async'
-  painted.onload = setup
-  painted.src = paintedSrc
+  // The painting (~170 KB a figure) is only fetched once someone moves a
+  // mouse, so touch visitors and anyone who never hovers don't pay for it
+  const loadPainted = () => {
+    if (painted) return
+    painted = new Image()
+    painted.decoding = 'async'
+    painted.onload = setup
+    painted.src = paintedSrc
+  }
 
   const toLocal = (px: number, py: number) => {
     const t = getComputedStyle(wrap.parentElement!).transform
@@ -317,7 +322,7 @@ export function attachShaderReveal(
   }
 
   const kick = () => { if (!frame && ready) frame = requestAnimationFrame(draw) }
-  const onMove = (e: MouseEvent) => { pointer = { x: e.clientX, y: e.clientY }; kick() }
+  const onMove = (e: MouseEvent) => { loadPainted(); pointer = { x: e.clientX, y: e.clientY }; kick() }
   const onLeave = () => { pointer = null; kick() }
 
   const imgEl = wrap.querySelector('img')
@@ -346,7 +351,7 @@ export function attachShaderReveal(
     unScroll()
     clearTimeout(resizeTimer)
     if (frame) cancelAnimationFrame(frame)
-    painted!.onload = null
+    if (painted) painted.onload = null
     gl.getExtension('WEBGL_lose_context')?.loseContext()
   }
 }

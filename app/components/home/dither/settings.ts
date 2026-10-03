@@ -76,29 +76,31 @@ export interface DitherSettings {
   dprCap: number
 }
 
+// Shipped look: the "shad-a" preset tuned in the Dither Lab. The painting
+// is revealed under the engraving through a ragged, flowing black-rimmed hole.
 export const DEFAULTS: DitherSettings = {
-  effect: 'dither',
-  shNoise: 0.35,
-  shNoiseScale: 1.6,
-  shSoftness: 0.04,
-  shGlow: 0.9,
-  shGlowWidth: 0.05,
-  shEdgeColor: '#d4a24c',
-  shDistort: 0,
+  effect: 'shader',
+  shNoise: 1.42,
+  shNoiseScale: 4,
+  shSoftness: 0.072,
+  shGlow: 0.85,
+  shGlowWidth: 0.11,
+  shEdgeColor: '#000000',
+  shDistort: 0.55,
   shDitherEdge: false,
   shAnimate: true,
-  shSpeed: 0.5,
+  shSpeed: 1.2,
   shSwap: false,
   enabled: true,
   mode: 'lens',
   target: 'both',
   algo: 'atkinson',
-  cell: 4,
+  cell: 6,
   dotScale: 0.75,
   shape: 'square',
   errorAmount: 1,
   serpentine: false,
-  contrast: 1.25,
+  contrast: 1.8,
   brightness: 0,
   gamma: 1,
   threshold: 0.5,
@@ -108,15 +110,15 @@ export const DEFAULTS: DitherSettings = {
   paper: false,
   paperColor: '#f4efe6',
   paperOpacity: 1,
-  radius: 120,
-  falloff: 2,
+  radius: 170,
+  falloff: 1.2,
   erase: 1,
   alphaBoost: 2.5,
   scatter: 'random',
   throw: 0.35,
   jitter: 0,
   trail: true,
-  healMs: 900,
+  healMs: 2200,
   enterMs: 180,
   spacing: 0.2,
   maxStamps: 40,
@@ -180,18 +182,26 @@ export function subscribe(l: Listener): () => void {
 
 // ── presets ───────────────────────────────────────────────────────────────────
 
+// The dither presets were tuned against the original dither defaults, so they
+// carry that baseline with them instead of inheriting the shipped shader look.
+const DITHER_BASE: Partial<DitherSettings> = {
+  effect: 'dither', cell: 4, contrast: 1.25, radius: 120, falloff: 2, healMs: 900, shDistort: 0,
+}
+const SHADER_BASE: Partial<DitherSettings> = { effect: 'shader', shNoise: 0.35, shNoiseScale: 1.6, shSoftness: 0.04, shSpeed: 0.5, shDistort: 0 }
+
 export const BUILT_IN_PRESETS: Record<string, Partial<DitherSettings>> = {
-  'Dust (default)': {},
-  'Engraver': { algo: 'hatch', cell: 3, dotScale: 1, shape: 'square', scatter: 'swirl', throw: 0.25, contrast: 1.4 },
-  'Newsprint': { algo: 'amplitude', cell: 7, shape: 'circle', dotScale: 1.1, scatter: 'push', throw: 0.5, contrast: 1.2 },
-  'Game Boy': { algo: 'bayer4', cell: 6, dotScale: 1, shape: 'square', inkColor: '#0f380f', paper: true, paperColor: '#9bbc0f', scatter: 'none', mode: 'reveal' },
-  'Pixel storm': { algo: 'floyd-steinberg', cell: 5, scatter: 'random', throw: 1.2, jitter: 2, healMs: 1800, radius: 160 },
-  'Gravity': { algo: 'atkinson', cell: 4, scatter: 'fall', throw: 0.9, healMs: 1400, radius: 130 },
-  'Full dither': { mode: 'always', algo: 'blue-noise', cell: 3, dotScale: 0.9, scatter: 'push', throw: 0.4 },
-  'Gold leaf reveal': { effect: 'shader', radius: 150, falloff: 1.6, healMs: 1400, shNoise: 0.4, shGlow: 1, shEdgeColor: '#d4a24c' },
-  'Ink bleed reveal': { effect: 'shader', radius: 170, falloff: 1.2, healMs: 2200, shNoise: 0.7, shNoiseScale: 2.6, shGlow: 0.3, shEdgeColor: '#1a1a1a', shDistort: 0.5 },
-  'Dither reveal': { effect: 'shader', radius: 140, shDitherEdge: true, shSoftness: 0.12, shGlow: 0, shNoise: 0.25 },
-  'Bronze seal': { algo: 'crosshatch', cell: 4, inkColor: '#8a5a2b', scatter: 'pull', throw: 0.3, radius: 140 },
+  'shad-a (shipped)': {},
+  'Dust': { ...DITHER_BASE },
+  'Engraver': { ...DITHER_BASE, algo: 'hatch', cell: 3, dotScale: 1, shape: 'square', scatter: 'swirl', throw: 0.25, contrast: 1.4 },
+  'Newsprint': { ...DITHER_BASE, algo: 'amplitude', cell: 7, shape: 'circle', dotScale: 1.1, scatter: 'push', throw: 0.5, contrast: 1.2 },
+  'Game Boy': { ...DITHER_BASE, algo: 'bayer4', cell: 6, dotScale: 1, shape: 'square', inkColor: '#0f380f', paper: true, paperColor: '#9bbc0f', scatter: 'none', mode: 'reveal' },
+  'Pixel storm': { ...DITHER_BASE, algo: 'floyd-steinberg', cell: 5, scatter: 'random', throw: 1.2, jitter: 2, healMs: 1800, radius: 160 },
+  'Gravity': { ...DITHER_BASE, algo: 'atkinson', cell: 4, scatter: 'fall', throw: 0.9, healMs: 1400, radius: 130 },
+  'Full dither': { ...DITHER_BASE, mode: 'always', algo: 'blue-noise', cell: 3, dotScale: 0.9, scatter: 'push', throw: 0.4 },
+  'Gold leaf reveal': { ...SHADER_BASE, radius: 150, falloff: 1.6, healMs: 1400, shNoise: 0.4, shGlow: 1, shGlowWidth: 0.05, shEdgeColor: '#d4a24c' },
+  'Ink bleed reveal': { ...SHADER_BASE, radius: 170, falloff: 1.2, healMs: 2200, shNoise: 0.7, shNoiseScale: 2.6, shGlow: 0.3, shEdgeColor: '#1a1a1a', shDistort: 0.5 },
+  'Dither reveal': { ...SHADER_BASE, radius: 140, falloff: 2, shDitherEdge: true, shSoftness: 0.12, shGlow: 0, shNoise: 0.25 },
+  'Bronze seal': { ...DITHER_BASE, algo: 'crosshatch', cell: 4, inkColor: '#8a5a2b', scatter: 'pull', throw: 0.3, radius: 140 },
 }
 
 export function getUserPresets(): Record<string, Partial<DitherSettings>> {
