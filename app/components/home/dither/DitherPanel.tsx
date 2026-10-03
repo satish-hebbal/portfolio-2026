@@ -24,6 +24,15 @@ type Ctl =
 
 const SECTIONS: { title: string; controls: Ctl[] }[] = [
   {
+    title: 'Cursor light',
+    controls: [
+      { key: 'cursorLight', label: 'Light', type: 'select', options: ['off', 'lamp', 'blue'], hint: 'off: none · lamp: warm oil-lamp glow on the stone pillars only · blue: the original colour bloom' },
+      { key: 'lampColor', label: 'Lamp colour', type: 'color' },
+      { key: 'lampOpacity', label: 'Lamp strength', type: 'range', min: 0.05, max: 1, step: 0.05 },
+      { key: 'lampRadius', label: 'Lamp size', type: 'range', min: 80, max: 600, step: 10 },
+    ],
+  },
+  {
     title: 'Effect',
     controls: [
       { key: 'enabled', label: 'Enabled', type: 'toggle' },

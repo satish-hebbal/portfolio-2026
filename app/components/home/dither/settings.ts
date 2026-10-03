@@ -18,8 +18,14 @@ export type ScatterMode = 'random' | 'push' | 'pull' | 'swirl' | 'fall' | 'none'
 export type EffectMode = 'lens' | 'always' | 'reveal'
 export type Target = 'both' | 'abhay' | 'tejas'
 export type HeroEffect = 'dither' | 'shader'
+export type CursorLight = 'off' | 'lamp' | 'blue'
 
 export interface DitherSettings {
+  // ambient cursor light on the home page
+  cursorLight: CursorLight
+  lampColor: string
+  lampOpacity: number
+  lampRadius: number
   // which effect the hero figures use
   effect: HeroEffect
   // shader reveal (painting under the engraving)
@@ -79,6 +85,11 @@ export interface DitherSettings {
 // Shipped look: the "shad-a" preset tuned in the Dither Lab. The painting
 // is revealed under the engraving through a ragged, flowing black-rimmed hole.
 export const DEFAULTS: DitherSettings = {
+  // the old blue bloom is retired; the reveal is the one cursor moment
+  cursorLight: 'off',
+  lampColor: '#f0a63c',
+  lampOpacity: 0.35,
+  lampRadius: 260,
   effect: 'shader',
   shNoise: 1.42,
   shNoiseScale: 4,

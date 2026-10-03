@@ -9,6 +9,7 @@ import VisualIdentityGallery from "./components/home/visualIdentityGallery"
 import ProposalsGallery from "./components/home/proposalsGallery"
 import PageBranches from "./components/home/PageBranches"
 import ParallaxMobile from "./components/home/ParallaxMobile"
+import Pillars from "./components/home/Pillars"
 
 
 export default function Home() {
@@ -19,28 +20,8 @@ export default function Home() {
       <PageBranches />
       <ParallaxMobile />
 
-      {/* ── Pillar decorations: frame the first fold and scroll away with it.
-          They were position:fixed, but a transform left on <main> by the old
-          page transition made them scroll with the page, and that is the
-          intended look. absolute keeps it without relying on that side effect. */}
-      <Image
-        src="/images/HomeImages/piller-v.webp"
-        alt=""
-        width={2143}
-        height={1800}
-        sizes="120vh"
-        className="absolute top-0 h-screen w-auto object-contain object-top pointer-events-none select-none hidden md:block"
-        style={{ zIndex: 0, opacity: 0.18, left: '-70px' }}
-      />
-      <Image
-        src="/images/HomeImages/piller-2-v.webp"
-        alt=""
-        width={621}
-        height={1800}
-        sizes="35vh"
-        className="absolute top-0 h-screen w-auto object-contain object-top pointer-events-none select-none hidden md:block"
-        style={{ zIndex: 0, opacity: 0.18, right: '-40px' }}
-      />
+      {/* Pillars frame the first fold and scroll away with it (see Pillars) */}
+      <Pillars />
 
       <div className="max-w-5xl mx-auto px-6 md:px-10">
 

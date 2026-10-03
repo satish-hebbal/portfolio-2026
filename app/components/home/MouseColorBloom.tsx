@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useEffect } from 'react'
+import { getSettings, subscribe } from './dither/settings'
 
 // ─── Bloom config ─────────────────────────────────────────────────────────────
 const BLOOM = {
@@ -24,6 +25,15 @@ export default function MouseColorBloom() {
     // touch screens have no hover position to follow
     if (!window.matchMedia('(pointer: fine)').matches) return
 
+    // Retired by default: the blue sat outside the palette and competed with
+    // the figure reveal. Still selectable as "blue" under Cursor light in the
+    // Dither Lab for comparison.
+    let on = getSettings().cursorLight === 'blue'
+    const unSub = subscribe((s) => {
+      on = s.cursorLight === 'blue'
+      if (!on) el.style.opacity = '0'
+    })
+
     let x = 0, y = 0, frame = 0
     const paint = () => {
       frame = 0
@@ -31,6 +41,7 @@ export default function MouseColorBloom() {
       el.style.opacity = '1'
     }
     const onMove = (e: MouseEvent) => {
+      if (!on) return
       x = e.clientX
       y = e.clientY
       if (!frame) frame = requestAnimationFrame(paint)
@@ -40,6 +51,7 @@ export default function MouseColorBloom() {
     window.addEventListener('mousemove', onMove, { passive: true })
     document.documentElement.addEventListener('mouseleave', onLeave)
     return () => {
+      unSub()
       window.removeEventListener('mousemove', onMove)
       document.documentElement.removeEventListener('mouseleave', onLeave)
       if (frame) cancelAnimationFrame(frame)
