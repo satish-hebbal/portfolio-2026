@@ -41,7 +41,7 @@ const SECTIONS: { title: string; controls: Ctl[] }[] = [
       { key: 'shGlow', label: 'Rim glow', type: 'range', min: 0, max: 3, step: 0.05 },
       { key: 'shGlowWidth', label: 'Rim width', type: 'range', min: 0.005, max: 0.4, step: 0.005 },
       { key: 'shEdgeColor', label: 'Rim colour', type: 'color' },
-      { key: 'shDistort', label: 'Wet distortion', type: 'range', min: 0, max: 5, step: 0.05 },
+      { key: 'shDistort', label: 'Edge ripple', type: 'range', min: 0, max: 5, step: 0.05, hint: 'Ripples only the burning edge; the painting itself is never warped' },
       { key: 'shDitherEdge', label: 'Dithered edge', type: 'toggle' },
       { key: 'shAnimate', label: 'Animate edge', type: 'toggle', hint: 'Noise flows while hovered' },
       { key: 'shSpeed', label: 'Flow speed', type: 'range', min: 0, max: 4, step: 0.05 },

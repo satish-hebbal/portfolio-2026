@@ -6,8 +6,8 @@
  * up to MAX_POINTS (x, y, strength) uniforms; each pixel takes the strongest
  * of their soft discs, adds fbm noise so the edge is ragged like burnt or
  * bleeding paper, and thresholds that field. The band right at the threshold
- * gets an edge colour (gold leaf by default), and inside the hole the painting
- * is nudged by the same noise so it looks wet.
+ * gets an edge colour (gold leaf by default). An optional ripple is confined to
+ * that edge band; the painting inside the hole is never distorted.
  *
  * Like the dither, the canvas only exists while something is happening: at
  * rest the plain <img> is showing and no frames are drawn. With "animate
@@ -96,8 +96,10 @@ void main() {
     reveal = smoothstep(T - uSoft, T + uSoft, field);
   }
 
-  // inside the hole the paint looks wet: nudged by the same noise
-  vec2 warp = (vec2(fbm(np * 1.7 + 3.1), fbm(np * 1.7 - 7.3)) - 0.5) * uDistort * 0.02 * reveal;
+  // Distortion only lives in the thin band around the burning edge, fading to
+  // nothing inside the hole, so the painting itself is shown exactly as painted
+  float edgeBand = 1.0 - smoothstep(0.0, max(uGlowWidth, uSoft) * 3.0, abs(field - T));
+  vec2 warp = (vec2(fbm(np * 1.7 + 3.1), fbm(np * 1.7 - 7.3)) - 0.5) * uDistort * 0.02 * edgeBand;
   vec4 top = texture2D(uTop, vUv);
   vec4 bot = texture2D(uBottom, vUv + warp);
 

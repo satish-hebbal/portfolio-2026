@@ -84,7 +84,7 @@ export const DEFAULTS: DitherSettings = {
   shGlow: 0.9,
   shGlowWidth: 0.05,
   shEdgeColor: '#d4a24c',
-  shDistort: 0.6,
+  shDistort: 0,
   shDitherEdge: false,
   shAnimate: true,
   shSpeed: 0.5,
@@ -189,7 +189,7 @@ export const BUILT_IN_PRESETS: Record<string, Partial<DitherSettings>> = {
   'Gravity': { algo: 'atkinson', cell: 4, scatter: 'fall', throw: 0.9, healMs: 1400, radius: 130 },
   'Full dither': { mode: 'always', algo: 'blue-noise', cell: 3, dotScale: 0.9, scatter: 'push', throw: 0.4 },
   'Gold leaf reveal': { effect: 'shader', radius: 150, falloff: 1.6, healMs: 1400, shNoise: 0.4, shGlow: 1, shEdgeColor: '#d4a24c' },
-  'Ink bleed reveal': { effect: 'shader', radius: 170, falloff: 1.2, healMs: 2200, shNoise: 0.7, shNoiseScale: 2.6, shGlow: 0.3, shEdgeColor: '#1a1a1a', shDistort: 1.4 },
+  'Ink bleed reveal': { effect: 'shader', radius: 170, falloff: 1.2, healMs: 2200, shNoise: 0.7, shNoiseScale: 2.6, shGlow: 0.3, shEdgeColor: '#1a1a1a', shDistort: 0.5 },
   'Dither reveal': { effect: 'shader', radius: 140, shDitherEdge: true, shSoftness: 0.12, shGlow: 0, shNoise: 0.25 },
   'Bronze seal': { algo: 'crosshatch', cell: 4, inkColor: '#8a5a2b', scatter: 'pull', throw: 0.3, radius: 140 },
 }
