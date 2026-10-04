@@ -13,8 +13,12 @@ import path from 'node:path'
 
 export const maxDuration = 60
 
-const CACHE = path.join(process.cwd(), '.cache', 'walkman-analysis')
-const SCRIPT = path.join(process.cwd(), 'scripts', 'walkman_analyse.py')
+// turbopackIgnore: these paths are only used at runtime in development. Without
+// it the build traces process.cwd() and bundles the whole project (every image,
+// font and model) into this function, past Vercel's 250 MB limit.
+const ROOT = /* turbopackIgnore: true */ process.cwd()
+const CACHE = path.join(/* turbopackIgnore: true */ ROOT, '.cache', 'walkman-analysis')
+const SCRIPT = path.join(/* turbopackIgnore: true */ ROOT, 'scripts', 'walkman_analyse.py')
 const canAnalyse = process.env.NODE_ENV === 'development' || process.env.WALKMAN_ANALYSE === '1'
 const PYTHON = process.env.WALKMAN_PYTHON || (process.platform === 'win32' ? 'python' : 'python3')
 
@@ -25,7 +29,7 @@ function analyse(id: string): Promise<boolean> {
   let job = inflight.get(id)
   if (!job) {
     job = new Promise<boolean>((resolve) => {
-      const child = spawn(PYTHON, [SCRIPT, id, '--out', CACHE], { cwd: process.cwd(), windowsHide: true })
+      const child = spawn(PYTHON, [SCRIPT, id, '--out', CACHE], { cwd: ROOT, windowsHide: true })
       const timer = setTimeout(() => child.kill(), 55_000)
       child.on('error', () => { clearTimeout(timer); resolve(false) })
       child.on('close', (code) => { clearTimeout(timer); resolve(code === 0) })
@@ -36,7 +40,7 @@ function analyse(id: string): Promise<boolean> {
 }
 
 async function readCached(id: string): Promise<Buffer | null> {
-  const file = path.join(CACHE, `${id}.wma`)
+  const file = path.join(/* turbopackIgnore: true */ CACHE, `${id}.wma`)
   try {
     await stat(file)
     return await readFile(file)

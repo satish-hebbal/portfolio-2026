@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Belt and braces for the Walkman's dev-only analysis route: it never reads
+  // project files in production, so none of them belong in its function.
+  outputFileTracingExcludes: {
+    '/api/walkman-analysis': ['public/**', 'app/**', '.cache/**', 'scripts/**', '*.png', 'README.md'],
+  },
   async headers() {
     return [
       {
