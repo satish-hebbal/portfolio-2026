@@ -605,6 +605,9 @@ export default function Console(p: Props) {
       <div className={s.albumDock} style={{
         width: AM_BOX.w, height: AM_BOX.h,
         transform: p.isMobile && !open ? 'scale(0.6)' : undefined, transformOrigin: 'bottom right',
+        // phones: the open tape deck needs the full width, so the module steps aside
+        ...(p.isMobile && p.deckOpen ? { opacity: 0, visibility: 'hidden' as const } : {}),
+        transition: 'opacity 0.2s ease, visibility 0.2s',
       }}>
         <div className={s.albumBody} style={{ clipPath: `path('${AM_PATH}')` }}>
           <svg className={s.outline} width={AM_BOX.w} height={AM_BOX.h} aria-hidden>

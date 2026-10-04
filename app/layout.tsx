@@ -17,9 +17,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "Satish Hebbal - Portfolio",
   description: "Product designer crafting thoughtful digital experiences. Specialising in interface design, interaction, and design systems.",
-  icons: {
-    icon: '/images/common/sa26-white.svg',
-  },
+  // icons come from the file conventions in app/: favicon.ico, icon.svg,
+  // icon1.png and apple-icon.png (all the SA26 mark)
   openGraph: {
     title: "Satish Hebbal - Portfolio",
     description: "Product designer crafting thoughtful digital experiences. Specialising in interface design, interaction, and design systems.",

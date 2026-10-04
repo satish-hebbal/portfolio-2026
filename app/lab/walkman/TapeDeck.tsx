@@ -224,8 +224,30 @@ export default function TapeDeck({ darkBg, isMobile, currentId, playing, onPick,
   const well = darkBg
     ? { background: 'linear-gradient(160deg, #252530, #1e1e28)', boxShadow: 'inset 2px 2px 8px #0d0d18, inset -1px -1px 4px #31313e', border: '1px solid #16161f' }
     : { background: 'linear-gradient(160deg, #c8c8c8, #dadada)', boxShadow: 'inset 2px 2px 8px #a8a8a8, inset -1px -1px 4px #ececec', border: '1px solid #a8a8a8' }
-  // phones: the pill sits bottom-left, leaving the corner to the tape module (136px + gutters)
-  const width = isMobile ? 'calc(100vw - 168px)' : 'min(90vw, 460px)'
+  // Phones: the whole deck is pinned to the screen (not the page), so the pill
+  // and the shelf can't drift apart when the page scrolls or the keyboard opens.
+  // Closed, the pill sits bottom-left beside the tape module (136px + gutters);
+  // open, the tape module steps aside and the pill and shelf take the full width.
+  const width = isMobile ? (open ? 'calc(100vw - 24px)' : 'calc(100vw - 168px)') : 'min(90vw, 460px)'
+  // the on-screen keyboard: lift the deck above it and fit the shelf in what's left
+  const [vv, setVv] = useState({ kb: 0, h: 0 })
+  useEffect(() => {
+    if (!isMobile) return
+    const v = window.visualViewport
+    const read = () => {
+      const h = v ? v.height : window.innerHeight
+      const kb = v ? Math.max(0, window.innerHeight - v.height - v.offsetTop) : 0
+      setVv({ kb: Math.round(kb), h: Math.round(h) })
+    }
+    read()
+    v?.addEventListener('resize', read)
+    v?.addEventListener('scroll', read)
+    window.addEventListener('resize', read)
+    return () => { v?.removeEventListener('resize', read); v?.removeEventListener('scroll', read); window.removeEventListener('resize', read) }
+  }, [isMobile])
+  // shelf height on phones: the visible screen, less the pill below (16 + 48 + 10)
+  // and the nav above (84)
+  const mobileShelfMax = Math.max(160, (vv.h || 640) - 74 - 84)
   // the search bar wears the console's hardware: aluminium (or slate) bezel,
   // a grey rim, soft raised keys
   const hw = darkBg
@@ -247,7 +269,12 @@ export default function TapeDeck({ darkBg, isMobile, currentId, playing, onPick,
   const recentIds = new Set(recent.map((r) => r.id))
 
   return (
-    <div ref={rootRef} style={{ position: 'relative', width: folded ? 88 : width, zIndex: 30, transition: `width 0.7s ${RELAX}` }}>
+    <div ref={rootRef} style={{
+      ...(isMobile
+        ? { position: 'fixed', left: 12, bottom: `calc(16px + env(safe-area-inset-bottom) + ${vv.kb}px)` }
+        : { position: 'relative' }),
+      width: folded ? 88 : width, zIndex: 30, transition: `width ${isMobile ? '0.35s' : '0.7s'} ${RELAX}`,
+    }}>
       <style>{`
         @keyframes tdSpin { to { transform: rotate(360deg) } }
         @keyframes tdUp { from { opacity: 0; transform: translateY(10px) scale(0.985) } to { opacity: 1; transform: none } }
@@ -268,9 +295,9 @@ export default function TapeDeck({ darkBg, isMobile, currentId, playing, onPick,
       {open && (
         <div
           style={{
-            // phones: the shelf spans the screen above the (tucked) tape module
+            // always directly above the pill; on phones both span the screen
             ...(isMobile
-              ? { position: 'fixed', left: 12, right: 12, bottom: 112 }
+              ? { position: 'absolute', bottom: 'calc(100% + 10px)', left: 0, width: 'calc(100vw - 24px)' }
               : { position: 'absolute', bottom: 'calc(100% + 10px)', left: `calc(50% - ${width} / 2)`, width }),
             padding: 6, borderRadius: 22, background: hw.body, border: `1px solid ${hw.rim}`, boxShadow: hw.shadow,
             animation: 'tdUp 0.32s cubic-bezier(.16,1,.3,1)',
@@ -284,7 +311,7 @@ export default function TapeDeck({ darkBg, isMobile, currentId, playing, onPick,
             onWheel={(e) => e.stopPropagation()}
             style={{
               ...well,
-              maxHeight: isMobile ? 'calc(100dvh - 112px - 96px)' : 'min(60vh, 480px)', overflowY: 'auto', overscrollBehavior: 'contain',
+              maxHeight: isMobile ? mobileShelfMax : 'min(60vh, 480px)', overflowY: 'auto', overscrollBehavior: 'contain',
               scrollbarWidth: 'thin', borderRadius: 16, padding: '12px 12px 4px',
             }}
           >
