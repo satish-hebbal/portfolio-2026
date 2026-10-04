@@ -42,8 +42,16 @@ const SHOW_TUNER = false
 type Voice = { grunt: number; scream: number; noise: number; turbo: number }
 const voicePayload = (p: (typeof PRESETS)[number], v: Voice) => ({
   cylinders: p.cylinders, grunt: v.grunt, scream: v.scream, noise: v.noise, turbo: v.turbo,
-  ev: p.ev ? 1 : 0, redline: p.redline,
+  crackle: p.crackle, ev: p.ev ? 1 : 0, redline: p.redline,
 })
+
+// standard-mapping gamepad: triggers are analog pedals (partial throttle!),
+// A / RB shift up, X / LB shift down, Start toggles the engine
+const PAD = { gas: 7, brake: 6, up: [0, 5], down: [2, 4], engine: 9 }
+const padPressed = (pad: Gamepad, i: number) => !!pad.buttons[i]?.pressed
+
+// short buzz on phones that support it (Android); silently ignored elsewhere
+const buzz = (ms: number | number[]) => { try { navigator.vibrate?.(ms) } catch { /* noop */ } }
 
 // per-engine UI theme — ascending aggression, EV = sci-fi
 const THEMES: Record<string, { glow: string; arc: string; redline: string; tick: string; screen: string; mode: string }> = {
@@ -153,14 +161,45 @@ export default function SpeedoPage() {
     let lastSpeedMs = 0 // for the V10 G-meter (longitudinal g)
     let gSmooth = 0
     let evPhase = 0 // EV tunnel: marches inward, faster with speed
+    let padPrev = { up: false, down: false, engine: false }
+    let denyUntil = 0 // gear readout flashes when the gearbox refuses a downshift
     const loop = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.05)
       last = now
       const sim = simRef.current!
-      sim.gasInput = gasDown.current ? 1 : 0
-      sim.brakeInput = brakeDown.current ? 1 : 0
+
+      // pedals: keyboard / on-screen buttons are on-off, a gamepad trigger is analog
+      let padGas = 0, padBrake = 0
+      const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : []
+      for (const pad of pads) {
+        if (!pad) continue
+        padGas = Math.max(padGas, pad.buttons[PAD.gas]?.value ?? 0)
+        padBrake = Math.max(padBrake, pad.buttons[PAD.brake]?.value ?? 0)
+        const up = PAD.up.some((b) => padPressed(pad, b))
+        const down = PAD.down.some((b) => padPressed(pad, b))
+        const engine = padPressed(pad, PAD.engine)
+        if (up && !padPrev.up) actionsRef.current.shiftUp()
+        if (down && !padPrev.down) actionsRef.current.shiftDown()
+        if (engine && !padPrev.engine) actionsRef.current.toggleEngine()
+        padPrev = { up, down, engine }
+        break
+      }
+      sim.gasInput = Math.max(gasDown.current ? 1 : 0, padGas < 0.04 ? 0 : padGas)
+      sim.brakeInput = Math.max(brakeDown.current ? 1 : 0, padBrake < 0.04 ? 0 : padBrake)
       sim.update(dt)
       const st = sim.getState()
+
+      // one-shot moments from the sim → sounds, haptics, gear-readout flash
+      for (const e of sim.events.splice(0)) {
+        const audio = audioRef.current
+        if (e === 'click') audio?.trigger('click')
+        else if (e === 'shift-up') { audio?.trigger('brap'); buzz(18) }
+        else if (e === 'shift-down') buzz(12)
+        else if (e === 'cut') { audio?.trigger('cut'); buzz(8) }
+        else if (e === 'stop') { audio?.trigger('stop'); buzz([10, 40, 22]) }
+        else if (e === 'deny') { audio?.trigger('deny'); denyUntil = now + 420; buzz([14, 50, 14]) }
+        else if (e === 'catch') buzz(30)
+      }
 
       // ── melody player: resolve the note being sung right now, so both the
       // tach needle and the audio land on its exact rpm (feels live) ──
@@ -169,8 +208,8 @@ export default function SpeedoPage() {
       const song = songRef.current
       if (song.playing) {
         const t = (now - song.t0) / 1000
-        if (t < 0) { songRpm = preset.idle; songSounding = false }
-        else {
+        // before the first note (engine still starting) leave the engine alone
+        if (t >= 0) {
           let acc = 0, idx = 0
           for (; idx < song.notes.length; idx++) {
             if (t < acc + song.notes[idx].dur) break
@@ -332,7 +371,7 @@ export default function SpeedoPage() {
         if (rangeRef.current) rangeRef.current.textContent = String(Math.round(fuel * 580))
       }
 
-      if (gearElRef.current) gearElRef.current.classList.toggle(s.limit, st.atLimiter)
+      if (gearElRef.current) gearElRef.current.classList.toggle(s.limit, st.atLimiter || now < denyUntil)
       if (brakeTellRef.current) brakeTellRef.current.classList.toggle(s.lit, st.brake > 0.05)
       if (shiftTellRef.current) shiftTellRef.current.classList.toggle(s.lit, st.rpm > preset.redline * 0.9)
 
@@ -342,7 +381,10 @@ export default function SpeedoPage() {
         audioRef.current?.update(songRpm, songSounding ? 0.85 : 0, 0)
         audioRef.current?.setSongGain(songSounding ? 1 : 0)
       } else {
-        audioRef.current?.update(st.rpm, st.throttle, st.brake)
+        audioRef.current?.update(st.rpm, st.throttle, st.brake, {
+          speed: st.speedKmh, gear: st.gear, combust: st.combusting ? 1 : 0,
+          crank: st.stage === 'crank' ? 1 : 0, prime: st.stage === 'prime' ? 1 : 0,
+        })
       }
       raf = requestAnimationFrame(loop)
     }
@@ -398,13 +440,16 @@ export default function SpeedoPage() {
   // play (or stop) Happy Birthday on the currently-selected engine
   const toggleSong = useCallback(async () => {
     if (songRef.current.playing) { stopSong(); return }
-    // make sure the engine is running so there's a voice to play it on
+    // make sure the engine is running so there's a voice to play it on; from
+    // cold, let it go through the whole start (prime, crank, catch) first
+    let lead = 250
     if (phaseRef.current === 'off' || phaseRef.current === 'shutdown') {
       await beginStartup()
+      lead = simRef.current!.secondsToRunning * 1000
     } else if (!audioRef.current?.isReady) {
       await audioRef.current?.start()
     }
-    songRef.current = { playing: true, notes: buildSong(preset), t0: performance.now() + 250 }
+    songRef.current = { playing: true, notes: buildSong(preset), t0: performance.now() + lead }
     setSongOn(true)
   }, [preset, beginStartup, stopSong])
 
@@ -444,6 +489,10 @@ export default function SpeedoPage() {
     simRef.current?.shiftDown()
     setGear(simRef.current!.gear)
   }, [])
+
+  // latest handlers for the render loop (gamepad buttons fire from inside it)
+  const actionsRef = useRef({ shiftUp, shiftDown, toggleEngine })
+  actionsRef.current = { shiftUp, shiftDown, toggleEngine }
 
   // ── keyboard controls ──
   useEffect(() => {

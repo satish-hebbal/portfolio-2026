@@ -40,9 +40,11 @@ type Props = {
   natH: number
   sizes: string
   className?: string
+  /** always use the scroll wave instead of hover (the phone figures) */
+  wave?: boolean
 }
 
-export default function DitherFigure({ name, src, paintedSrc, natW, natH, sizes, className }: Props) {
+export default function DitherFigure({ name, src, paintedSrc, natW, natH, sizes, className, wave = false }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const glRef = useRef<HTMLCanvasElement>(null)
@@ -52,9 +54,11 @@ export default function DitherFigure({ name, src, paintedSrc, natW, natH, sizes,
   useEffect(() => {
     const wrap = wrapRef.current, canvas = glRef.current
     if (!wrap || !canvas || !paintedSrc) return
-    if (prefersReducedMotion() || !window.matchMedia('(pointer: fine)').matches) return
-    return attachShaderReveal(wrap, canvas, name, paintedSrc) ?? undefined
-  }, [name, paintedSrc])
+    if (prefersReducedMotion()) return
+    // touch has no hover: there the reveal is a wave that runs with the scroll
+    const touch = wave || !window.matchMedia('(pointer: fine)').matches
+    return attachShaderReveal(wrap, canvas, name, paintedSrc, touch) ?? undefined
+  }, [name, paintedSrc, wave])
 
   useEffect(() => {
     const wrap = wrapRef.current, canvas = canvasRef.current

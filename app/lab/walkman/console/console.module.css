@@ -1,0 +1,418 @@
+/* WM-01 console, in the QR Device's material language: brushed aluminium body
+   with a grey rim, soft raised keys that sink when pressed, inset wells, a
+   real wood inlay for the knob module, spun-metal knobs with a green status
+   light, pill switches with a centre groove and a metal ball thumb. Night is
+   the same hardware in slate. */
+
+.dock {
+  --body: linear-gradient(160deg, #e8e8e8 0%, #d4d4d4 40%, #c8c8c8 70%, #d8d8d8 100%);
+  --rim: #a0a0a0;
+  --hi: rgba(255, 255, 255, 0.6);
+  --well: linear-gradient(160deg, #c4c4c4, #d8d8d8);
+  --well-shadow: inset 2px 2px 6px #a8a8a8, inset -1px -1px 4px #e8e8e8;
+  --well-rim: #a8a8a8;
+  --btn: linear-gradient(145deg, #e8e8e8, #c8c8c8);
+  --btn-on: linear-gradient(145deg, #b8b8b8, #d0d0d0);
+  --btn-shadow: 3px 3px 6px #b0b0b0, -2px -2px 5px #f4f4f4;
+  --btn-shadow-on: inset 2px 2px 5px #a0a0a0, inset -1px -1px 3px #f0f0f0;
+  --btn-rim: #b0b0b0;
+  --track: linear-gradient(145deg, #d0d0d0, #c0c0c0);
+  --track-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2), inset -1px -1px 3px rgba(255, 255, 255, 0.5);
+  --groove: linear-gradient(to right, #888, #aaa);
+  --metal: conic-gradient(from 310deg, #c2c2c2 0deg, #f2f2f2 22deg, #d4d4d4 38deg, #bcbcbc 65deg, #efefef 88deg, #c8c8c8 108deg, #b8b8b8 140deg, #f4f4f4 162deg, #ccc 185deg, #c0c0c0 220deg, #ebebeb 245deg, #d0d0d0 268deg, #bbbbbb 300deg, #f0f0f0 328deg, #c6c6c6 348deg, #c2c2c2 360deg);
+  --spun: conic-gradient(from 55deg, #b8b8b8 0deg, #f8f8f8 20deg, #cccccc 42deg, #adadad 68deg, #f5f5f5 90deg, #c4c4c4 115deg, #b0b0b0 148deg, #fafafa 168deg, #c8c8c8 190deg, #b8b8b8 228deg, #f0f0f0 252deg, #cccccc 275deg, #aaaaaa 305deg, #f6f6f6 332deg, #c2c2c2 352deg, #b8b8b8 360deg);
+  --knob-body: linear-gradient(135deg, rgb(241, 241, 241), rgb(182, 182, 182));
+  --knob-shadow: 5px 5px 12px rgba(0, 0, 0, 0.35);
+  --thumb-rim: #b8b8b8;
+  --thumb-shadow: 2px 2px 5px rgba(0, 0, 0, 0.28);
+  --ink: #555;
+  --label: #888;
+  --wood: url(/images/lab/wood-texture-2.jpg);
+  --led: #3eff52;
+  --led-glow: rgba(62, 255, 82, 0.7);
+  --led-off: rgba(0, 0, 0, 0.18);
+  --track-solid: #c9c9c9;
+  --body-solid: #d6d6d6;
+  --groove-solid: #9a9a9a;
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 10010;
+  transform-origin: top right;
+  pointer-events: none;
+  color: var(--ink);
+  font-family: UniversNext, FunnelDisplay, system-ui, sans-serif;
+  user-select: none;
+}
+
+.dock[data-theme='dark'] {
+  --body: linear-gradient(160deg, #3d3d4a 0%, #2c2c34 40%, #252528 70%, #303038 100%);
+  --rim: #1c1c26;
+  --hi: rgba(120, 140, 200, 0.18);
+  --well: linear-gradient(160deg, #252530, #1e1e28);
+  --well-shadow: inset 2px 2px 6px #0d0d18, inset -1px -1px 4px #31313e;
+  --well-rim: #16161f;
+  --btn: linear-gradient(145deg, #393944, #2b2b36);
+  --btn-on: linear-gradient(145deg, #252530, #333340);
+  --btn-shadow: 3px 3px 6px #11111a, -2px -2px 5px #373742;
+  --btn-shadow-on: inset 2px 2px 5px #13131e, inset -1px -1px 3px #45454e;
+  --btn-rim: #1b1b26;
+  --track: linear-gradient(145deg, #2e2e3a, #252530);
+  --track-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5), inset -1px -1px 3px rgba(70, 80, 120, 0.1);
+  --groove: linear-gradient(to right, #141420, #20202c);
+  --metal: conic-gradient(from 310deg, #2e2e38 0deg, #4a4a56 22deg, #363640 38deg, #26262e 65deg, #464652 88deg, #363640 108deg, #282832 140deg, #484852 162deg, #363640 185deg, #2e2e38 220deg, #44444e 245deg, #363640 268deg, #242430 300deg, #46464e 328deg, #32323c 348deg, #2e2e38 360deg);
+  --spun: conic-gradient(from 55deg, #2e2e38 0deg, #4a4a56 20deg, #363640 42deg, #26262e 68deg, #464652 90deg, #363640 115deg, #282832 148deg, #484852 168deg, #363640 190deg, #2e2e38 228deg, #44444e 252deg, #363640 275deg, #242430 305deg, #46464e 332deg, #32323c 352deg, #2e2e38 360deg);
+  --knob-body: linear-gradient(135deg, #3c3c46, #26262e);
+  --knob-shadow: 5px 5px 12px rgba(0, 0, 0, 0.65);
+  --thumb-rim: #1e1e28;
+  --thumb-shadow: 2px 2px 5px rgba(0, 0, 0, 0.65);
+  --ink: #a8aec4;
+  --label: #5e6070;
+  --wood: url(/images/lab/wood-texture-1.jpg);
+  --led-off: rgba(255, 255, 255, 0.12);
+  --track-solid: #292933;
+  --body-solid: #2e2e37;
+  --groove-solid: #15151f;
+}
+
+/* clip-path drops box shadows, so the device shadow sits on the wrapper */
+.drawer {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(-6px 14px 22px rgba(0, 0, 0, 0.28)) drop-shadow(-1px 2px 3px rgba(0, 0, 0, 0.18));
+}
+.dock[data-theme='dark'] .drawer { filter: drop-shadow(-6px 14px 26px rgba(0, 0, 0, 0.7)) drop-shadow(-12px 0 30px rgba(185, 212, 255, 0.08)); }
+
+.unit { position: relative; pointer-events: auto; background: var(--body); transition: background 0.65s ease; }
+.outline { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+
+.led { width: 5px; height: 5px; border-radius: 50%; background: var(--led-off); flex-shrink: 0; transition: background 0.2s, box-shadow 0.2s; }
+.led[data-tone='green'] { background: var(--led); box-shadow: 0 0 5px var(--led-glow); }
+.led[data-tone='amber'] { background: #ffc83d; box-shadow: 0 0 5px rgba(255, 200, 61, 0.7); animation: blink 0.9s steps(2) infinite; }
+.led[data-tone='red'] { background: #ff5a4a; box-shadow: 0 0 5px rgba(255, 90, 74, 0.6); }
+
+/* inset well, as on the QR Device */
+.tray { border-radius: 16px; background: var(--well); box-shadow: var(--well-shadow); border: 1px solid var(--well-rim); }
+
+/* ── controls block ─────────────────────────────────────────── */
+
+.content { position: absolute; left: 0; right: 0; padding: 12px 14px 0 16px; display: flex; flex-direction: column; gap: 9px; }
+.knobRow { position: relative; }
+
+/* the knob module: a wood inlay, shape cut by clip-path, inner shadow in SVG */
+.plate { position: absolute; inset: 0; background: var(--wood) center / 260px auto; }
+.dialDot, .tick, .knob, .levelKnob { z-index: 1; }
+
+/* rotary positions: printed dots on the wood, the chosen one lit green */
+.dialDot { position: absolute; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: rgba(255, 255, 255, 0.4); border: none; padding: 0; cursor: pointer; transition: background 0.15s, box-shadow 0.15s; }
+.dialDot::before { content: ''; position: absolute; inset: -6px; }
+.dialDot[data-on='true'] { background: var(--led); box-shadow: 0 0 5px var(--led-glow); }
+
+/* knob: static body, spun-metal disc that turns, a green light as pointer */
+.knob {
+  position: absolute;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+  background: var(--knob-body);
+  box-shadow: var(--knob-shadow);
+}
+.knob:active { cursor: grabbing; }
+.knob:focus-visible { box-shadow: var(--knob-shadow), 0 0 0 2px var(--led); }
+.knobCap {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--spun);
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.18);
+  transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.dock[data-theme='dark'] .knobCap { box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.45); }
+.pointer { position: absolute; top: 5px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--led); box-shadow: 0 0 5px var(--led-glow); }
+
+/* level: a small knob whose spun ring turns around a fixed screen */
+.tick { position: absolute; width: 2px; height: 2px; margin: -1px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); }
+.tick[data-on='true'] { background: var(--led); box-shadow: 0 0 3px var(--led-glow); }
+.levelKnob { position: absolute; border-radius: 50%; cursor: ns-resize; touch-action: none; outline: none; background: var(--knob-body); box-shadow: var(--knob-shadow); }
+.levelKnob:focus-visible { box-shadow: var(--knob-shadow), 0 0 0 2px var(--led); }
+.levelRing { position: absolute; inset: 3px; border-radius: 50%; background: var(--spun); box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2); transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.levelNotch { position: absolute; left: 50%; top: 2px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--led); box-shadow: 0 0 4px var(--led-glow); }
+.phosphor {
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 2px), radial-gradient(circle at 50% 45%, #10301c, #050d08 75%);
+  box-shadow: inset 0 0 0 2px #111, inset 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+.phosphor::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.16), transparent 45%); pointer-events: none; }
+.phosphor span { font-family: 'Press Start 2P', monospace; font-size: 6.5px; color: #7dff8a; text-shadow: 0 0 3px var(--led), 0 0 6px var(--led-glow); letter-spacing: -0.5px; margin-left: 1px; }
+
+/* raised keys that sink when pressed */
+.keyRow { display: flex; gap: 6px; }
+.squareKey {
+  width: 28px;
+  height: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--btn-rim);
+  cursor: pointer;
+  color: var(--label);
+  background: var(--btn);
+  box-shadow: var(--btn-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.1s;
+}
+.squareKey:active, .squareKey[data-on='true'] { background: var(--btn-on); box-shadow: var(--btn-shadow-on); color: var(--ink); }
+
+/* ── switch strip ───────────────────────────────────────────── */
+
+.strip { display: flex; align-items: flex-end; justify-content: space-between; padding: 8px 11px 7px; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: 5px; background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; }
+.cellTop { display: flex; align-items: center; gap: 5px; height: 26px; }
+.glyph { display: flex; color: var(--label); height: 10px; opacity: 0.7; transition: color 0.15s, opacity 0.15s; }
+.cell[data-on='true'] .glyph { color: var(--ink); opacity: 1; }
+.divider { width: 1px; align-self: stretch; margin: 3px 0; background: var(--well-rim); box-shadow: 1px 0 0 var(--hi); }
+
+/* pill switch, horizontal: groove + metal ball (QR Device toggle, smaller) */
+.toggle { position: relative; width: 36px; height: 20px; border-radius: 10px; border: 1px solid var(--btn-rim); background: var(--track); box-shadow: var(--track-shadow); }
+.toggle::before { content: ''; position: absolute; top: 50%; left: 5px; right: 5px; height: 2px; margin-top: -1px; border-radius: 1px; background: var(--groove); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35); }
+.toggleKnob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--metal); border: 1px solid var(--thumb-rim); box-shadow: var(--thumb-shadow); transition: left 0.18s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.cell[data-on='true'] .toggleKnob { left: 18px; }
+
+/* the same switch stood upright for the effects */
+.leverSlot { position: relative; width: 16px; height: 26px; border-radius: 8px; border: 1px solid var(--btn-rim); background: var(--track); box-shadow: var(--track-shadow); }
+.leverSlot::before { content: ''; position: absolute; left: 50%; top: 5px; bottom: 5px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--groove); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35); }
+.leverStick { position: absolute; left: 1px; top: 11px; width: 12px; height: 12px; border-radius: 50%; background: var(--metal); border: 1px solid var(--thumb-rim); box-shadow: var(--thumb-shadow); transition: top 0.18s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.cell[data-on='true'] .leverStick { top: 1px; }
+
+/* hold: a round key with a status light */
+.round { position: relative; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--btn-rim); background: var(--btn); box-shadow: var(--btn-shadow); transition: all 0.1s; }
+.round::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: var(--led-off); transition: background 0.15s, box-shadow 0.15s; }
+.cell[data-on='true'] .round { background: var(--btn-on); box-shadow: var(--btn-shadow-on); }
+.cell[data-on='true'] .round::after { background: var(--led); box-shadow: 0 0 5px var(--led-glow); }
+
+/* ── the lip you pull the module out by ─────────────────────── */
+
+.handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--label);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0 12px 1px;
+  transition: color 0.15s;
+}
+.handle:hover { color: var(--ink); }
+.handle:focus-visible { outline: 2px solid var(--led); outline-offset: -3px; border-radius: 6px; }
+.handle svg { transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.handleMeter { display: flex; flex-direction: column-reverse; gap: 1.5px; }
+.handleMeter > i { width: 6px; height: 2px; border-radius: 1px; background: var(--led-off); transition: background 0.06s; }
+.handleMeter > i[data-on='true'] { background: var(--led); box-shadow: 0 0 3px var(--led-glow); }
+
+/* ── album tile: an aluminium frame around a black screen ──── */
+
+.album {
+  position: absolute;
+  pointer-events: auto;
+  border: none;
+  padding: 0;
+  border-radius: 14px;
+  cursor: pointer;
+  background: none;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.album:active { transform: scale(0.985); }
+.albumFace { position: relative; width: 100%; height: 100%; border-radius: 14px; overflow: hidden; background: #1a1a1a; box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.8), inset 0 0 0 3px #111; }
+.albumFace img { position: absolute; inset: 3px; width: calc(100% - 6px); height: calc(100% - 6px); border-radius: 11px; object-fit: cover; transform: scale(1.36); display: block; }
+.albumFace::after { content: ''; position: absolute; inset: 3px; border-radius: 11px; pointer-events: none; background: linear-gradient(150deg, rgba(255, 255, 255, 0.16), transparent 40%); box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5); }
+.albumLed { position: absolute; top: 11px; left: 11px; z-index: 2; width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); }
+.album[data-playing='true'] .albumLed { background: var(--led); box-shadow: 0 0 5px var(--led-glow); }
+.empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #6b6b6b; }
+.emptyReels { display: flex; gap: 10px; }
+.emptyReels > i { width: 20px; height: 20px; border-radius: 50%; border: 1.5px dashed #555; }
+.emptyText { font-family: 'Press Start 2P', monospace; font-size: 5.5px; letter-spacing: 0.06em; color: #7dff8a; opacity: 0.6; }
+
+@keyframes blink { 50% { opacity: 0.25; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .knobCap, .toggleKnob, .leverStick, .levelRing { transition: none; }
+}
+
+/* knobs: no glowing focus ring (a lit ring isn't a thing a knob does);
+   keyboard focus gets a quiet darker halo instead */
+.knob:focus-visible, .levelKnob:focus-visible { box-shadow: var(--knob-shadow), 0 0 0 2px rgba(0, 0, 0, 0.18); }
+
+/* visualizer knob: a fixed screen in the middle of the turning disc */
+.knobScreen { inset: 20px; z-index: 2; }
+.screenGlyph { display: flex; color: #7dff8a; filter: drop-shadow(0 0 2px #3eff52) drop-shadow(0 0 4px rgba(62, 255, 82, 0.6)); animation: screenOn 0.28s steps(3) both; }
+@keyframes screenOn { 0% { opacity: 0; transform: scaleY(0.2); } 60% { opacity: 1; transform: scaleY(1.15); } 100% { transform: none; } }
+
+
+/* palette row: arrow keys either side of the colour window */
+.paletteRow { display: flex; align-items: center; gap: 8px; padding: 5px; border-radius: 9999px; box-sizing: border-box; height: 38px; }
+.paletteRow .colourWindow { flex: 1; width: auto; }
+.colourWindow {
+  position: relative;
+  width: 62px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: #111;
+  box-shadow: inset 0 0 0 2px #111, inset 0 2px 6px rgba(0, 0, 0, 0.9), 0 1px 0 var(--hi);
+}
+.colourCard { position: absolute; inset: 3px; border-radius: 9999px; overflow: hidden; display: flex; animation: cardIn 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.colourCard > i { flex: 1; }
+.colourWindow::after {
+  /* glass: a sheen and a fine screen pitch over the printed card */
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.28), transparent 45%), repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 3px);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+.colourEmpty { flex: 1; display: flex; align-items: center; justify-content: center; color: #7dff8a; opacity: 0.55; background: #0b140e; }
+@keyframes cardIn { from { transform: translateY(-100%); } to { transform: none; } }
+
+
+/* round raised keys either side of the colour window */
+.arrowKey {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--btn-rim);
+  background: var(--btn);
+  box-shadow: var(--btn-shadow);
+  color: var(--label);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+}
+.arrowKey:hover { color: var(--ink); }
+.arrowKey:active { background: var(--btn-on); box-shadow: var(--btn-shadow-on); }
+
+/* notch: fullscreen key + the theme gate */
+.notch { position: absolute; z-index: 1; }
+/* fullscreen key on the lip, under the stow handle */
+.lipKey {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid var(--btn-rim);
+  background: var(--btn);
+  box-shadow: 1.5px 1.5px 3px rgba(0, 0, 0, 0.22), -1px -1px 2px rgba(255, 255, 255, 0.7);
+  color: var(--label);
+  cursor: pointer;
+  pointer-events: auto;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+}
+.dock[data-theme='dark'] .lipKey { box-shadow: 1.5px 1.5px 3px #11111a, -1px -1px 2px #373742; }
+.lipKey:hover { color: var(--ink); }
+.lipKey:active, .lipKey[data-on='true'] { background: var(--btn-on); box-shadow: var(--btn-shadow-on); color: var(--ink); }
+
+/* three-way theme gate */
+.gate { position: relative; flex-shrink: 0; }
+.gateBall {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--metal);
+  border: 1px solid var(--thumb-rim);
+  box-shadow: var(--thumb-shadow);
+  pointer-events: none;
+  transition: left 0.34s cubic-bezier(0.45, 0, 0.2, 1), top 0.34s cubic-bezier(0.45, 0, 0.2, 1);
+}
+.gateHit { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: none; background: none; cursor: pointer; padding: 0; }
+.gateHit:focus-visible { outline: 2px solid rgba(0, 0, 0, 0.2); }
+.gateMark { position: absolute; transform: translate(-50%, -50%); display: flex; color: var(--label); opacity: 0.6; transition: color 0.15s, opacity 0.15s; pointer-events: none; }
+.gateMark[data-lit='true'] { color: var(--ink); opacity: 1; }
+
+/* ── tape module, docked in the bottom-right corner ───────────── */
+.albumDock { position: absolute; right: 0; bottom: 0; pointer-events: none; filter: drop-shadow(-6px -4px 18px rgba(0, 0, 0, 0.22)) drop-shadow(-1px -1px 2px rgba(0, 0, 0, 0.15)); }
+.dock[data-theme='dark'] .albumDock { filter: drop-shadow(-6px -4px 22px rgba(0, 0, 0, 0.6)); }
+.albumBody { position: absolute; inset: 0; background: var(--body); pointer-events: auto; transition: background 0.65s ease; }
+.transport { position: absolute; display: flex; align-items: center; justify-content: space-between; pointer-events: auto; }
+.tKey {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--btn-rim);
+  background: var(--btn);
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.22), -1px -1px 3px rgba(255, 255, 255, 0.7);
+  color: var(--label);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+}
+.dock[data-theme='dark'] .tKey { box-shadow: 2px 2px 4px #11111a, -1px -1px 3px #373742; }
+.tKey:hover:not(:disabled) { color: var(--ink); }
+.tKey:active:not(:disabled), .tKey[data-on='true'] { background: var(--btn-on); box-shadow: var(--btn-shadow-on); color: var(--ink); }
+.tKey:disabled { opacity: 0.45; cursor: default; }
+.tKeyMain { width: 30px; border-radius: 11px; }
+
+/* palette pill + Remix key on one line */
+.paletteLine { display: flex; align-items: center; gap: 8px; }
+.paletteLine .paletteRow { flex: 1; min-width: 0; }
+.remixKey {
+  /* exactly as tall as the palette pill beside it */
+  box-sizing: border-box;
+  height: 38px;
+  padding: 0 13px;
+  flex-shrink: 0;
+  border-radius: 19px;
+  border: 1px solid var(--btn-rim);
+  background: var(--btn);
+  box-shadow: var(--btn-shadow);
+  color: var(--label);
+  font-family: FunnelDisplay, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.remixKey:hover { color: var(--ink); }
+.remixKey[data-on='true'] { background: var(--btn-on); box-shadow: var(--btn-shadow-on); color: var(--ink); }
+/* remixing: the colour card drifts through the wheel */
+.colourWindow[data-remix='true'] .colourCard { animation: cardIn 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) both, remixDrift 24s linear infinite; }
+@keyframes remixDrift { to { filter: hue-rotate(360deg) saturate(1.2); } }
+
+/* Remix + fullscreen read as lit controls: printed in green, glowing when on */
+.remixKey, .lipKey { color: rgba(62, 255, 82, 0.62); }
+.remixKey:hover, .lipKey:hover { color: var(--led); }
+.remixKey[data-on='true'], .lipKey[data-on='true'] { color: var(--led); }
+.remixKey[data-on='true'] { text-shadow: 0 0 6px var(--led-glow), 0 0 1px var(--led); }
+.lipKey svg { transition: filter 0.2s; }
+.lipKey:hover svg, .lipKey[data-on='true'] svg { filter: drop-shadow(0 0 3px var(--led-glow)); }
+/* on the light aluminium the pale green washes out: a deeper green there */
+.dock:not([data-theme='dark']) .remixKey, .dock:not([data-theme='dark']) .lipKey { color: #1fa83a; }
+.dock:not([data-theme='dark']) .remixKey[data-on='true'], .dock:not([data-theme='dark']) .lipKey[data-on='true'],
+.dock:not([data-theme='dark']) .remixKey:hover, .dock:not([data-theme='dark']) .lipKey:hover { color: #0f9a2c; }

@@ -12,6 +12,10 @@
  * Like the dither, the canvas only exists while something is happening: at
  * rest the plain <img> is showing and no frames are drawn. With "animate
  * edge" on, the noise keeps flowing only while the pointer is over a figure.
+ *
+ * Touch screens have no pointer to follow, so there the reveal is a wave
+ * instead: a ragged band that sweeps across the figure as the first fold
+ * scrolls, tied to the scroll position (scroll back up and it runs back).
  */
 
 import { getSettings, subscribe, type DitherSettings } from './settings'
@@ -47,6 +51,9 @@ uniform vec3 uEdgeColor;
 uniform float uDistort;
 uniform float uDitherEdge;
 uniform float uTime;
+uniform vec3 uWave;      // touch: (front position, direction x, direction y), figure-normalised
+uniform float uWaveOn;
+uniform float uWaveWidth;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
 float vnoise(vec2 p) {
@@ -80,6 +87,12 @@ void main() {
     vec3 s = uPts[i];
     float d = distance(p, s.xy) / uRadius;
     m = max(m, s.z * pow(clamp(1.0 - d * d, 0.0, 1.0), uFalloff));
+  }
+  if (uWaveOn > 0.5) {
+    // a soft band across the figure; the noise below makes its edges ragged
+    float u = dot(p / uSize - 0.5, normalize(uWave.yz));
+    float k = (u - uWave.x) / uWaveWidth;
+    m = max(m, exp(-k * k));
   }
 
   vec2 np = p / 100.0 * uNoiseScale;
@@ -138,6 +151,7 @@ export function attachShaderReveal(
   canvas: HTMLCanvasElement,
   name: 'abhay' | 'tejas',
   paintedSrc: string,
+  touch = false,
 ): (() => void) | null {
   const gl = canvas.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: false })
   if (!gl) return null
@@ -189,6 +203,7 @@ export function attachShaderReveal(
           radius: u('uRadius'), falloff: u('uFalloff'), noise: u('uNoise'), noiseScale: u('uNoiseScale'),
           soft: u('uSoft'), glow: u('uGlow'), glowWidth: u('uGlowWidth'), edgeColor: u('uEdgeColor'),
           distort: u('uDistort'), ditherEdge: u('uDitherEdge'), time: u('uTime'),
+          wave: u('uWave'), waveOn: u('uWaveOn'), waveWidth: u('uWaveWidth'),
         },
       }
       return true
@@ -220,6 +235,12 @@ export function attachShaderReveal(
   let showing = false
   const ptsArray = new Float32Array(MAX_POINTS * 3)
   const t0 = performance.now()
+  // touch wave: where its front is (-1 off the top, +1 off the bottom), and its
+  // heading in figure space, leaning down toward the pointing hand
+  let wavePos = -1
+  const waveDir = name === 'abhay' ? [0.35, 1] : [-0.35, 1]
+  const WAVE_WIDTH = 0.13
+  const waveVisible = () => touch && wavePos > -0.95 && wavePos < 0.95
 
   const active = (s: DitherSettings) => s.enabled && s.effect === 'shader' && (s.target === 'both' || s.target === name)
 
@@ -253,7 +274,7 @@ export function attachShaderReveal(
     ready = true
     // the painting usually arrives after the first mouse move; draw now
     // rather than waiting for the pointer to move again
-    if (pointer) kick()
+    if (pointer || waveVisible()) kick()
   }
 
   // The painting (~170 KB a figure) is only fetched once someone moves a
@@ -319,7 +340,8 @@ export function attachShaderReveal(
       ptsArray[n * 3 + 2] = s.enterMs > 0 ? easeOut((now - enteredAt) / s.enterMs) : 1
       n++
     }
-    if (!n) { show(false); return }
+    const waving = waveVisible()
+    if (!n && !waving) { show(false); return }
     show(true)
 
     gl.clearColor(0, 0, 0, 0)
@@ -340,6 +362,9 @@ export function attachShaderReveal(
     gl.uniform1f(U.distort, s.shDistort)
     gl.uniform1f(U.ditherEdge, s.shDitherEdge ? 1 : 0)
     gl.uniform1f(U.time, s.shAnimate ? ((now - t0) / 1000) * s.shSpeed : 0)
+    gl.uniform3f(U.wave, wavePos, waveDir[0], waveDir[1])
+    gl.uniform1f(U.waveOn, waving ? 1 : 0)
+    gl.uniform1f(U.waveWidth, WAVE_WIDTH)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
     const entering = head && now - enteredAt < s.enterMs
@@ -377,10 +402,28 @@ export function attachShaderReveal(
   canvas.addEventListener('webglcontextlost', onLost)
   canvas.addEventListener('webglcontextrestored', onRestored)
 
-  window.addEventListener('mousemove', onMove, { passive: true })
-  document.documentElement.addEventListener('mouseleave', onLeave)
+  if (!touch) {
+    window.addEventListener('mousemove', onMove, { passive: true })
+    document.documentElement.addEventListener('mouseleave', onLeave)
+  } else {
+    // touch: fetch the painting once the page has settled, so the wave is
+    // ready by the time anyone scrolls
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
+    if (idle) idle(loadPainted)
+    else setTimeout(loadPainted, 1200)
+  }
   window.addEventListener('resize', onResize)
-  const unScroll = onScrollFrame(() => { if (pointer) kick() })
+  const unScroll = onScrollFrame((y) => {
+    if (touch) {
+      // the wave crosses the figure over the first part of the fold
+      const range = Math.min(340, window.innerHeight * 0.42)
+      const was = waveVisible()
+      wavePos = -1 + 2 * Math.min(1, Math.max(0, y / range))
+      if (was || waveVisible()) kick()
+      return
+    }
+    if (pointer) kick()
+  })
 
   return () => {
     window.removeEventListener('mousemove', onMove)

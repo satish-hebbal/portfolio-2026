@@ -2,8 +2,14 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo, Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, useGLTF, Environment, useProgress, Html } from '@react-three/drei'
+import { OrbitControls, useGLTF, Environment, useProgress, Html, PerformanceMonitor } from '@react-three/drei'
 import * as THREE from 'three'
+import Link from 'next/link'
+import TapeDeck, { extractVideoId, rememberTape, type Tape } from './TapeDeck'
+import VisualizerBG from './visualizer/VisualizerBG'
+import Console from './console/Console'
+import { AudioSignal, type TrackStatus } from './visualizer/audioSignal'
+import { DEFAULT_SETTINGS, albumBackground, loadSettings, loadTheme, resolvePalette, saveSettings, saveTheme, type ThemeMode, type VizSettings } from './visualizer/vizConfig'
 
 declare global {
   interface Window {
@@ -13,11 +19,124 @@ declare global {
   }
 }
 
-function extractVideoId(url: string): string | null {
-  const match = url.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|music\.youtube\.com\/watch\?v=|youtube\.com\/embed\/)([^&\n?#]+)/
+// the LCD font is ASCII-only: keep what it can draw, uppercase, trimmed. If a
+// title is mostly another script, fall back to the artist, then to "NOW PLAYING".
+function lcdText(title: string, author: string): string {
+  const clean = (s: string) => s
+    .replace(/\(official[^)]*\)|\[official[^\]]*\]|official (music )?video|\(lyrics?\)|\[4k\]|\bhd\b/gi, '')
+    .replace(/[^\x20-\x7e]/g, '').replace(/\s+/g, ' ').trim().toUpperCase()
+  const t = clean(title)
+  const a = clean(author).replace(/VEVO$/, '').trim()
+  if (t.length >= 3) return a && !t.includes(a) ? `${t} - ${a}` : t
+  return a.length >= 3 ? a : 'NOW PLAYING'
+}
+
+// ─── cursor label ─────────────────────────────────────────────────────────────
+// Hovering a control on the Walkman shows what it'll do in a small tag that
+// rides along with the pointer (not pinned to the model).
+type HoverControl = 'paste' | 'mute' | 'forward' | 'rewind' | 'play' | 'stop' | 'volume'
+
+function CursorLabel({ control, playing, muted, darkBg }: { control: HoverControl | null; playing: boolean; muted: boolean; darkBg: boolean }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const last = useRef<string>('')
+  useEffect(() => {
+    // Stick to the pointer with as little delay as the browser allows:
+    // pointerrawupdate fires ahead of the frame's regular pointermove
+    // (Chromium), and the newest coalesced sample is the freshest position.
+    // The bubble's square corner sits just off the cursor's tip.
+    const move = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse' || !ref.current) return
+      const pts = e.getCoalescedEvents?.()
+      const at = pts && pts.length ? pts[pts.length - 1] : e
+      ref.current.style.transform = `translate3d(${at.clientX + 12}px, ${at.clientY + 16}px, 0)`
+    }
+    const evt = 'onpointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove'
+    window.addEventListener(evt, move as EventListener, { passive: true })
+    return () => window.removeEventListener(evt, move as EventListener)
+  }, [])
+  const text = control === 'play' ? (playing ? 'Pause' : 'Play')
+    : control === 'mute' ? (muted ? 'Unmute' : 'Mute')
+    : control === 'forward' ? 'Skip 10 seconds'
+    : control === 'rewind' ? 'Back 10 seconds'
+    : control === 'stop' ? 'Stop'
+    : control === 'paste' ? 'Paste a link'
+    : control === 'volume' ? 'Drag for volume'
+    : ''
+  if (text) last.current = text // keep the last words while it fades out
+  return (
+    <div ref={ref} aria-hidden style={{ position: 'fixed', left: 0, top: 0, zIndex: 10020, pointerEvents: 'none', willChange: 'transform', contain: 'layout style' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        // a message bubble: the square corner points back at the cursor
+        padding: '6px 11px 6px 9px', borderRadius: '3px 12px 12px 12px',
+        fontFamily: 'FunnelDisplay, system-ui, sans-serif', fontSize: 12, fontWeight: 500, letterSpacing: '0.01em', lineHeight: 1.1,
+        color: darkBg ? 'rgba(255,255,255,0.94)' : 'rgba(0,0,0,0.84)',
+        // near-solid: a backdrop blur would have to be recomputed on every move
+        background: darkBg ? 'rgba(22,22,26,0.96)' : 'rgba(255,255,255,0.97)',
+        border: `1px solid ${darkBg ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'}`,
+        boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+        whiteSpace: 'nowrap',
+        opacity: control ? 1 : 0, transform: control ? 'scale(1)' : 'scale(0.9)', transformOrigin: 'top left',
+        transition: 'opacity 0.14s ease, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)',
+      }}>
+        <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#3eff52', boxShadow: '0 0 5px rgba(62,255,82,0.7)' }} />
+        {text || last.current}
+      </div>
+    </div>
   )
-  return match ? match[1] : null
+}
+
+// ─── cassette window ─────────────────────────────────────────────────────────
+// The smoked window in the lid is a dark patch of the shared texture atlas, on
+// the lid mesh only (other meshes reuse that patch of the atlas, so the effect
+// is applied to the lid's own copy of the material). Within that patch the
+// shader lays the current album cover in, darkened and softly blurred, like a
+// cassette label seen through tinted plastic. u runs along the window, v up it.
+const WINDOW_UV = new THREE.Vector4(0.0, 0.5083, 0.2603, 0.6162) // u0, v0, u1, v1
+const WINDOW_ASPECT = 2.42 // the patch's width / height in texels (texel density is uniform)
+
+function addCassetteWindow(mat: THREE.MeshStandardMaterial) {
+  const uniforms = {
+    uAlbum: { value: null as THREE.Texture | null },
+    uAlbumMix: { value: 0 },
+    uAlbumAspect: { value: 16 / 9 },
+    uWindowUv: { value: WINDOW_UV },
+    uWindowAspect: { value: WINDOW_ASPECT },
+  }
+  mat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, uniforms)
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform sampler2D uAlbum;
+uniform float uAlbumMix;
+uniform float uAlbumAspect;
+uniform vec4 uWindowUv;
+uniform float uWindowAspect;`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+  vec3 wmGlow = vec3(0.0);
+#ifdef USE_MAP
+  if (uAlbumMix > 0.001) {
+    vec2 q = (vMapUv - uWindowUv.xy) / (uWindowUv.zw - uWindowUv.xy);
+    if (q.x >= 0.0 && q.x <= 1.0 && q.y >= 0.0 && q.y <= 1.0) {
+      // cover-fit the album into the wide window: keep its middle band
+      vec2 st = vec2(q.x, (q.y - 0.5) * (uAlbumAspect / uWindowAspect) + 0.5);
+      vec3 alb = texture2D(uAlbum, st, 1.2).rgb;          // a little soft, it's behind plastic
+      float l = dot(alb, vec3(0.299, 0.587, 0.114));
+      alb = mix(vec3(l), alb, 0.8) * 0.34;                  // smoked: darker, a touch less saturated
+      // fade in from the window's edges so it sits inside the frame, not on it
+      vec2 e = smoothstep(vec2(0.0), vec2(0.06, 0.16), q) * smoothstep(vec2(0.0), vec2(0.06, 0.16), 1.0 - q);
+      float m = e.x * e.y * uAlbumMix;
+      diffuseColor.rgb = mix(diffuseColor.rgb, alb, m * 0.8);
+      wmGlow = alb * m * 0.06; // a faint light of its own, so it reads through the tint in shadow
+    }
+  }
+#endif`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  totalEmissiveRadiance += wmGlow;`)
+  }
+  mat.customProgramCacheKey = () => 'wm-cassette-window'
+  mat.needsUpdate = true
+  return uniforms
 }
 
 // ─── dev params ───────────────────────────────────────────────────────────────
@@ -60,10 +179,15 @@ const defaultDevParams: DevParams = {
 
 // ─── canvas texture display ───────────────────────────────────────────────────
 
+// The screen texture is drawn at RES times the tuned layout size: the layout
+// (and its UV mapping above) stays exactly as dialled in, but the glyphs get
+// real pixels instead of a 4px font stretched across the whole screen.
+const RES = 8
+
 function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevParams }, invalidate: () => void) {
   const canvas = document.createElement('canvas')
-  canvas.width = defaultDevParams.canvasW
-  canvas.height = defaultDevParams.canvasH
+  canvas.width = defaultDevParams.canvasW * RES
+  canvas.height = defaultDevParams.canvasH * RES
   const ctx = canvas.getContext('2d')!
 
   let interval: ReturnType<typeof setInterval> | null = null
@@ -76,10 +200,11 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
   let scrollOffset = 0
   let lastTextWidth = 100
 
+  // scrollX: how far the marquee has run, in canvas pixels (undefined = static text)
   function draw(text: string, showCursor: boolean, scrollX?: number) {
     const p = devParamsRef.current
-    const cw = Math.max(1, Math.round(p.canvasW))
-    const ch = Math.max(1, Math.round(p.canvasH))
+    const cw = Math.max(1, Math.round(p.canvasW * RES))
+    const ch = Math.max(1, Math.round(p.canvasH * RES))
 
     if (canvas.width !== cw) canvas.width = cw
     if (canvas.height !== ch) canvas.height = ch
@@ -113,38 +238,51 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
     }
 
     ctx.save()
-    const fs = Math.max(1, Math.round(p.fontSize))
-    const xCenter = scrollX !== undefined ? scrollX : (cw / 2 + p.textX)
-    ctx.translate(xCenter, ch / 2 + p.textY)
+    // Press Start 2P is an 8x8 pixel font: one font pixel is fs/8. Every glyph
+    // lands on that pixel grid, so the LCD matrix drawn over it lines up exactly.
+    const px = Math.max(1, Math.round((p.fontSize * RES) / 8))
+    const fs = px * 8
+    const snap = (v: number) => Math.round(v / px) * px
+    ctx.translate(Math.round(cw / 2 + p.textX * RES), Math.round(ch / 2 + p.textY * RES))
     ctx.rotate(p.canvasRotation)
     if (p.mirrorX) ctx.scale(-1, 1)
-    ctx.imageSmoothingEnabled = false
     ctx.font = `${fs}px "Press Start 2P", monospace`
-    ctx.fillStyle = '#00ff88'
-    ctx.textBaseline = 'middle'
+    ctx.textBaseline = 'top'
     ctx.textAlign = 'left'
 
     const displayChars = (scrollX !== undefined ? text : text.slice(0, 16)).split('')
-    const charW = ctx.measureText('W').width || fs * 0.6
-    const spacing = charW * 1.2
+    const spacing = px * 10 // 8px glyph + 2px gap
     lastTextWidth = displayChars.length * spacing
+    const xStart = scrollX !== undefined ? snap(cw / 2) - snap(scrollX) : snap(-lastTextWidth / 2)
+    const yTop = snap(-fs / 2)
 
-    const xStart = scrollX !== undefined ? 0 : -lastTextWidth / 2
-    displayChars.forEach((ch, i) => {
-      ctx.fillText(ch, xStart + i * spacing, 0)
-    })
+    // unlit pixels: the faint green of an LCD that's on but not showing anything
+    ctx.fillStyle = 'rgba(0, 255, 136, 0.02)'
+    ctx.fillRect(-cw * 2, -cw * 2, cw * 4, cw * 4)
 
-    if (showCursor && scrollX === undefined) {
-      ctx.fillText('>', xStart + lastTextWidth + spacing * 0.4, 0)
+    // lit pixels, with a little bloom
+    ctx.fillStyle = '#00ff88'
+    ctx.shadowColor = 'rgba(0, 255, 136, 0.55)'
+    ctx.shadowBlur = px * 1.5
+    const drawRun = (x0: number) => displayChars.forEach((c, i) => ctx.fillText(c, x0 + i * spacing, yTop))
+    if (scrollX === undefined) {
+      drawRun(xStart)
+      if (showCursor) ctx.fillText('>', xStart + lastTextWidth + px * 2, yTop)
+    } else {
+      // seamless marquee: copies follow each other a six-character gap apart, as
+      // many as it takes to fill the screen, so it is never blank between passes
+      const cycle = lastTextWidth + px * 6 * 8
+      for (let x = xStart; x < cw; x += cycle) drawRun(x)
     }
+    ctx.shadowBlur = 0
 
-    // Seamless marquee: draw a second copy trailing behind the first
-    if (scrollX !== undefined) {
-      const totalWidth = lastTextWidth + 50
-      displayChars.forEach((ch, i) => {
-        ctx.fillText(ch, totalWidth + i * spacing, 0)
-      })
-    }
+    // the dot matrix: thin dark gaps between every pixel, on the font's grid
+    const gap = Math.max(1, Math.round(px * 0.22))
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.62)'
+    const x0 = snap(-cw * 2), x1 = cw * 2
+    const yA = yTop - snap(cw), yB = yTop + snap(cw)
+    for (let x = x0; x < x1; x += px) ctx.fillRect(x, yA, gap, yB - yA)
+    for (let y = yA; y <= yB; y += px) ctx.fillRect(-cw * 2, y, cw * 4, gap)
 
     ctx.restore()
 
@@ -164,6 +302,7 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
   }
 
   const tex = new THREE.CanvasTexture(canvas)
+  tex.anisotropy = 8
   tex.flipY = defaultDevParams.flipY
   tex.rotation = defaultDevParams.texRotation
   tex.center.set(0.5, 0.5)
@@ -206,8 +345,7 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
     if (interval) { clearInterval(interval); interval = null }
     isScrolling = true
     scrollText = text
-    const p = devParamsRef.current
-    scrollOffset = Math.max(1, Math.round(p.canvasW))
+    scrollOffset = 0 // the text enters from the right edge
   }
 
   function stopScroll() {
@@ -216,10 +354,15 @@ function createDisplayUpdater(mesh: THREE.Mesh, devParamsRef: { current: DevPara
 
   function tickScroll() {
     if (!isScrolling) return
-    scrollOffset -= 0.5
-    // Wrap by one cycle (textWidth + gap) so the second copy lands exactly where the first was
-    const totalWidth = lastTextWidth + 50
-    if (scrollOffset <= -totalWidth) scrollOffset += totalWidth
+    // step one font pixel at a time, like a real LCD marquee (never between pixels)
+    const p = devParamsRef.current
+    const px = Math.max(1, Math.round((p.fontSize * RES) / 8))
+    scrollOffset += px
+    // once the lead copy is well past the left edge, drop it: the next copy takes
+    // its place exactly, so the wrap is invisible
+    const cw = Math.round(p.canvasW * RES)
+    const cycle = lastTextWidth + px * 6 * 8
+    if (cw / 2 - scrollOffset + cycle <= -cw) scrollOffset -= cycle
     draw(scrollText, false, scrollOffset)
   }
 
@@ -464,23 +607,23 @@ interface WalkmanProps {
   onVolumeChange: (vol: number) => void
   onVolumeEnd: () => void
   onReady: (fn: (text: string, blinking?: boolean) => void, redraw: () => void, startScroll: (text: string) => void) => void
+  onHoverControl?: (control: HoverControl | null) => void // which button is under the pointer
+  hoverBeat?: { current: number } // stamped every time the pointer is over a button
+  modelBeat?: { current: number } // stamped every time the pointer is over any part of the model
   devParamsRef: { current: DevParams }
   darkBg: boolean
-  isPlaying?: boolean
+  albumId?: string | null // the tape that's in: its cover shows faintly in the cassette window
 }
 
-function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForward, onRewind, onVolumeChange, onVolumeEnd, onReady, devParamsRef, darkBg, isPlaying }: WalkmanProps) {
-  const { scene } = useGLTF('/models/walkman/walkman01.glb')
-  const { invalidate, gl, scene: r3fScene, camera } = useThree()
-  const cameraRef = useRef(camera)
-  cameraRef.current = camera
+function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForward, onRewind, onVolumeChange, onVolumeEnd, onReady, onHoverControl, hoverBeat, modelBeat, devParamsRef, darkBg, albumId }: WalkmanProps) {
+  // 2048² WebP textures (was 3 × 4096² PNG: ~25 MB download, ~270 MB of GPU
+  // memory). Anisotropic filtering below keeps the label print crisp at angles.
+  const { scene } = useGLTF('/models/walkman/walkman01-2k.glb')
+  const { invalidate, gl } = useThree()
 
-  // Per-button world-space positions computed once after scene setup
-  const btnWorldPositions = useRef<Array<{ label: string; pos: THREE.Vector3 }>>([])
-  // Hover tooltip
-  const [hoveredInfo, setHoveredInfo] = useState<{ label: string; pos: THREE.Vector3 } | null>(null)
-  // Peek: briefly show all labels on first play
-  const [peekHints, setPeekHints] = useState(false)
+  // the cursor label lives in the page, outside the canvas; tell it what's hovered
+  const onHoverRef = useRef(onHoverControl)
+  onHoverRef.current = onHoverControl
 
   const disposeRef = useRef<(() => void) | null>(null)
   const hasInteractedRef = useRef(false)
@@ -503,23 +646,16 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   useEffect(() => { onVolumeChangeRef.current = onVolumeChange }, [onVolumeChange])
   useEffect(() => { onVolumeEndRef.current = onVolumeEnd }, [onVolumeEnd])
 
-  const getBtnLabel = (n: string): string => {
-    if (n.includes('Paste_click_button') || n.includes('Cube003')) return 'PASTE URL'
-    if (n.includes('Button1_low001')) return 'MUTE'
-    if (n.includes('Button2_low001')) return '+10s'
-    if (n.includes('Button3_low001')) return '–10s'
-    if (n.includes('Button4_low001')) return 'PLAY / PAUSE'
-    if (n.includes('Button5_low001')) return 'STOP'
-    return ''
+  const controlOf = (n: string): HoverControl | null => {
+    if (n.includes('Paste_click_button') || n.includes('Cube003')) return 'paste'
+    if (n.includes('Button1_low001')) return 'mute'
+    if (n.includes('Button2_low001')) return 'forward'
+    if (n.includes('Button3_low001')) return 'rewind'
+    if (n.includes('Button4_low001')) return 'play'
+    if (n.includes('Button5_low001')) return 'stop'
+    if (n.includes('Slider1_low001') || n.includes('Slider2_low001')) return 'volume'
+    return null
   }
-
-  // Show all button labels for 8s whenever music starts; hide when it stops
-  useEffect(() => {
-    if (!isPlaying) { setPeekHints(false); return }
-    setPeekHints(true)
-    const t = setTimeout(() => setPeekHints(false), 8000)
-    return () => { clearTimeout(t); setPeekHints(false) }
-  }, [isPlaying])
 
   useEffect(() => {
     gl.setClearColor(new THREE.Color(darkBg ? '#000000' : '#ffffff'), 0)
@@ -553,6 +689,30 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   }, [])
 
   const tickScrollRef = useRef<() => void>(() => {})
+  const windowUniforms = useRef<ReturnType<typeof addCassetteWindow> | null>(null)
+  const albumTarget = useRef(0) // where the window's album fade is heading
+
+  // load the cover for the cassette window (same-origin proxy, so WebGL may read it)
+  useEffect(() => {
+    const u = windowUniforms.current
+    if (!albumId) { albumTarget.current = 0; return }
+    let cancelled = false
+    new THREE.TextureLoader().load(`/api/thumbnail?id=${albumId}&size=mqdefault`, (tex) => {
+      if (cancelled) { tex.dispose(); return }
+      tex.colorSpace = THREE.SRGBColorSpace
+      tex.anisotropy = 4
+      const img = tex.image as { width: number; height: number }
+      const w = windowUniforms.current
+      if (!w) return
+      w.uAlbum.value?.dispose()
+      w.uAlbum.value = tex
+      w.uAlbumAspect.value = img.width / img.height
+      albumTarget.current = 1
+      invalidate()
+    })
+    if (u) albumTarget.current = 0 // fade the old cover out while the new one loads
+    return () => { cancelled = true }
+  }, [albumId, invalidate])
   const stopScrollRef = useRef<() => void>(() => {})
   const wasPlayingRef = useRef(false)
   const isHovered = useRef(false)
@@ -579,6 +739,7 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
     pivotRef.current.position.set(0.03, basePosY, 0)
 
     let screenMesh: THREE.Mesh | null = null
+    const maxAniso = Math.min(8, gl.capabilities.getMaxAnisotropy())
     btnGroups.current = { paste: [], play: [], stop: [], forward: [], rewind: [], stopeject: [] }
     btnOriginals.current = new Map()
     animatingGroup.current = []
@@ -602,6 +763,9 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
       if (n !== '8Bit_screen' && (obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh
         const solidify = (m: THREE.Material) => {
+          if (m instanceof THREE.MeshStandardMaterial) {
+            for (const t of [m.map, m.normalMap, m.roughnessMap, m.metalnessMap]) if (t) t.anisotropy = maxAniso
+          }
           m.side = THREE.DoubleSide
           m.transparent = false
           m.depthWrite = true
@@ -613,33 +777,15 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
       }
     })
 
-    // Compute world positions for each button label (after transforms are applied)
-    r3fScene.updateMatrixWorld(true)
-    const labelTargets: Array<{ test: (n: string) => boolean; label: string }> = [
-      { test: n => n.includes('Paste_click_button') || n.includes('Cube003'), label: 'PASTE URL' },
-      { test: n => n.includes('Button1_low001'), label: 'MUTE' },
-      { test: n => n.includes('Button2_low001'), label: '+10s' },
-      { test: n => n.includes('Button3_low001'), label: '–10s' },
-      { test: n => n.includes('Button4_low001'), label: 'PLAY / PAUSE' },
-      { test: n => n.includes('Button5_low001'), label: 'STOP' },
-    ]
-    const seenLabels = new Set<string>()
-    const computed: Array<{ label: string; pos: THREE.Vector3 }> = []
-    const camPos = cameraRef.current.position.clone()
+
+    // the lid gets its own copy of the material, with the cassette window patch
     scene.traverse((obj) => {
-      for (const t of labelTargets) {
-        if (t.test(obj.name) && !seenLabels.has(t.label)) {
-          seenLabels.add(t.label)
-          const wp = new THREE.Vector3()
-          obj.getWorldPosition(wp)
-          // offset 0.35 units toward camera so label floats in front of button face
-          const dir = new THREE.Vector3().subVectors(camPos, wp).normalize()
-          computed.push({ label: t.label, pos: wp.clone().addScaledVector(dir, 0.35) })
-          break
-        }
-      }
+      const mesh = obj as THREE.Mesh
+      if (!mesh.isMesh || !obj.name.includes('Walkman3_low')) return
+      const own = (mesh.material as THREE.MeshStandardMaterial).clone()
+      mesh.material = own
+      windowUniforms.current = addCassetteWindow(own)
     })
-    btnWorldPositions.current = computed
 
     if (screenMesh) {
       const { updateDisplay, redrawCurrent, startScroll, stopScroll, tickScroll, dispose } = createDisplayUpdater(screenMesh as THREE.Mesh, devParamsRef, invalidate)
@@ -664,6 +810,11 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   }, [scene])
 
   useFrame((_, delta) => {
+    const wu = windowUniforms.current
+    if (wu && Math.abs(wu.uAlbumMix.value - albumTarget.current) > 0.002) {
+      wu.uAlbumMix.value += (albumTarget.current - wu.uAlbumMix.value) * Math.min(1, delta * 2.5)
+      invalidate()
+    }
     const playing = window.ytPlayer?.getPlayerState?.() === 1
     if (playing) {
       scrollFrameCount.current++
@@ -751,27 +902,28 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
     invalidate()
   }
 
-  const handlePointerOver = useCallback((e: any) => {
-    const n = e.object?.name ?? ''
-    if (isBtn(n)) {
-      if (clearHoverTimerRef.current) {
-        clearTimeout(clearHoverTimerRef.current)
-        clearHoverTimerRef.current = null
-      }
-      document.body.style.cursor = 'pointer'
-      isHovered.current = true
-      if (!isSliderMesh(n)) {
-        const label = getBtnLabel(n)
-        if (label) {
-          lastHoveredLabelRef.current = label
-          const wp = new THREE.Vector3()
-          e.object.getWorldPosition(wp)
-          const dir = new THREE.Vector3().subVectors(cameraRef.current.position, wp).normalize()
-          setHoveredInfo({ label, pos: wp.clone().addScaledVector(dir, 0.35) })
-          invalidate()
-        }
-      }
+  const showControl = (n: string) => {
+    const c = controlOf(n)
+    if (!c) return
+    if (hoverBeat) hoverBeat.current = performance.now()
+    if (clearHoverTimerRef.current) { clearTimeout(clearHoverTimerRef.current); clearHoverTimerRef.current = null }
+    document.body.style.cursor = c === 'volume' ? 'ns-resize' : 'pointer'
+    isHovered.current = true
+    if (c !== lastHoveredLabelRef.current) {
+      lastHoveredLabelRef.current = c
+      onHoverRef.current?.(c)
     }
+  }
+
+  // one pointer event reaches every mesh along the ray (the button, then the
+  // body behind it); only the nearest one decides what's under the cursor
+  const isNearest = (e: any) => !e.intersections?.length || e.intersections[0].object === e.object
+
+  const handlePointerOver = useCallback((e: any) => {
+    if (modelBeat) modelBeat.current = performance.now()
+    if (!isNearest(e)) return
+    showControl(e.object?.name ?? '')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handlePointerOut = useCallback((e: any) => {
@@ -779,10 +931,11 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
       document.body.style.cursor = 'default'
       isHovered.current = false
       lastHoveredLabelRef.current = ''
+      // a short grace period, so sliding between neighbouring buttons doesn't flicker
       clearHoverTimerRef.current = setTimeout(() => {
-        setHoveredInfo(null)
+        if (!isDraggingSlider.current) onHoverRef.current?.(null)
         clearHoverTimerRef.current = null
-      }, 150)
+      }, 120)
     }
   }, [])
 
@@ -801,34 +954,26 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
   }, [playClick])
 
   const handlePointerMove = useCallback((e: any) => {
+    if (modelBeat) modelBeat.current = performance.now()
     if (isDraggingSlider.current) {
+      if (hoverBeat) hoverBeat.current = performance.now() // keep the volume label up while dragging
       const dy = sliderStartY.current - (e.clientY ?? 0)
       const newVol = Math.max(0, Math.min(100, sliderStartVol.current + dy))
       onVolumeChangeRef.current(Math.round(newVol))
       return
     }
-    // Belt-and-suspenders: onPointerOver can miss when cursor is already over
-    // a mesh (e.g. right after a click). onPointerMove fires every frame so we
-    // use it to reliably keep the label in sync with whatever mesh is under
-    // the cursor. We gate on lastHoveredLabelRef to avoid re-renders on every
-    // tiny mouse movement.
-    const n = e.object?.name ?? ''
-    if (isBtn(n) && !isSliderMesh(n)) {
-      const label = getBtnLabel(n)
-      if (label && label !== lastHoveredLabelRef.current) {
-        if (clearHoverTimerRef.current) {
-          clearTimeout(clearHoverTimerRef.current)
-          clearHoverTimerRef.current = null
-        }
-        lastHoveredLabelRef.current = label
-        document.body.style.cursor = 'pointer'
-        const wp = new THREE.Vector3()
-        e.object.getWorldPosition(wp)
-        const dir = new THREE.Vector3().subVectors(cameraRef.current.position, wp).normalize()
-        setHoveredInfo({ label, pos: wp.clone().addScaledVector(dir, 0.35) })
-        invalidate()
-      }
+    // onPointerOver can miss when the cursor is already over a mesh (e.g. right
+    // after a click), so pointer-move keeps the label in step too; showControl
+    // only reports when the control under the cursor actually changes
+    if (!isNearest(e)) return
+    if (isBtn(e.object?.name ?? '')) showControl(e.object?.name ?? '')
+    else if (lastHoveredLabelRef.current) {
+      // straight from a button onto the body: drop the label right away
+      lastHoveredLabelRef.current = ''
+      document.body.style.cursor = 'default'
+      onHoverRef.current?.(null)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handlePointerUp = useCallback(() => {
@@ -857,26 +1002,7 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
     }
   }, [])
 
-  const labelStyle: React.CSSProperties = {
-    fontFamily: '"Courier New", monospace',
-    fontSize: '9px',
-    letterSpacing: '0.12em',
-    color: darkBg ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.88)',
-    background: darkBg ? 'rgba(10,10,10,0.72)' : 'rgba(255,255,255,0.84)',
-    border: `1px solid ${darkBg ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.10)'}`,
-    padding: '3px 7px',
-    borderRadius: '4px',
-    whiteSpace: 'nowrap' as const,
-    backdropFilter: 'blur(8px)',
-    pointerEvents: 'none',
-    userSelect: 'none',
-    boxShadow: '0 1px 8px rgba(0,0,0,0.18)',
-    lineHeight: 1,
-  }
 
-  // Html must be siblings of the pivot group (not children) so that
-  // the world-space positions computed via getWorldPosition() are
-  // interpreted correctly — inside the group they would be local coords.
   return (
     <>
       <group ref={pivotRef}>
@@ -899,43 +1025,6 @@ function WalkmanModel({ onPasteClick, onPlayPause, onMuteToggle, onStop, onForwa
 // No module-level useGLTF.preload here: it ran whenever this module was
 // evaluated, which pulled the 25 MB model in on other pages too. The model
 // still starts loading as soon as <WalkmanModel> mounts on this page.
-
-// ─── retro status display ─────────────────────────────────────────────────────
-
-function RetroStatus({ status }: { status: string }) {
-  const [dotCount, setDotCount] = useState(0)
-
-  useEffect(() => {
-    if (status !== 'PLAYING') { setDotCount(0); return }
-    const id = setInterval(() => setDotCount(n => (n + 1) % 4), 380)
-    return () => clearInterval(id)
-  }, [status])
-
-  if (!status) return null
-
-  const map: Record<string, { icon: string; color: string }> = {
-    PLAYING:  { icon: '►',   color: 'rgba(0,160,75,1)'     },
-    PAUSED:   { icon: '❚❚',  color: 'rgba(160,110,0,0.85)' },
-    MUTED:    { icon: '⊘',   color: 'rgba(200,50,50,0.9)'  },
-    UNMUTED:  { icon: '♪',   color: 'rgba(0,150,120,0.9)'  },
-    '+10s':   { icon: '▶▶',  color: 'rgba(40,100,210,0.9)' },
-    '-10s':   { icon: '◀◀',  color: 'rgba(40,100,210,0.9)' },
-    LOADING:  { icon: '○',   color: 'rgba(0,0,0,0.38)'     },
-  }
-
-  const { icon, color } = map[status] ?? { icon: '·', color: 'rgba(0,0,0,0.38)' }
-  const trail = status === 'PLAYING' ? '.'.repeat(dotCount).padEnd(3, ' ') : ''
-
-  return (
-    <span style={{
-      fontFamily: '"Courier New", monospace',
-      fontSize: 11, letterSpacing: '0.14em', color,
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-    }}>
-      {icon}&nbsp;{status}{trail}
-    </span>
-  )
-}
 
 // ─── soft shadow ─────────────────────────────────────────────────────────────
 
@@ -998,8 +1087,8 @@ function WalkmanLoaderOverlay({ darkBg }: { darkBg: boolean }) {
       <div style={{
         width: 38, height: 38,
         borderRadius: '50%',
-        border: `2px solid ${fgDim}`,
-        borderTopColor: fg,
+        borderWidth: 2, borderStyle: 'solid',
+        borderColor: `${fg} ${fgDim} ${fgDim} ${fgDim}`,
         animation: 'reelSpin 1.1s linear infinite',
         marginBottom: 28,
       }} />
@@ -1041,25 +1130,103 @@ export default function Walkman() {
   const [displayStatus, setDisplayStatus] = useState('')
   const [thumbUrl, setThumbUrl] = useState('')
   const [videoMeta, setVideoMeta] = useState<{ title: string; author: string } | null>(null)
-  const [darkBg, setDarkBg] = useState(false)
   const [bgGlows, setBgGlows] = useState<{ r: number; g: number; b: number }[]>([])
+  // light / dark / album: album tints the whole room with the cover's colour
+  const [themeMode, setThemeModeState] = useState<ThemeMode>('dark')
+  useEffect(() => { setThemeModeState(loadTheme()) }, [])
+  const setThemeMode = useCallback((t: ThemeMode) => { setThemeModeState(t); saveTheme(t) }, [])
+  const albumRoom = useMemo(() => albumBackground(bgGlows) ?? ([58, 54, 52] as [number, number, number]), [bgGlows])
+  const darkBg = themeMode !== 'light' // the album room is always a mid-dark colour
   const [glowKey, setGlowKey] = useState(0)
   const [apiReady, setApiReady] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
-  const [hoveredCtrl, setHoveredCtrl] = useState<string | null>(null)
-  const [showUrlInput, setShowUrlInput] = useState(false)
-  const [mobileInputVal, setMobileInputVal] = useState('')
+  const [currentId, setCurrentId] = useState<string | null>(null)
+  const [hoverControl, setHoverControl] = useState<HoverControl | null>(null)
+  // The scene's pointer-out events can be skipped (fast moves, leaving the
+  // canvas, sliding onto an overlay), so the label also checks itself: the
+  // model stamps hoverBeat whenever the pointer is over a button, and any mouse
+  // move without a fresh stamp means the pointer is no longer on one.
+  const hoverBeat = useRef(0)
+  const hoverControlRef = useRef(hoverControl)
+  hoverControlRef.current = hoverControl
+  useEffect(() => {
+    const check = () => {
+      if (hoverControlRef.current && performance.now() - hoverBeat.current > 80) {
+        setHoverControl(null)
+        document.body.style.cursor = 'default'
+      }
+    }
+    const clear = () => setHoverControl(null)
+    window.addEventListener('pointermove', check, { passive: true })
+    document.addEventListener('pointerleave', check)
+    window.addEventListener('blur', clear)
+    return () => {
+      window.removeEventListener('pointermove', check)
+      document.removeEventListener('pointerleave', check)
+      window.removeEventListener('blur', clear)
+    }
+  }, [])
+  const [deckSignal, setDeckSignal] = useState<{ n: number; query?: string }>({ n: 0 })
+  const openDeck = useCallback((query?: string) => setDeckSignal((d) => ({ n: d.n + 1, query })), [])
+  const [deckOpen, setDeckOpen] = useState(false)
+  const [dpr, setDpr] = useState(1.5)
+
+  // background visualizer: settings persist on the device; the signal object
+  // outlives renders so a live tab-audio share isn't dropped on re-render
+  const [vizSettings, setVizSettings] = useState<VizSettings>(DEFAULT_SETTINGS)
+  useEffect(() => { setVizSettings(loadSettings()) }, [])
+  const updateViz = useCallback((s: VizSettings) => { setVizSettings(s); saveSettings(s) }, [])
+  const signalRef = useRef<AudioSignal | null>(null)
+  if (!signalRef.current) signalRef.current = new AudioSignal()
+  const [trackStatus, setTrackStatus] = useState<TrackStatus>('none')
+  useEffect(() => {
+    const sig = signalRef.current!
+    sig.onTrackStatus = setTrackStatus
+    return () => { sig.onTrackStatus = undefined }
+  }, [])
+  useEffect(() => { signalRef.current!.useTrack = vizSettings.source === 'song' }, [vizSettings.source])
+  // fetch the song's analysis as soon as a tape is picked (shipped file, or analysed on demand)
+  useEffect(() => { signalRef.current!.loadTrack(currentId) }, [currentId])
   const [toast, setToast] = useState<{ title: string; hint: string; thumb?: string } | null>(null)
   const showToast = useCallback((title: string, hint: string, thumb?: string) => {
     setToast({ title, hint, thumb })
   }, [])
 
   const [isFullscreen, setIsFullscreen] = useState(false)
+
+  // Scroll zooms the Walkman only while the pointer is on it; anywhere else the
+  // wheel is left alone. The model stamps modelBeat whenever the pointer is over
+  // any of its parts; a capture-phase wheel listener (it runs before the orbit
+  // controls' own) switches zoom on or off for that one wheel event.
+  const controlsRef = useRef<React.ComponentRef<typeof OrbitControls> | null>(null)
+  const modelBeat = useRef(0)
+  const overModel = useRef(false)
+  useEffect(() => {
+    const onMove = () => { overModel.current = performance.now() - modelBeat.current < 80 }
+    const onWheel = () => {
+      const c = controlsRef.current
+      if (!c) return
+      c.enableZoom = overModel.current
+      // back on straight after, so pinch-zoom on touch screens still works
+      setTimeout(() => { if (controlsRef.current) controlsRef.current.enableZoom = true }, 0)
+    }
+    window.addEventListener('pointermove', onMove, { passive: true })
+    window.addEventListener('wheel', onWheel, { capture: true, passive: true })
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('wheel', onWheel, { capture: true })
+    }
+  }, [])
   useEffect(() => {
     const onFsChange = () => setIsFullscreen(!!document.fullscreenElement)
     document.addEventListener('fullscreenchange', onFsChange)
     return () => document.removeEventListener('fullscreenchange', onFsChange)
   }, [])
+  // full screen is just the Walkman: the site nav slides away
+  useEffect(() => {
+    document.documentElement.toggleAttribute('data-walkman-fs', isFullscreen)
+    return () => document.documentElement.removeAttribute('data-walkman-fs')
+  }, [isFullscreen])
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {})
@@ -1069,6 +1236,8 @@ export default function Walkman() {
   }, [])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
       if (e.key === 'f' || e.key === 'F') toggleFullscreen()
     }
     window.addEventListener('keydown', onKey)
@@ -1078,6 +1247,8 @@ export default function Walkman() {
   const redrawCurrentRef = useRef<(() => void) | null>(null)
   const startScrollRef = useRef<((text: string) => void) | null>(null)
   const currentUrlRef = useRef('')
+  // what the LCD marquee scrolls: the song + artist once known, else the link
+  const scrollTextRef = useRef('')
   const pendingVideoRef = useRef<string | null>(null)
   const playerReadyRef = useRef(false)
   const isMutedRef = useRef(false)
@@ -1150,10 +1321,15 @@ export default function Walkman() {
           const st = e.data
           if (st === 1) {
             if (!isMutedRef.current) window.ytPlayer?.unMute?.()
-            startScrollRef.current?.(currentUrlRef.current)
-            setDisplayStatus('PLAYING')
             const data = window.ytPlayer?.getVideoData?.()
-            if (data?.title) setVideoMeta({ title: data.title, author: data.author ?? '' })
+            if (data?.title) {
+              setVideoMeta({ title: data.title, author: data.author ?? '' })
+              scrollTextRef.current = lcdText(data.title, data.author ?? '')
+              const id = data.video_id || extractVideoId(currentUrlRef.current)
+              if (id) rememberTape({ id, title: data.title, author: data.author ?? '' })
+            }
+            startScrollRef.current?.(scrollTextRef.current || currentUrlRef.current)
+            setDisplayStatus('PLAYING')
           } else if (st === 2) {
             updateDisplayRef.current?.('PAUSED', false)
             setDisplayStatus('PAUSED')
@@ -1219,7 +1395,7 @@ export default function Walkman() {
     }
     setTimeout(() => {
       const st = window.ytPlayer?.getPlayerState?.()
-      if (st === 1) { startScrollRef.current?.(currentUrlRef.current); setDisplayStatus('PLAYING') }
+      if (st === 1) { startScrollRef.current?.(scrollTextRef.current || currentUrlRef.current); setDisplayStatus('PLAYING') }
       else if (st === 2) { updateDisplayRef.current?.('PAUSED', false); setDisplayStatus('PAUSED') }
       else { updateDisplayRef.current?.('PASTE URL', true); setDisplayStatus('') }
     }, 1000)
@@ -1234,6 +1410,8 @@ export default function Walkman() {
     setVideoMeta(null)
     setBgGlows([])
     setGlowKey(0)
+    setCurrentId(null)
+    scrollTextRef.current = ''
   }, [setDisplayStatus])
 
   const handleForward = useCallback(() => {
@@ -1268,7 +1446,7 @@ export default function Walkman() {
   const handleVolumeEnd = useCallback(() => {
     const state = window.ytPlayer?.getPlayerState?.()
     if (state === 1) {
-      startScrollRef.current?.(currentUrlRef.current)
+      startScrollRef.current?.(scrollTextRef.current || currentUrlRef.current)
     } else if (state === 2) {
       updateDisplayRef.current?.('PAUSED', false)
     } else {
@@ -1279,7 +1457,8 @@ export default function Walkman() {
   const extractColors = useCallback(async (videoId: string) => {
     try {
       const response = await fetch(`/api/thumbnail?id=${videoId}`)
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      // no thumbnail to read colours from: keep the current palette, quietly
+      if (!response.ok) return
       const blob = await response.blob()
       const objectUrl = URL.createObjectURL(blob)
 
@@ -1350,27 +1529,22 @@ export default function Walkman() {
       setBgGlows(centroids)
       setGlowKey(k => k + 1)
     } catch (e) {
-      console.error('color extract failed:', e)
+      // a cover that won't decode just means no new colours this time
+      console.warn('[walkman] couldn’t read the cover colours', e)
     }
   }, [])
 
   const processUrl = useCallback((trimmed: string) => {
-    if (!trimmed) {
-      updateDisplayRef.current?.('NO INPUT', true)
-      showToast('No tape loaded', 'Bring a YouTube URL. The Walkman does the rest.')
-      setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 1500)
-      return
-    }
+    // nothing usable to play: open the deck instead of scolding. Short text
+    // (probably a song name) goes straight in as a search.
+    if (!trimmed) { openDeck(); return }
     const id = extractVideoId(trimmed)
-    if (!id) {
-      updateDisplayRef.current?.('BAD URL', true)
-      showToast("Wrong format", 'Needs a youtube.com, youtu.be, or music.youtube.com link.')
-      setTimeout(() => updateDisplayRef.current?.('PASTE URL', true), 1500)
-      return
-    }
+    if (!id) { openDeck(trimmed.length <= 80 ? trimmed : undefined); return }
     setToast(null)
     setUrl(trimmed)
     currentUrlRef.current = trimmed
+    scrollTextRef.current = ''
+    setCurrentId(id)
     setThumbUrl(`https://img.youtube.com/vi/${id}/hqdefault.jpg`)
     extractColors(id)
     updateDisplayRef.current?.('LOADING..', false)
@@ -1382,15 +1556,34 @@ export default function Walkman() {
     } else {
       pendingVideoRef.current = id
     }
-  }, [extractColors, setDisplayStatus, showToast])
+  }, [extractColors, setDisplayStatus, openDeck])
+
+  // a tape from the deck: show its name on the LCD right away
+  const playTape = useCallback((t: Tape) => {
+    processUrl(`https://youtu.be/${t.id}`)
+    if (t.title !== 'Play this link') scrollTextRef.current = lcdText(t.title, t.author)
+  }, [processUrl])
+
+  // paste anywhere on the page: a link plays, plain text becomes a search
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      const text = e.clipboardData?.getData('text')?.trim() ?? ''
+      if (!text) return
+      e.preventDefault()
+      processUrl(text)
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [processUrl])
 
   const stableHandlePasteClick = useCallback(async () => {
     // Mobile: clipboard reads are unreliable over HTTP, so always open the
     // input popup fresh. This also lets the user paste a NEW link after one
     // has already played (the old behavior re-loaded the stale URL instead).
     if (isMobile) {
-      setMobileInputVal('')
-      setShowUrlInput(true)
+      openDeck()
       return
     }
     // Desktop: clipboard read works (sticky user activation).
@@ -1401,13 +1594,28 @@ export default function Walkman() {
     } catch { /* clipboard permission denied */ }
     if (!trimmed) trimmed = urlRef.current.trim()
     processUrl(trimmed)
-  }, [isMobile, processUrl])
+  }, [isMobile, processUrl, openDeck])
 
-  const bgBase = darkBg ? '#000000' : '#ffffff'
+  const bgBase = themeMode === 'album' ? `rgb(${albumRoom.join(',')})` : darkBg ? '#000000' : '#ffffff'
+  const bgRgb: [number, number, number] = themeMode === 'album' ? [albumRoom[0] / 255, albumRoom[1] / 255, albumRoom[2] / 255] : darkBg ? [0, 0, 0] : [1, 1, 1]
+  const vizPalette = useMemo(() => resolvePalette(vizSettings.palette, darkBg, bgGlows), [vizSettings.palette, darkBg, bgGlows])
+  const albumSwatches = useMemo(() => bgGlows.slice(0, 4).map((c) => `rgb(${c.r},${c.g},${c.b})`), [bgGlows])
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: bgBase, transition: 'background 0.6s ease', position: 'relative', overflow: 'hidden' }}>
       <style>{`
+        div:has(> nav[aria-label="Main"]) { transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+        html[data-walkman-fs] div:has(> nav[aria-label="Main"]) { opacity: 0; transform: translateY(-120%); pointer-events: none !important; }
+        html[data-walkman-fs] div:has(> nav[aria-label="Main"]) * { pointer-events: none !important; }
+        .wm-back { display: block; border-radius: 18px; text-decoration: none; }
+        .wm-back-key { width: 36px; height: 36px; border-radius: 18px; display: flex; align-items: center; justify-content: center; color: #1fa83a;
+          border: 1px solid #b0b0b0; background: linear-gradient(145deg, #e8e8e8, #c8c8c8); box-shadow: 3px 3px 6px #b0b0b0, -2px -2px 5px #f4f4f4; transition: all 0.1s; }
+        .wm-back[data-dark='true'] .wm-back-key { color: rgba(62,255,82,0.7); border-color: #1b1b26; background: linear-gradient(145deg, #393944, #2b2b36); box-shadow: 3px 3px 6px #11111a, -2px -2px 5px #373742; }
+        .wm-back:hover .wm-back-key { color: #0f9a2c; }
+        .wm-back[data-dark='true']:hover .wm-back-key { color: #3EFF52; filter: drop-shadow(0 0 3px rgba(62,255,82,0.5)); }
+        .wm-back:active .wm-back-key { box-shadow: inset 2px 2px 4px #a8a8a8, inset -1px -1px 3px #f0f0f0; }
+        .wm-back[data-dark='true']:active .wm-back-key { box-shadow: inset 2px 2px 4px #11111a, inset -1px -1px 3px #373742; }
+        .wm-back:focus-visible { outline: 2px solid #3EFF52; outline-offset: 2px; }
         @keyframes reelSpin {
           to { transform: rotate(360deg); }
         }
@@ -1467,152 +1675,20 @@ export default function Walkman() {
       `}</style>
 
       <WalkmanLoaderOverlay darkBg={darkBg} />
+      <CursorLabel control={hoverControl} playing={displayStatus === 'PLAYING'} muted={isMuted} darkBg={darkBg} />
 
       <div style={{ position: 'fixed', top: 0, left: 0, width: 1, height: 1, opacity: 0, pointerEvents: 'none', overflow: 'hidden' }}>
         <div id="yt-player" />
       </div>
 
-      {/* bg toggle — vertical pill */}
-      <div
-        style={{
-          position: 'fixed' as const, top: isMobile ? '4.5rem' : '1rem', right: '1rem', zIndex: 10010,
-          width: '42px',
-          background: darkBg ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-          border: `1px solid ${darkBg ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`,
-          borderRadius: '21px',
-          backdropFilter: 'blur(12px)',
-          transition: 'background 0.35s ease, border-color 0.35s ease',
-          overflow: 'hidden',
-        }}
-      >
-        {/* sun — light mode */}
-        <button
-          onClick={() => setDarkBg(false)}
-          title="Light background"
-          style={{
-            width: '42px', height: '42px', borderRadius: '21px 21px 0 0',
-            background: !darkBg
-              ? 'radial-gradient(circle at center, rgba(255,165,30,0.22) 0%, transparent 72%)'
-              : 'none',
-            border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-            transition: 'background 0.4s ease',
-          }}
-        >
-          <img src="/images/lab/sun.png" alt="light mode"
-            style={{
-              width: '20px', height: '20px', objectFit: 'contain',
-              opacity: darkBg ? 0.28 : 1,
-              filter: !darkBg ? 'drop-shadow(0 0 5px rgba(255,160,20,0.9)) drop-shadow(0 0 10px rgba(255,130,0,0.5))' : 'none',
-              transition: 'opacity 0.35s ease, filter 0.35s ease',
-            }}
-          />
-        </button>
-
-        {/* moon — dark mode */}
-        <button
-          onClick={() => setDarkBg(true)}
-          title="Dark background"
-          style={{
-            width: '42px', height: '42px', borderRadius: '0 0 21px 21px',
-            background: darkBg
-              ? 'radial-gradient(circle at center, rgba(170,210,255,0.20) 0%, transparent 72%)'
-              : 'none',
-            border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-            transition: 'background 0.4s ease',
-          }}
-        >
-          <img src="/images/lab/moon.png" alt="dark mode"
-            style={{
-              width: '20px', height: '20px', objectFit: 'contain',
-              opacity: darkBg ? 1 : 0.28,
-              filter: darkBg ? 'drop-shadow(0 0 5px rgba(180,215,255,0.9)) drop-shadow(0 0 10px rgba(140,190,255,0.5))' : 'none',
-              transition: 'opacity 0.35s ease, filter 0.35s ease',
-            }}
-          />
-        </button>
-      </div>
-
-      {/* Fullscreen toggle — desktop only, top-left */}
-      {!isMobile && (
-        <button
-          onClick={toggleFullscreen}
-          title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-          style={{
-            position: 'fixed', top: '1rem', left: '1rem', zIndex: 10010,
-            width: '42px', height: '68px', borderRadius: '21px',
-            background: darkBg ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-            border: `1px solid ${darkBg ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`,
-            backdropFilter: 'blur(12px)',
-            cursor: 'pointer', padding: 0,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            gap: '10px',
-            transition: 'background 0.2s ease, border-color 0.2s ease',
-          }}
-        >
-          {isFullscreen ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke={darkBg ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)'}
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 3v3a2 2 0 0 1-2 2H3" />
-              <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
-              <path d="M3 16h3a2 2 0 0 1 2 2v3" />
-              <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke={darkBg ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)'}
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 7V3h4" />
-              <path d="M21 7V3h-4" />
-              <path d="M3 17v4h4" />
-              <path d="M21 17v4h-4" />
-            </svg>
-          )}
-          <span style={{
-            fontFamily: 'SatishSans, sans-serif',
-            fontSize: '15px',
-            fontWeight: 600,
-            letterSpacing: '0.05em',
-            color: darkBg ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)',
-            lineHeight: 1,
-          }}>F</span>
-        </button>
-      )}
-
-      {/* Multi-blob ambient lighting — 5 independent colored glows, each drifting slowly */}
-      {bgGlows.length > 0 && (
-        <div
-          key={glowKey}
-          style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', animation: 'ambientFadeIn 2.5s ease forwards' }}
-        >
-          {([
-            { left: '25%', top: '35%', size: '90vw', dur: '9s',   delay: '0s',    anim: 0 },
-            { left: '78%', top: '22%', size: '75vw', dur: '11s',  delay: '-3.5s', anim: 1 },
-            { left: '12%', top: '72%', size: '70vw', dur: '8.5s', delay: '-1.5s', anim: 2 },
-            { left: '82%', top: '78%', size: '80vw', dur: '13s',  delay: '-5s',   anim: 3 },
-            { left: '52%', top: '52%', size: '85vw', dur: '10s',  delay: '-2.5s', anim: 4 },
-          ] as const).map((b, i) => {
-            const c = bgGlows[i] ?? bgGlows[bgGlows.length - 1]
-            return (
-              <div
-                key={i}
-                style={{
-                  position: 'absolute',
-                  left: b.left, top: b.top,
-                  width: b.size, height: b.size,
-                  borderRadius: '50%',
-                  background: `radial-gradient(circle, rgba(${c.r},${c.g},${c.b},${darkBg ? 0.62 : 0.3}) 0%, transparent 68%)`,
-                  mixBlendMode: darkBg ? 'screen' : 'multiply',
-                  animation: `ambientDrift${b.anim} ${b.dur} ease-in-out ${b.delay} infinite`,
-                  willChange: 'transform',
-                }}
-              />
-            )
-          })}
-        </div>
-      )}
+      {/* audio-reactive background (replaces the old drifting colour blobs) */}
+      <VisualizerBG settings={vizSettings} palette={vizPalette} darkBg={darkBg} bg={bgRgb} videoId={currentId}
+        hasTrack={!!thumbUrl} signal={signalRef.current!} />
+      <Console
+        darkBg={darkBg} theme={themeMode} onTheme={setThemeMode} albumRoom={albumRoom} isFullscreen={isFullscreen} onFullscreen={toggleFullscreen} isMobile={isMobile} deckOpen={deckOpen}
+        settings={vizSettings} onChange={updateViz} albumColors={albumSwatches} trackStatus={trackStatus}
+        signal={signalRef.current!} status={displayStatus} thumbUrl={thumbUrl} meta={videoMeta}
+        onPlayPause={handlePlayPause} onRewind={handleRewind} onForward={handleForward} onStop={handleStop} onInsert={() => openDeck()} />
 
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0, height: '55%',
@@ -1624,9 +1700,11 @@ export default function Walkman() {
         camera={{ position: isMobile ? [0, 0.88, 22] : [0, 0.88, 11.32], fov: isMobile ? 36 : 43 }}
         gl={{ antialias: true, powerPreference: 'high-performance', stencil: false, depth: true, alpha: true }}
         frameloop="demand"
-        dpr={[1, 1.5]}
+        dpr={dpr}
         style={{ position: 'relative', zIndex: 1 }}
       >
+        {/* drop resolution on devices that can't hold the frame rate */}
+        <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(1.5)} flipflops={3} onFallback={() => setDpr(1)} />
         <ambientLight intensity={0.6} />
         <directionalLight position={[6.99, 20, -3.2]} intensity={3.06} />
 
@@ -1643,13 +1721,17 @@ export default function Walkman() {
             devParamsRef={devParamsRef}
             darkBg={darkBg}
             onReady={(fn, redraw, startScroll) => { updateDisplayRef.current = fn; redrawCurrentRef.current = redraw; startScrollRef.current = startScroll }}
-            isPlaying={displayStatus === 'PLAYING'}
+            onHoverControl={setHoverControl}
+            hoverBeat={hoverBeat}
+            modelBeat={modelBeat}
+            albumId={thumbUrl ? currentId : null}
           />
           <SoftShadow />
           <Environment preset="studio" resolution={64} />
         </Suspense>
 
         <OrbitControls
+          ref={controlsRef}
           enablePan={false}
           minDistance={isMobile ? 6 : 4}
           maxDistance={isMobile ? 22 : 18}
@@ -1661,170 +1743,25 @@ export default function Walkman() {
         />
       </Canvas>
 
+      {/* back to the Lab: a single hardware key, same as the search bar's */}
+      <Link href="/lab" aria-label="Back to Lab" className="wm-back" data-dark={darkBg}
+        style={{ position: 'absolute', top: isMobile && !isFullscreen ? 72 : isMobile ? 14 : 20, left: isMobile ? 14 : 20, zIndex: 30, transition: 'top 0.45s cubic-bezier(0.22, 1, 0.36, 1)' }}>
+        <span className="wm-back-key" aria-hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+        </span>
+      </Link>
+
       <div
         style={{
-          position: 'absolute', bottom: isMobile ? '5rem' : '2rem', left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.45rem',
+          // phones: bottom-left, beside the tape module in the corner
+          position: 'absolute', bottom: isMobile ? 'calc(16px + env(safe-area-inset-bottom))' : '2rem', left: isMobile ? 12 : '50%',
+          transform: isMobile ? 'none' : 'translateX(-50%)',
+          zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'flex-start' : 'center', gap: '0.45rem',
         }}
       >
-        {displayStatus
-          ? (!isMobile && <RetroStatus status={displayStatus} />)
-          : <span style={{
-              fontFamily: '"Courier New", monospace', fontSize: isMobile ? 10 : 11,
-              letterSpacing: '0.08em',
-              whiteSpace: isMobile ? 'normal' : 'nowrap',
-              wordBreak: isMobile ? 'break-word' : 'normal',
-              textAlign: 'center',
-              padding: isMobile ? '0 12px' : '0',
-              width: isMobile ? 'min(90vw, 500px)' : undefined,
-              // Neon green shine sweep left → right
-              backgroundImage: darkBg
-                ? 'linear-gradient(90deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.38) 35%, #00ff88 50%, rgba(255,255,255,0.38) 65%, rgba(255,255,255,0.38) 100%)'
-                : 'linear-gradient(90deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.28) 35%, #00cc66 50%, rgba(0,0,0,0.28) 65%, rgba(0,0,0,0.28) 100%)',
-              backgroundSize: '250% auto',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              animation: 'textShine 4s linear infinite',
-            }}>
-              copy a youtube url · click the Paste button beside the display
-            </span>
-        }
-        <div style={{
-          display: 'flex', alignItems: 'center',
-          flexWrap: 'nowrap',
-          gap: 0,
-          justifyContent: 'center',
-          whiteSpace: 'nowrap',
-          padding: isMobile ? '0 0.5rem' : '0',
-        }}>
-          {((isMobile
-            ? [
-                { id: 'play',   icon: '►❚', label: 'play/pause', tip: 'Play or pause: press the bottom-right button on the Walkman' },
-                { id: 'rewind', icon: '◀◀', label: 'rewind', tip: 'Rewind 10s: press the second button from the right' },
-                { id: 'skip',   icon: '▶▶', label: 'skip',   tip: 'Skip 10s: press the second button from the left' },
-                { id: 'mute',   icon: '⊘',  label: isMuted ? 'muted' : 'mute', tip: 'Mute or unmute: click the orange button on the side of the Walkman' },
-              ]
-            : [
-                { id: 'play',   icon: '►',  label: 'play',   tip: 'Play the song: press the bottom-right button on the Walkman' },
-                { id: 'pause',  icon: '❚❚', label: 'pause',  tip: 'Pause the song: press the bottom-right button on the Walkman' },
-                { id: 'rewind', icon: '◀◀', label: 'rewind', tip: 'Rewind 10s: press the second button from the right' },
-                { id: 'skip',   icon: '▶▶', label: 'skip',   tip: 'Skip 10s: press the second button from the left' },
-                { id: 'mute',   icon: '⊘',  label: isMuted ? 'muted' : 'mute', tip: 'Mute or unmute: click the orange button on the side of the Walkman' },
-              ]
-          ) as { id: string; icon: string; label: string; tip: string }[]).map((ctrl, i, arr) => (
-            <span key={ctrl.id} style={{ display: 'inline-flex', alignItems: 'center' }}>
-              <span
-                onMouseEnter={() => setHoveredCtrl(ctrl.id)}
-                onMouseLeave={() => setHoveredCtrl(null)}
-                style={{
-                  position: 'relative',
-                  fontFamily: '"Courier New", monospace', fontSize: isMobile ? 9 : 10,
-                  letterSpacing: isMobile ? '0.05em' : '0.1em', whiteSpace: 'nowrap', cursor: 'default',
-                  color: ctrl.id === 'mute' && isMuted
-                    ? 'rgba(230,100,30,0.9)'
-                    : darkBg ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)',
-                  transition: 'color 0.25s ease',
-                  fontWeight: ctrl.id === 'mute' && isMuted ? 600 : 400,
-                }}
-              >
-                {ctrl.icon} {ctrl.label}
-                {hoveredCtrl === ctrl.id && (
-                  <span style={{
-                    position: 'absolute', bottom: 'calc(100% + 7px)', left: '50%',
-                    transform: 'translateX(-50%)',
-                    background: darkBg ? 'rgba(20,20,20,0.93)' : 'rgba(255,255,255,0.95)',
-                    color: darkBg ? 'rgba(255,255,255,0.82)' : 'rgba(0,0,0,0.65)',
-                    fontSize: 9, fontFamily: '"Courier New", monospace',
-                    letterSpacing: '0.03em', lineHeight: 1.5,
-                    padding: '4px 8px', borderRadius: 5, whiteSpace: 'nowrap',
-                    backdropFilter: 'blur(10px)',
-                    border: darkBg ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.07)',
-                    boxShadow: '0 2px 10px rgba(0,0,0,0.12)',
-                    pointerEvents: 'none', zIndex: 100,
-                  }}>
-                    {ctrl.tip}
-                  </span>
-                )}
-              </span>
-              {i < arr.length - 1 && (
-                <span style={{
-                  color: darkBg ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)',
-                  fontSize: 7, margin: isMobile ? '0 4px' : '0 7px',
-                }}>·</span>
-              )}
-            </span>
-          ))}
-        </div>
+        <TapeDeck darkBg={darkBg} isMobile={isMobile} currentId={currentId} compact={isFullscreen || displayStatus === 'PLAYING'}
+          playing={displayStatus === 'PLAYING'} onPick={playTape} openSignal={deckSignal} onOpenChange={setDeckOpen} />
       </div>
-
-      {(thumbUrl || (isMobile && displayStatus)) && (
-        <div style={{
-          position: 'fixed',
-          bottom: isMobile ? '9rem' : '5rem',
-          left: isMobile ? '1rem' : undefined,
-          right: isMobile ? '1rem' : '1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: isMobile ? 'space-between' : 'flex-end',
-          gap: '10px',
-          zIndex: 20,
-          opacity: 1,
-          transition: 'opacity 0.5s ease',
-        }}>
-          {/* Mobile: PLAYING status left-aligned, same line as the track name */}
-          {isMobile && displayStatus && (
-            <div style={{ flexShrink: 0, textAlign: 'left' }}>
-              <RetroStatus status={displayStatus} />
-            </div>
-          )}
-          {thumbUrl && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-              {videoMeta && (
-                <div style={{ textAlign: 'right', maxWidth: '160px' }}>
-                  <div style={{
-                    color: darkBg ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.78)',
-                    fontSize: '11px',
-                    fontFamily: '"Courier New", monospace',
-                    letterSpacing: '0.01em',
-                    lineHeight: 1.35,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical' as const,
-                    overflow: 'hidden',
-                  }}>
-                    {videoMeta.title}
-                  </div>
-                  {videoMeta.author && (
-                    <div style={{
-                      color: darkBg ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.42)',
-                      fontSize: '9px',
-                      fontFamily: '"Courier New", monospace',
-                      letterSpacing: '0.07em',
-                      marginTop: '4px',
-                      textTransform: 'uppercase',
-                    }}>
-                      {videoMeta.author}
-                    </div>
-                  )}
-                </div>
-              )}
-              <div style={{
-                width: isMobile ? '56px' : '64px',
-                height: isMobile ? '56px' : '64px',
-                borderRadius: '16px',
-                overflow: 'hidden',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-                border: darkBg ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.10)',
-                flexShrink: 0,
-              }}>
-                <img src={thumbUrl} alt="album art" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.38)', transformOrigin: 'center' }} />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* <DevPanel devParamsRef={devParamsRef} onParamsChange={() => redrawCurrentRef.current?.()} /> */}
 
@@ -1919,85 +1856,6 @@ export default function Walkman() {
         </div>
       )}
 
-      {showUrlInput && (
-        <div
-          onClick={() => setShowUrlInput(false)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 99999,
-            background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(10px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '1.5rem',
-          }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              background: darkBg ? '#111' : '#fff',
-              borderRadius: '16px',
-              padding: '1.5rem',
-              width: '100%',
-              maxWidth: '360px',
-              boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
-              display: 'flex', flexDirection: 'column', gap: '1rem',
-            }}
-          >
-            <div style={{
-              fontFamily: '"Courier New", monospace',
-              fontSize: '11px',
-              letterSpacing: '0.1em',
-              color: darkBg ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)',
-              textTransform: 'uppercase',
-            }}>
-              Paste a YouTube URL
-            </div>
-            <input
-              autoFocus
-              type="url"
-              value={mobileInputVal}
-              onChange={e => setMobileInputVal(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  setShowUrlInput(false)
-                  processUrl(mobileInputVal.trim())
-                }
-              }}
-              placeholder="https://youtube.com/watch?v=..."
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                borderRadius: '10px',
-                border: darkBg ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(0,0,0,0.15)',
-                background: darkBg ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                color: darkBg ? '#fff' : '#000',
-                fontFamily: '"Courier New", monospace',
-                fontSize: '13px',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-            <button
-              onClick={() => {
-                setShowUrlInput(false)
-                processUrl(mobileInputVal.trim())
-              }}
-              style={{
-                padding: '0.75rem',
-                borderRadius: '10px',
-                background: '#0b3e88',
-                color: '#fff',
-                border: 'none',
-                fontFamily: '"Courier New", monospace',
-                fontSize: '12px',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-              }}
-            >
-              Play
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

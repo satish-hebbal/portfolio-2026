@@ -1,6 +1,7 @@
 'use client'
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { stepNeedle, type NeedleState } from './needle'
 
 export interface GaugeV8Handle {
   setValue: (v: number) => void
@@ -66,7 +67,7 @@ const GaugeV8 = forwardRef<GaugeV8Handle, Props>(function GaugeV8(
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const staticRef = useRef<HTMLCanvasElement | null>(null)
   const target = useRef(min)
-  const display = useRef(min)
+  const needle = useRef<NeedleState>({ pos: min, vel: 0, last: 0 })
   const rafRef = useRef(0)
 
   useImperativeHandle(ref, () => ({ setValue: (v) => { target.current = v } }), [])
@@ -286,9 +287,8 @@ const GaugeV8 = forwardRef<GaugeV8Handle, Props>(function GaugeV8(
     const R = size / 2, cx = R, cy = R
     const faceR = R - size * 0.095
 
-    const draw = () => {
-      display.current += (target.current - display.current) * smoothing
-      const v = display.current
+    const draw = (now: number) => {
+      const v = stepNeedle(needle.current, target.current, smoothing, now, min)
       c.setTransform(DPR, 0, 0, DPR, 0, 0)
       c.clearRect(0, 0, size, size)
       if (staticRef.current) c.drawImage(staticRef.current, 0, 0, size, size)

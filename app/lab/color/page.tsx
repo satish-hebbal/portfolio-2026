@@ -20,11 +20,57 @@ function hsvToCss(h: number, s: number, v: number): string {
   const { h: hh, s: ss, l } = hsvToHsl(h, s, v)
   return `hsl(${hh.toFixed(1)}, ${ss.toFixed(1)}%, ${l.toFixed(1)}%)`
 }
+// OKLab: a colour space where equal distances look equally different, so a
+// hue slip on a near-black (barely visible) costs little and a clearly wrong
+// brightness costs a lot. Raw HSV distance got both of those backwards.
+function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
+  const sv = s / 100, vv = v / 100
+  const f = (n: number) => { const k = (n + h / 60) % 6; return vv - vv * sv * Math.max(0, Math.min(k, 4 - k, 1)) }
+  return [f(5), f(3), f(1)]
+}
+function hsvToOklab({ h, s, v }: HSV): [number, number, number] {
+  const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  const [r, g, b] = hsvToRgb(h, s, v).map(lin)
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const q = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * q,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * q,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * q,
+  ]
+}
+// Curve fitted so typical guesses land where they did under the old formula
+// (same quartiles over thousands of simulated rounds): the leaderboard stays fair.
 function scoreColor(t: HSV, g: HSV): number {
-  const hueDist = Math.min(Math.abs(t.h - g.h), 360 - Math.abs(t.h - g.h)) / 180
-  const satDist = Math.abs(t.s - g.s) / 100
-  const valDist = Math.abs(t.v - g.v) / 100
-  return Math.max(0, Math.round((10 - (hueDist * 0.5 + satDist * 0.25 + valDist * 0.25) * 14) * 100) / 100)
+  const [l1, a1, b1] = hsvToOklab(t)
+  const [l2, a2, b2] = hsvToOklab(g)
+  const dE = Math.hypot(l1 - l2, a1 - a2, b1 - b2)
+  return Math.round(10 * Math.exp(-Math.pow(dE / 0.575, 1.05)) * 100) / 100
+}
+
+// what was off, in words: the one or two biggest misses
+const HUE_NAMES: [number, string][] = [
+  [15, 'red'], [45, 'orange'], [70, 'yellow'], [100, 'lime'], [160, 'green'], [190, 'teal'],
+  [210, 'cyan'], [250, 'blue'], [275, 'indigo'], [300, 'purple'], [330, 'magenta'], [345, 'pink'], [360, 'red'],
+]
+const hueName = (h: number) => (HUE_NAMES.find(([edge]) => h < edge) ?? HUE_NAMES[0])[1]
+function missHint(t: HSV, g: HSV): string {
+  const [l1, a1, b1] = hsvToOklab(t)
+  const [l2, a2, b2] = hsvToOklab(g)
+  const c1 = Math.hypot(a1, b1), c2 = Math.hypot(a2, b2)
+  const issues: { size: number; text: string }[] = []
+  const dL = l2 - l1
+  if (Math.abs(dL) > 0.035) issues.push({ size: Math.abs(dL), text: `${Math.abs(dL) < 0.08 ? 'a touch ' : ''}too ${dL > 0 ? 'light' : 'dark'}` })
+  const dC = c2 - c1
+  if (Math.abs(dC) > 0.03) issues.push({ size: Math.abs(dC) * 1.2, text: `${Math.abs(dC) < 0.06 ? 'a little ' : ''}too ${dC > 0 ? 'vivid' : 'muted'}` })
+  const dh = Math.min(Math.abs(t.h - g.h), 360 - Math.abs(t.h - g.h))
+  if (c1 > 0.04 && dh > 12) {
+    const toward = hueName(g.h)
+    issues.push({ size: (dh / 180) * c1 * 4, text: toward !== hueName(t.h) ? `drifted toward ${toward}` : 'hue slightly off' })
+  }
+  if (!issues.length) return 'Nearly identical.'
+  return issues.sort((x, y) => y.size - x.size).slice(0, 2).map((i) => i.text).join(' · ')
 }
 function scoreMessage(score: number): string {
   if (score >= 9.5) return 'Perfection.'
@@ -43,10 +89,12 @@ const MEMORIZE_SECONDS = 5
 const CARD_H = 340
 
 // --- Vertical Slider ---
-function VerticalSlider({ value, onChange, background, min = 0, max = 360 }: {
+function VerticalSlider({ value, onChange, background, min = 0, max = 360, label, thumbColor, wrap = false }: {
   value: number; onChange: (v: number) => void; background: string; min?: number; max?: number
+  label: string; thumbColor: string; wrap?: boolean
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
+  const [dragging, setDragging] = useState(false)
   const handleY = useCallback((clientY: number) => {
     if (!trackRef.current) return
     const rect = trackRef.current.getBoundingClientRect()
@@ -54,36 +102,66 @@ function VerticalSlider({ value, onChange, background, min = 0, max = 360 }: {
     onChange(Math.round(min + ratio * (max - min)))
   }, [min, max, onChange])
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // one pointer path for mouse, pen and touch; capture keeps the drag alive off the track
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    e.currentTarget.focus({ preventScroll: true })
+    setDragging(true)
     handleY(e.clientY)
-    const onMove = (me: MouseEvent) => handleY(me.clientY)
-    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
   }
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => { if (dragging) handleY(e.clientY) }
+  const endDrag = () => setDragging(false)
+
+  // arrows nudge by 1 (Shift: 10) for the last bit of precision a drag can't give
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = e.shiftKey ? 10 : 1
+    let next: number | null = null
+    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') next = value + step
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') next = value - step
+    else if (e.key === 'PageUp') next = value + 10
+    else if (e.key === 'PageDown') next = value - 10
+    else if (e.key === 'Home') next = min
+    else if (e.key === 'End') next = max
+    if (next === null) return
     e.preventDefault()
-    handleY(e.touches[0].clientY)
-    const onMove = (te: TouchEvent) => { te.preventDefault(); handleY(te.touches[0].clientY) }
-    const onEnd = () => { window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd) }
-    window.addEventListener('touchmove', onMove, { passive: false })
-    window.addEventListener('touchend', onEnd)
+    const span = max - min + 1
+    onChange(wrap ? ((((next - min) % span) + span) % span) + min : Math.max(min, Math.min(max, next)))
   }
 
   const thumbPos = 1 - (value - min) / (max - min)
   return (
     <div
       ref={trackRef}
-      style={{ width: '40px', height: '100%', background, borderRadius: '20px', position: 'relative', cursor: 'pointer', flexShrink: 0 }}
-      onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
+      role="slider"
+      tabIndex={0}
+      aria-label={label}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      aria-orientation="vertical"
+      className="cm-slider"
+      style={{ width: '40px', height: '100%', background, borderRadius: '20px', position: 'relative', cursor: dragging ? 'grabbing' : 'pointer', flexShrink: 0, touchAction: 'none', outline: 'none' }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onKeyDown={onKeyDown}
     >
       <div style={{
-        position: 'absolute', left: '50%', width: '18px', height: '18px', background: 'white',
-        borderRadius: '50%', top: `calc(${thumbPos * 100}% - 9px)`, transform: 'translateX(-50%)',
+        position: 'absolute', left: '50%', width: dragging ? '24px' : '20px', height: dragging ? '24px' : '20px', background: thumbColor,
+        border: '3px solid white', boxSizing: 'border-box',
+        borderRadius: '50%', top: `${thumbPos * 100}%`, transform: 'translate(-50%, -50%)',
         boxShadow: '0 2px 8px rgba(0,0,0,0.45)', pointerEvents: 'none',
+        transition: 'width 0.15s ease, height 0.15s ease',
       }} />
+      {dragging && (
+        <div style={{
+          position: 'absolute', left: 'calc(100% + 6px)', top: `${thumbPos * 100}%`, transform: 'translateY(-50%)',
+          fontSize: '10px', fontVariantNumeric: 'tabular-nums', color: 'rgba(255,255,255,0.8)', pointerEvents: 'none',
+          background: 'rgba(0,0,0,0.55)', padding: '2px 5px', borderRadius: '4px',
+        }}>{value}</div>
+      )}
     </div>
   )
 }
@@ -156,6 +234,10 @@ const GAME_CSS = `
   .color-wheel-spin {
     animation: color-wheel-spin 12s linear infinite;
   }
+  .cm-slider:focus-visible { box-shadow: 0 0 0 2px #111, 0 0 0 4px rgba(255,255,255,0.7); }
+  @keyframes cm-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+  @keyframes cm-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .cm-drain { animation: none !important; } }
 `
 
 function CountdownDigit({ value, urgent }: { value: number; urgent: boolean }) {
@@ -234,7 +316,14 @@ export default function ColorGame() {
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [borderFlash, setBorderFlash] = useState(false)
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
+  const [leaderboardOffline, setLeaderboardOffline] = useState(false)
   const [country, setCountry] = useState('')
+  const [best, setBest] = useState<number | null>(null)
+  const [newBest, setNewBest] = useState(false)
+  const [shareNote, setShareNote] = useState('')
+  useEffect(() => {
+    try { const b = parseFloat(localStorage.getItem('color_best') ?? ''); if (!Number.isNaN(b)) setBest(b) } catch {}
+  }, [])
 
   // Detect country + pre-fetch leaderboard on mount
   useEffect(() => {
@@ -246,8 +335,8 @@ export default function ColorGame() {
     // Pre-fetch so leaderboard is ready before the panel slides in
     fetch('/api/scores')
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setLeaderboard(d) })
-      .catch(() => {})
+      .then(d => { if (Array.isArray(d)) { setLeaderboard(d); setLeaderboardOffline(false) } else setLeaderboardOffline(true) })
+      .catch(() => setLeaderboardOffline(true))
   }, [])
 
 
@@ -257,8 +346,8 @@ export default function ColorGame() {
     try {
       const res = await fetch('/api/scores')
       const data = await res.json()
-      if (Array.isArray(data)) setLeaderboard(data)
-    } catch {}
+      if (Array.isArray(data)) { setLeaderboard(data); setLeaderboardOffline(false) } else setLeaderboardOffline(true)
+    } catch { setLeaderboardOffline(true) }
   }
 
   const submitScore = async () => {
@@ -329,8 +418,10 @@ export default function ColorGame() {
     setFrontContent('memorize')
     setStep('memorize')
     setScreen('game')
-    setPlayerName('')
+    try { setPlayerName(localStorage.getItem('color_player_name') ?? '') } catch {}
     setSubmitted(false)
+    setNewBest(false)
+    setShareNote('')
     setSubmitting(false)
     setSubmitError(false)
     setShowLeaderboard(false)
@@ -341,6 +432,7 @@ export default function ColorGame() {
     const target = targets[round]
     const score = scoreColor(target, guess)
     setRounds((prev) => [...prev, { target, guess, score }])
+    try { navigator.vibrate?.(score >= 9 ? [12, 40, 12] : 14) } catch {}
     // Switch front content while back is still facing the user
     setFrontContent('reveal')
     setFlipped(false)
@@ -372,6 +464,92 @@ export default function ColorGame() {
   const avgScore = rounds.length > 0
     ? Math.round(rounds.reduce((s, r) => s + r.score, 0) / rounds.length * 100) / 100
     : 0
+
+  // personal best, recorded once per finished game
+  useEffect(() => {
+    if (screen !== 'final' || rounds.length < TOTAL_ROUNDS) return
+    if (best === null || avgScore > best) {
+      setNewBest(best !== null)
+      setBest(avgScore)
+      try { localStorage.setItem('color_best', String(avgScore)) } catch {}
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen])
+
+  // Enter moves the game along: start, skip the countdown, lock in, next colour
+  const keyActions = useRef({ startGame, submitGuess, nextRound, skip: () => { setFlipped(true); setStep('guess') } })
+  keyActions.current = { startGame, submitGuess, nextRound, skip: () => { setFlipped(true); setStep('guess') } }
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.repeat) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'BUTTON' || t.tagName === 'A')) return
+      if (showLeaderboard) return
+      const a = keyActions.current
+      if (screen === 'start') a.startGame()
+      else if (screen === 'game' && step === 'memorize') a.skip()
+      else if (screen === 'game' && step === 'guess') a.submitGuess()
+      else if (screen === 'game' && step === 'reveal') a.nextRound()
+      else return
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [screen, step, showLeaderboard])
+
+  // a shareable card: the five colours you saw beside the five you made
+  const shareResult = async () => {
+    const W = 1080, H = 1350
+    const c = document.createElement('canvas')
+    c.width = W; c.height = H
+    const g = c.getContext('2d')!
+    g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, W, H)
+    try { await document.fonts.ready } catch {}
+    g.fillStyle = 'rgba(255,255,255,0.4)'
+    g.font = '500 34px FunnelDisplay, sans-serif'
+    g.fillText('COLOR MEMO', 90, 130)
+    g.fillStyle = '#fff'
+    g.font = '700 220px SatishSans, sans-serif'
+    g.fillText(avgScore.toFixed(2), 80, 360)
+    g.fillStyle = 'rgba(255,255,255,0.45)'
+    g.font = '400 40px FunnelDisplay, sans-serif'
+    g.fillText(`${scoreMessage(avgScore)}  out of 10`, 90, 430)
+    const rowH = 132, top = 520, sw = 400, gap = 20
+    rounds.forEach((r, i) => {
+      const y = top + i * (rowH + 22)
+      const pill = (x: number, col: string) => {
+        g.fillStyle = col
+        g.beginPath(); g.roundRect(x, y, sw, rowH, 26); g.fill()
+      }
+      pill(90, hsvToCss(r.target.h, r.target.s, r.target.v))
+      pill(90 + sw + gap, hsvToCss(r.guess.h, r.guess.s, r.guess.v))
+      g.fillStyle = '#fff'
+      g.font = '700 48px SatishSans, sans-serif'
+      g.textAlign = 'right'
+      g.fillText(r.score.toFixed(2), W - 90, y + rowH / 2 + 16)
+      g.textAlign = 'left'
+    })
+    g.fillStyle = 'rgba(255,255,255,0.3)'
+    g.font = '400 30px FunnelDisplay, sans-serif'
+    g.fillText('saw  ·  made', 90, H - 70)
+    g.textAlign = 'right'
+    g.fillText(`${window.location.host}/lab/color`, W - 90, H - 70)
+    const blob: Blob | null = await new Promise((res) => c.toBlob(res, 'image/png'))
+    if (!blob) return
+    const file = new File([blob], `color-memo-${avgScore.toFixed(2)}.png`, { type: 'image/png' })
+    try {
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Color Memo', text: `I scored ${avgScore.toFixed(2)}/10 on Color Memo` })
+        return
+      }
+    } catch (err) { if ((err as Error).name === 'AbortError') return }
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = file.name
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000)
+    setShareNote('Saved to your downloads')
+  }
 
   // Confetti on high score
   useEffect(() => {
@@ -556,6 +734,11 @@ export default function ColorGame() {
                 <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.7 }}>
                   You&rsquo;ll see five colors, then try to recreate them.
                 </p>
+                {best !== null && (
+                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.32)', marginTop: '14px', letterSpacing: '0.04em' }}>
+                    Your best <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{best.toFixed(2)}</span>
+                  </p>
+                )}
               </div>
               <div>
                 <button className="start-btn" onClick={startGame} style={{
@@ -601,7 +784,7 @@ export default function ColorGame() {
               <div style={cardFace()}>
               <div style={cardInner()}>
                 {frontContent === 'memorize' && (
-                  <div style={{ width: '100%', height: '100%', backgroundColor: targetCss, padding: '22px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: targetCss, padding: '22px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>{round + 1}/{TOTAL_ROUNDS}</span>
                       <div style={{ textAlign: 'right' }}>
@@ -614,6 +797,12 @@ export default function ColorGame() {
                         </div>
                         <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginTop: '4px' }}>Seconds to remember</p>
                       </div>
+                    </div>
+                    <div aria-hidden style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '3px', background: 'rgba(255,255,255,0.12)' }}>
+                      <div key={round} className="cm-drain" style={{
+                        height: '100%', background: 'rgba(255,255,255,0.7)', transformOrigin: 'left',
+                        animation: `cm-drain ${MEMORIZE_SECONDS}s linear forwards`,
+                      }} />
                     </div>
                     <button
                       onClick={() => { setFlipped(true); setStep('guess') }}
@@ -642,6 +831,13 @@ export default function ColorGame() {
                         </div>
                         <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>{scoreMessage(lastRound.score)}</div>
                         <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', marginTop: '2px' }}>out of 10</div>
+                        <div style={{
+                          display: 'inline-block', marginTop: '12px', fontSize: '10.5px', color: 'rgba(255,255,255,0.85)',
+                          background: 'rgba(0,0,0,0.22)', padding: '4px 9px', borderRadius: '999px',
+                          animation: 'cm-rise 0.5s 1.6s ease both',
+                        }}>
+                          {missHint(lastRound.target, lastRound.guess)}
+                        </div>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                         <div>
@@ -661,9 +857,9 @@ export default function ColorGame() {
               <div style={cardInner({ display: 'flex', background: '#111', flexDirection: 'row' })}>
                 <div style={{ background: '#111', display: 'flex', flexDirection: 'column', padding: '14px', flexShrink: 0, boxSizing: 'border-box', height: '100%' }}>
                   <div style={{ display: 'flex', gap: '8px', flex: 1, minHeight: 0 }}>
-                    <VerticalSlider value={guess.h} onChange={(h) => setGuess((g) => ({ ...g, h }))} background={hueGrad} min={0} max={359} />
-                    <VerticalSlider value={guess.s} onChange={(s) => setGuess((g) => ({ ...g, s }))} background={satGrad} min={0} max={100} />
-                    <VerticalSlider value={guess.v} onChange={(v) => setGuess((g) => ({ ...g, v }))} background={valGrad} min={0} max={100} />
+                    <VerticalSlider label="Hue" wrap thumbColor={hsvToCss(guess.h, 100, 100)} value={guess.h} onChange={(h) => setGuess((g) => ({ ...g, h }))} background={hueGrad} min={0} max={359} />
+                    <VerticalSlider label="Saturation" thumbColor={guessCss} value={guess.s} onChange={(s) => setGuess((g) => ({ ...g, s }))} background={satGrad} min={0} max={100} />
+                    <VerticalSlider label="Brightness" thumbColor={guessCss} value={guess.v} onChange={(v) => setGuess((g) => ({ ...g, v }))} background={valGrad} min={0} max={100} />
                   </div>
                   <div style={{ display: 'flex', gap: '8px', marginTop: '7px' }}>
                     {['Hue', 'Sat', 'Bri'].map((l) => (
@@ -696,14 +892,23 @@ export default function ColorGame() {
 
           <div style={{ fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: '8px' }}>Final Score</div>
               <div style={{ fontFamily: 'SatishSans, sans-serif', fontSize: '72px', fontWeight: 700, lineHeight: 1, marginBottom: '4px' }}>{avgScore.toFixed(2)}</div>
-              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '24px' }}>{scoreMessage(avgScore)}</div>
+              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {scoreMessage(avgScore)}
+                {newBest && (
+                  <span style={{ fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#111', background: 'linear-gradient(160deg, #f4f4f4, #b0b0b0)', padding: '3px 8px', borderRadius: '999px', fontWeight: 700, animation: 'cm-rise 0.5s 0.3s ease both' }}>
+                    New personal best
+                  </span>
+                )}
+              </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
                 {rounds.map((r, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{ width: '18px', height: '18px', borderRadius: '50%', backgroundColor: hsvToCss(r.target.h, r.target.s, r.target.v), flexShrink: 0 }} />
                     <div style={{ width: '18px', height: '18px', borderRadius: '50%', backgroundColor: hsvToCss(r.guess.h, r.guess.s, r.guess.v), flexShrink: 0 }} />
-                    <div style={{ flex: 1, fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>Round {i + 1}</div>
+                    <div style={{ flex: 1, fontSize: '11px', color: 'rgba(255,255,255,0.25)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      Round {i + 1} <span style={{ color: 'rgba(255,255,255,0.18)' }}>· {missHint(r.target, r.guess)}</span>
+                    </div>
                     <div style={{ fontSize: '13px', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{r.score.toFixed(2)}</div>
                   </div>
                 ))}
@@ -753,6 +958,14 @@ export default function ColorGame() {
               }}>
                 Play again
               </button>
+              <button onClick={shareResult} style={{
+                width: '100%', marginTop: '10px', padding: '11px', borderRadius: '9999px',
+                border: '1px solid rgba(255,255,255,0.14)', background: 'transparent',
+                color: 'rgba(255,255,255,0.75)', fontFamily: 'FunnelDisplay, sans-serif', fontSize: '12px',
+                fontWeight: 600, cursor: 'pointer', letterSpacing: '0.04em',
+              }}>
+                {shareNote || 'Share my colors'}
+              </button>
 
         </div>
         </div>
@@ -772,6 +985,11 @@ export default function ColorGame() {
                 <span style={{ flex: 1, height: '1px', background: '#111' }} />
                 <span style={{ whiteSpace: 'nowrap' }}>Scores</span>
               </div>
+              {leaderboardOffline && leaderboard.length === 0 && (
+                <div style={{ marginTop: '10px', fontSize: '12px', color: '#6b7280', fontFamily: 'FunnelDisplay, sans-serif' }}>
+                  The scoreboard is offline right now. Scores will show here once it is back.
+                </div>
+              )}
             </div>
 
             {/* Always 10 rows */}
@@ -779,11 +997,14 @@ export default function ColorGame() {
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {Array.from({ length: 10 }).map((_, i) => {
                   const entry = leaderboard[i]
+                  const mine = submitted && !!entry && entry.name === playerName.trim() && Math.abs(Number(entry.avg_score) - avgScore) < 0.006
                   return (
                     <div key={i} style={{
                       display: 'flex', alignItems: 'center', gap: '12px',
                       padding: '11px 14px',
                       borderBottom: '1px solid #f3f4f6',
+                      background: mine ? 'rgba(255,214,120,0.28)' : 'transparent',
+                      borderRadius: mine ? '8px' : 0,
                     }}>
                       <div style={{ width: '22px', fontSize: '12px', color: i === 0 && entry ? '#111' : '#9ca3af', fontWeight: i === 0 && entry ? 700 : 400, flexShrink: 0, textAlign: 'center' }}>{i + 1}</div>
                       {entry?.country ? <img src={`https://flagsapi.com/${entry.country.toUpperCase()}/flat/24.png`} alt={entry.country} style={{ width: '24px', height: '16px', objectFit: 'cover', borderRadius: '2px', flexShrink: 0 }} /> : <span style={{ width: '24px', display: 'inline-block' }} />}

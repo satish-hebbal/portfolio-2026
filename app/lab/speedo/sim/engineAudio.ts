@@ -8,7 +8,7 @@
 //     where `ctx.audioWorklet` is undefined.
 
 interface DspLike {
-  setParams(d: Record<string, number | boolean>): void
+  setParams(d: Record<string, number | boolean | string>): void
   render(L: Float32Array, R: Float32Array, n: number): void
 }
 
@@ -21,6 +21,7 @@ export class EngineAudio {
   private ready = false
   private starting = false
   private songEnv = 1 // 0..1 note-articulation envelope for the melody player
+  private pending: string[] = [] // one-shot events fired before the audio graph existed
   muted = false
 
   get isReady() { return this.ready }
@@ -84,6 +85,8 @@ export class EngineAudio {
       this.ctx = ctx
       this.master = master
       this.ready = true
+      // the ignition click usually lands while the worklet is still loading
+      for (const event of this.pending.splice(0)) this.trigger(event)
       return true
     } catch (err) {
       console.error('Engine audio failed to start', err)
@@ -104,7 +107,7 @@ export class EngineAudio {
   }
 
   // push the per-engine sound character (cylinders + tuning)
-  setVoice(v: { cylinders: number; grunt: number; scream: number; noise: number; turbo: number; ev: number; redline: number }) {
+  setVoice(v: { cylinders: number; grunt: number; scream: number; noise: number; turbo: number; crackle: number; ev: number; redline: number }) {
     this.worklet?.port.postMessage(v)
     this.dsp?.setParams(v)
   }
@@ -114,9 +117,20 @@ export class EngineAudio {
     this.dsp?.setParams({ running })
   }
 
-  update(rpm: number, throttle: number, load: number) {
-    this.worklet?.port.postMessage({ rpm, throttle, load })
-    this.dsp?.setParams({ rpm, throttle, load })
+  // live engine + car state, once per frame. `car` carries road speed (wind,
+  // tyres, whine), gear, and which stage of the start ritual we're in.
+  update(rpm: number, throttle: number, load: number, car?: { speed: number; gear: number; combust: number; crank: number; prime: number }) {
+    const msg = car ? { rpm, throttle, load, ...car } : { rpm, throttle, load }
+    this.worklet?.port.postMessage(msg)
+    this.dsp?.setParams(msg)
+  }
+
+  // one-shot sounds: 'click' (ignition relay), 'brap' (upshift ignition cut),
+  // 'cut' (limiter), 'stop' (engine rocks to rest), 'deny' (refused downshift)
+  trigger(event: string) {
+    if (!this.ready) { if (this.pending.length < 8) this.pending.push(event); return }
+    this.worklet?.port.postMessage({ event })
+    this.dsp?.setParams({ event })
   }
 
   dispose() {

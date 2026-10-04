@@ -34,6 +34,18 @@ const ArrowBtn = ({ light = false, external = false }: { light?: boolean; extern
   </div>
 )
 
+// when a card last changed: a quiet line in the bottom-left, level with the arrow
+const Updated = ({ on }: { on: string }) => (
+  <CardItem translateZ={30} className="lab-updated absolute" style={{ bottom: 28, left: 24, zIndex: 2 }}>
+    <span style={{
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '0.6rem', fontWeight: 500,
+      letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.38)', whiteSpace: 'nowrap',
+    }}>
+      Updated {on}
+    </span>
+  </CardItem>
+)
+
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
   <div className="mb-4 mt-2">
     <span style={{
@@ -194,6 +206,12 @@ export default function Lab() {
             bottom: -20px;
             width: 240px;
           }
+          .walkman-card-body .lab-updated {
+            bottom: auto !important;
+            left: auto !important;
+            top: 24px;
+            right: 24px;
+          }
           .datagini-thumb-wrap {
             right: 68px;
             width: 96px;
@@ -224,6 +242,7 @@ export default function Lab() {
                   <img loading="lazy" decoding="async" src="/images/lab/studio-kapi-tumbnail.webp" alt="Studio Kapi Preview"
                     style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.92 }} />
                 </CardItem>
+                <Updated on="July 2026" />
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 10 }}>
                   <ArrowBtn />
                 </CardItem>
@@ -248,6 +267,7 @@ export default function Lab() {
                   <img loading="lazy" decoding="async" src="/images/lab/ribbit.webp" alt="Ribbit Preview"
                     style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.95 }} />
                 </CardItem>
+                <Updated on="October 2026" />
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 10 }}>
                   <ArrowBtn external />
                 </CardItem>
@@ -281,6 +301,7 @@ export default function Lab() {
                     className="color-wheel-spin"
                     style={{ width: 160, height: 160, objectFit: 'contain', pointerEvents: 'none', opacity: 0.92 }} />
                 </CardItem>
+                <Updated on="March 2026" />
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
                   <ArrowBtn />
                 </CardItem>
@@ -305,6 +326,7 @@ export default function Lab() {
                   <img loading="lazy" decoding="async" src="/images/lab/qr-device-thumnail.webp" alt=""
                     style={{ width: '100%', opacity: 0.92, transform: 'rotate(4deg)' }} />
                 </CardItem>
+                <Updated on="February 2026" />
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
                   <ArrowBtn />
                 </CardItem>
@@ -329,6 +351,7 @@ export default function Lab() {
                   <img loading="lazy" decoding="async" src="/images/lab/tumbnail-speedoo.webp" alt="Speedoo Preview"
                     style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.92 }} />
                 </CardItem>
+                <Updated on="June 2026" />
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
                   <ArrowBtn />
                 </CardItem>
@@ -353,6 +376,7 @@ export default function Lab() {
                   <img loading="lazy" decoding="async" src="/images/lab/walkman-card.webp" alt=""
                     style={{ width: '100%', height: '100%', objectFit: 'contain', transform: 'rotate(-45deg)', opacity: 0.92 }} />
                 </CardItem>
+                <Updated on="April 2026" />
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
                   <ArrowBtn />
                 </CardItem>
@@ -397,6 +421,7 @@ export default function Lab() {
                   <img loading="lazy" decoding="async" src="/images/lab/datagini-gini-f1.webp" alt="Gini, the Datagini mascot, perched on a database" />
                   <img loading="lazy" decoding="async" src="/images/lab/datagini-gini-f2.webp" alt="" className="datagini-blink" />
                 </CardItem>
+                <Updated on="June 2026" />
                 <CardItem translateZ={30} className="absolute" style={{ bottom: 20, right: 20, zIndex: 1 }}>
                   <ArrowBtn external />
                 </CardItem>
